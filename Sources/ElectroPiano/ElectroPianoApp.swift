@@ -198,12 +198,67 @@ struct EmbeddedBankItem: Identifiable, Hashable, Sendable {
         let pad = index < 10 ? "0\(index)" : "\(index)"
         return "\(pad). \(name)"
     }
+
+    var sizeLabel: String {
+        let mb = Double(fileSizeBytes) / 1_048_576.0
+        return String(format: "%.1f MB", mb)
+    }
+}
+
+enum SoundBrowserFilter: Hashable, Identifiable {
+    case all
+    case favorites
+    case recent
+    case category(SoundCategory)
+
+    var id: String {
+        switch self {
+        case .all: return "all"
+        case .favorites: return "favorites"
+        case .recent: return "recent"
+        case .category(let cat): return "cat_\(cat.rawValue)"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .all: return L("All")
+        case .favorites: return L("Favorites")
+        case .recent: return L("Recent")
+        case .category(let cat): return cat.localizedTitle
+        }
+    }
+}
+
+enum LayerLoadError: Equatable {
+    case corrupted(fileName: String)
+    case unsupportedFormat
+    case insufficientRAM(fileName: String, neededMB: Int, availableMB: Int)
+    case missingFile(fileName: String, originalPath: String)
+
+    var message: String {
+        switch self {
+        case .corrupted(let fileName):
+            return String(localized: "Could not load \(fileName). The file may be corrupted or incomplete.", bundle: .module)
+        case .unsupportedFormat:
+            return L("Unsupported file format. Electro Pro supports .npno and .nsmp4 files.")
+        case .insufficientRAM(let fileName, let neededMB, let availableMB):
+            return String(
+                localized: "Not enough memory to load \(fileName) (\(neededMB) MB required, \(availableMB) MB available). Try enabling Purge on Demand in Settings > Library.",
+                bundle: .module
+            )
+        case .missingFile(let fileName, _):
+            return String(localized: "Sound not found: \(fileName)", bundle: .module)
+        }
+    }
 }
 
 struct LayerSlotState {
     var loaded: Bool = false
     var isLoading: Bool = false
     var loadProgress: Float = 0.0
+    var loadGeneration: Int = 0
+    var loadError: LayerLoadError? = nil
     var name: String = L("No Sound")
     var model: String = L("Load a .npno or .nsmp4 file")
     var path: String = ""
@@ -826,6 +881,64 @@ final class PianoViewModel: ObservableObject {
     private var scanTask: Task<Void, Never>?
     private var securityScopedURL: URL?
 
+    // Sound Browser State (Favorites, Recent, Category & Search)
+    @Published var soundBrowserFilter: SoundBrowserFilter = .all
+    @Published var soundBrowserSearchText: String = ""
+    @Published var favoriteSoundPaths: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "ElectroPiano_FavoriteSoundPaths") ?? []) {
+        didSet {
+            UserDefaults.standard.set(Array(favoriteSoundPaths).sorted(), forKey: "ElectroPiano_FavoriteSoundPaths")
+        }
+    }
+    @Published var recentSoundPaths: [String] = UserDefaults.standard.stringArray(forKey: "ElectroPiano_RecentSoundPaths") ?? [] {
+        didSet {
+            UserDefaults.standard.set(recentSoundPaths, forKey: "ElectroPiano_RecentSoundPaths")
+        }
+    }
+
+    func isFavoriteSound(path: String) -> Bool {
+        favoriteSoundPaths.contains(path)
+    }
+
+    func toggleFavoriteSound(path: String) {
+        if favoriteSoundPaths.contains(path) {
+            favoriteSoundPaths.remove(path)
+        } else {
+            favoriteSoundPaths.insert(path)
+        }
+    }
+
+    func recordRecentSound(path: String) {
+        guard !path.isEmpty else { return }
+        var updated = recentSoundPaths.filter { $0 != path }
+        updated.insert(path, at: 0)
+        if updated.count > 15 {
+            updated = Array(updated.prefix(15))
+        }
+        recentSoundPaths = updated
+    }
+
+    func filteredBrowserBanks() -> [EmbeddedBankItem] {
+        var base: [EmbeddedBankItem]
+        switch soundBrowserFilter {
+        case .all:
+            base = embeddedBanks
+        case .favorites:
+            base = embeddedBanks.filter { favoriteSoundPaths.contains($0.path) }
+        case .recent:
+            let map = Dictionary(uniqueKeysWithValues: embeddedBanks.map { ($0.path, $0) })
+            base = recentSoundPaths.compactMap { map[$0] }
+        case .category(let cat):
+            base = embeddedBanks.filter { $0.category == cat }
+        }
+        let query = soundBrowserSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return base }
+        return base.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.category.localizedTitle.localizedCaseInsensitiveContains(query) ||
+            $0.formatExtension.localizedCaseInsensitiveContains(query)
+        }
+    }
+
     var discoveredCategoryCount: Int {
         Set(embeddedBanks.map(\.category)).count
     }
@@ -1257,22 +1370,90 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
+    func cancelLayerLoad(layer: Int) {
+        guard (0..<4).contains(layer) else { return }
+        layers[layer].loadGeneration &+= 1
+        layers[layer].isLoading = false
+        layers[layer].loadProgress = 0.0
+    }
+
+    func dismissLayerLoadError(layer: Int) {
+        guard (0..<4).contains(layer) else { return }
+        layers[layer].loadError = nil
+    }
+
+    func locateMissingSound(forLayer layer: Int) {
+        openFilePicker(forLayer: layer)
+    }
+
+    private func availableSystemMemoryMB() -> Int {
+        var vmStats = vm_statistics64()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
+        let hostPort = mach_host_self()
+        let result = withUnsafeMutablePointer(to: &vmStats) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                host_statistics64(hostPort, HOST_VM_INFO64, $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else {
+            return Int(ProcessInfo.processInfo.physicalMemory / 1_048_576)
+        }
+        let pageSize = UInt64(getpagesize())
+        let freeOrPurgeable = UInt64(vmStats.free_count + vmStats.inactive_count + vmStats.purgeable_count) * pageSize
+        return max(128, Int(freeOrPurgeable / 1_048_576))
+    }
+
     func loadLayerInstrument(layer: Int, from path: String) {
-        guard (0..<4).contains(layer), let h = host, !layers[layer].isLoading else { return }
+        guard (0..<4).contains(layer), let h = host else { return }
+        let fileName = (path as NSString).lastPathComponent
+        let fm = FileManager.default
+
+        // 1. Check if file exists
+        guard fm.fileExists(atPath: path) else {
+            layers[layer].isLoading = false
+            layers[layer].loadError = .missingFile(fileName: fileName.isEmpty ? path : fileName, originalPath: path)
+            return
+        }
+
+        // 2. Check supported format (.npno / .nsmp4)
+        let lower = fileName.lowercased()
+        guard lower.hasSuffix(".npno") || lower.hasSuffix(".nsmp4") else {
+            layers[layer].isLoading = false
+            layers[layer].loadError = .unsupportedFormat
+            return
+        }
+
+        // 3. Check available RAM when Purge on Demand is off
+        if !purgeOnDemandEnabled,
+           let attrs = try? fm.attributesOfItem(atPath: path),
+           let fileSize = (attrs[.size] as? NSNumber)?.uint64Value {
+            let neededMB = max(1, Int((fileSize * 3) / 1_048_576))
+            let availMB = availableSystemMemoryMB()
+            if neededMB > availMB {
+                layers[layer].isLoading = false
+                layers[layer].loadError = .insufficientRAM(fileName: fileName, neededMB: neededMB, availableMB: availMB)
+                return
+            }
+        }
+
+        layers[layer].loadGeneration &+= 1
+        let gen = layers[layer].loadGeneration
         activeLoadingLayer = layer
         layers[layer].isLoading = true
         layers[layer].loadProgress = 0.0
+        layers[layer].loadError = nil
         errorMessage = nil
 
         let hAddr = Int(bitPattern: h)
-        Self.performBackgroundLoad(viewModel: self, hostAddress: hAddr, layer: layer, path: path)
+        Self.performBackgroundLoad(viewModel: self, hostAddress: hAddr, layer: layer, path: path, generation: gen)
     }
 
     nonisolated private static func performBackgroundLoad(
         viewModel: PianoViewModel,
         hostAddress: Int,
         layer: Int,
-        path: String
+        path: String,
+        generation: Int
     ) {
         DispatchQueue.global(qos: .userInitiated).async { [weak viewModel] in
             guard let hostPtr = OpaquePointer(bitPattern: hostAddress) else { return }
@@ -1288,13 +1469,24 @@ final class PianoViewModel: ObservableObject {
                 Int32(errBuf.count)
             )
             let errText = decodeNullTerminatedCString(errBuf)
+            let fileName = (path as NSString).lastPathComponent
             Task { @MainActor [weak viewModel] in
                 guard let vm = viewModel else { return }
+                guard vm.layers[layer].loadGeneration == generation else { return }
                 vm.layers[layer].isLoading = false
                 if ok {
+                    vm.layers[layer].loadError = nil
                     vm.refreshLayerInfo(layer)
+                    vm.recordRecentSound(path: path)
+                    if vm.purgeOnDemandEnabled {
+                        vm.purgeUnusedMemory()
+                    }
                 } else {
-                    vm.errorMessage = errText.isEmpty ? L("Failed to load .npno file") : errText
+                    if errText.lowercased().contains("unsupported") || errText.lowercased().contains("header") {
+                        vm.layers[layer].loadError = .corrupted(fileName: fileName)
+                    } else {
+                        vm.layers[layer].loadError = .corrupted(fileName: fileName)
+                    }
                 }
             }
         }
@@ -1302,28 +1494,39 @@ final class PianoViewModel: ObservableObject {
 
     func stepLayerInstrument(layer: Int, delta: Int) {
         guard (0..<4).contains(layer), let h = host, !layers[layer].isLoading else { return }
-        if !layers[layer].loaded && !embeddedBanks.isEmpty {
-            let idx = ((layer + max(0, delta)) % embeddedBanks.count + embeddedBanks.count) % embeddedBanks.count
-            loadLayerInstrument(layer: layer, from: embeddedBanks[idx].path)
+        let candidateBanks = filteredBrowserBanks().isEmpty ? embeddedBanks : filteredBrowserBanks()
+        if !candidateBanks.isEmpty {
+            let currentPath = layers[layer].path
+            if let curIdx = candidateBanks.firstIndex(where: { $0.path == currentPath }) {
+                let nextIdx = ((curIdx + delta) % candidateBanks.count + candidateBanks.count) % candidateBanks.count
+                loadLayerInstrument(layer: layer, from: candidateBanks[nextIdx].path)
+            } else {
+                let idx = ((layer + max(0, delta)) % candidateBanks.count + candidateBanks.count) % candidateBanks.count
+                loadLayerInstrument(layer: layer, from: candidateBanks[idx].path)
+            }
             return
         }
         if !layers[layer].loaded && !layers[0].loaded {
             openFilePicker(forLayer: layer)
             return
         }
+        layers[layer].loadGeneration &+= 1
+        let gen = layers[layer].loadGeneration
         activeLoadingLayer = layer
         layers[layer].isLoading = true
         layers[layer].loadProgress = 0.0
+        layers[layer].loadError = nil
 
         let hAddr = Int(bitPattern: h)
-        Self.performBackgroundStep(viewModel: self, hostAddress: hAddr, layer: layer, delta: delta)
+        Self.performBackgroundStep(viewModel: self, hostAddress: hAddr, layer: layer, delta: delta, generation: gen)
     }
 
     nonisolated private static func performBackgroundStep(
         viewModel: PianoViewModel,
         hostAddress: Int,
         layer: Int,
-        delta: Int
+        delta: Int,
+        generation: Int
     ) {
         DispatchQueue.global(qos: .userInitiated).async { [weak viewModel] in
             guard let hostPtr = OpaquePointer(bitPattern: hostAddress) else { return }
@@ -1340,9 +1543,12 @@ final class PianoViewModel: ObservableObject {
             )
             Task { @MainActor [weak viewModel] in
                 guard let vm = viewModel else { return }
+                guard vm.layers[layer].loadGeneration == generation else { return }
                 vm.layers[layer].isLoading = false
                 if ok {
+                    vm.layers[layer].loadError = nil
                     vm.refreshLayerInfo(layer)
+                    vm.recordRecentSound(path: vm.layers[layer].path)
                 }
             }
         }

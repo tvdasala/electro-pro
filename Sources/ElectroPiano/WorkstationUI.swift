@@ -234,37 +234,18 @@ struct VelocityCurveThumbnailGrid: View {
     }
 }
 
-// MARK: - Sound Picker Menu (.npno / .nsmp4) — Neutral Styling
+// MARK: - Sound Browser Popover (.npno / .nsmp4) — Search, Categories, Favorites, Recent
 
 struct TimbrePickerMenu: View {
     @ObservedObject var vm: PianoViewModel
     let layer: Int
+    @State private var isBrowserPresented: Bool = false
 
     private var slot: LayerSlotState { vm.layers[layer] }
 
     var body: some View {
-        Menu {
-            if !vm.embeddedBanks.isEmpty {
-                Section(L("Sound Library")) {
-                    ForEach(vm.embeddedBanks) { bank in
-                        Button {
-                            vm.loadLayerInstrument(layer: layer, from: bank.path)
-                        } label: {
-                            if slot.path == bank.path && slot.loaded {
-                                Label(bank.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(verbatim: bank.displayName)
-                            }
-                        }
-                    }
-                }
-                Divider()
-            }
-            Button {
-                vm.openFilePicker(forLayer: layer)
-            } label: {
-                Label(L("Load .npno / .nsmp4 File…"), systemImage: "folder")
-            }
+        Button {
+            isBrowserPresented.toggle()
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: slot.loaded ? "pianokeys" : "folder.badge.plus")
@@ -308,8 +289,225 @@ struct TimbrePickerMenu: View {
                     .stroke(StudioTokens.borderHairline, lineWidth: 1)
             )
         }
-        .menuStyle(.borderlessButton)
+        .buttonStyle(.plain)
+        .popover(isPresented: $isBrowserPresented, arrowEdge: .bottom) {
+            SoundBrowserPopoverView(vm: vm, layer: layer, isPresented: $isBrowserPresented)
+        }
         .help(slot.loaded ? "\(slot.name) — \(slot.model)" : String(localized: "Choose a .npno or .nsmp4 file for Layer \(kLayerLetters[layer])", bundle: .module))
+    }
+}
+
+struct SoundBrowserPopoverView: View {
+    @ObservedObject var vm: PianoViewModel
+    let layer: Int
+    @Binding var isPresented: Bool
+
+    private var filters: [SoundBrowserFilter] {
+        var list: [SoundBrowserFilter] = [.all, .favorites, .recent]
+        for cat in SoundCategory.allCases {
+            list.append(.category(cat))
+        }
+        return list
+    }
+
+    var body: some View {
+        let items = vm.filteredBrowserBanks()
+        let slot = vm.layers[layer]
+
+        VStack(alignment: .leading, spacing: 10) {
+            // Header + Search field
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundStyle(StudioTokens.textSecondary)
+
+                TextField(L("Search sounds…"), text: $vm.soundBrowserSearchText)
+                    .textFieldStyle(.plain)
+                    .font(StudioTokens.fontBody)
+                    .foregroundStyle(StudioTokens.textPrimary)
+
+                if !vm.soundBrowserSearchText.isEmpty {
+                    Button {
+                        vm.soundBrowserSearchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(StudioTokens.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(StudioTokens.surfaceControl, in: .rect(cornerRadius: StudioTokens.controlRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioTokens.controlRadius)
+                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+            )
+
+            // Filter Pills: All, Favorites, Recent, Grand, Upright, Electric, Clav/Harpsi, Synth/Sample
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(filters) { filter in
+                        let isSelected = vm.soundBrowserFilter == filter
+                        Button {
+                            vm.soundBrowserFilter = filter
+                        } label: {
+                            HStack(spacing: 4) {
+                                if filter == .favorites {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 9))
+                                } else if filter == .recent {
+                                    Image(systemName: "clock")
+                                        .font(.system(size: 9))
+                                }
+                                Text(filter.title)
+                                    .font(StudioTokens.fontLabel)
+                            }
+                            .foregroundStyle(isSelected ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                isSelected ? StudioTokens.surfaceControl : StudioTokens.surfacePanel,
+                                in: .capsule
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(isSelected ? StudioTokens.textSecondary.opacity(0.6) : StudioTokens.borderHairline, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Divider().overlay(StudioTokens.borderHairline)
+
+            // Sound list
+            if items.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "pianokeys")
+                        .font(.system(size: 20))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(vm.embeddedBanks.isEmpty ? L("No sounds in library") : L("No matching sounds"))
+                        .font(StudioTokens.fontBodyMedium)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                    if vm.embeddedBanks.isEmpty {
+                        Button(L("Choose Folder…")) {
+                            isPresented = false
+                            vm.chooseLibraryFolder()
+                        }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 160)
+            } else {
+                ScrollView(.vertical, showsIndicators: true) {
+                    LazyVStack(alignment: .leading, spacing: 3) {
+                        ForEach(items) { bank in
+                            let isCurrent = slot.loaded && slot.path == bank.path
+                            let isFav = vm.isFavoriteSound(path: bank.path)
+
+                            HStack(spacing: 8) {
+                                Button {
+                                    vm.toggleFavoriteSound(path: bank.path)
+                                } label: {
+                                    Image(systemName: isFav ? "star.fill" : "star")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(isFav ? StudioTokens.meterYellow : StudioTokens.textSecondary)
+                                        .frame(width: 18, height: 18)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .help(isFav ? L("Remove from Favorites") : L("Add to Favorites"))
+
+                                Button {
+                                    isPresented = false
+                                    vm.loadLayerInstrument(layer: layer, from: bank.path)
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        if isCurrent {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundStyle(StudioTokens.textPrimary)
+                                                .frame(width: 12)
+                                        } else {
+                                            Color.clear.frame(width: 12, height: 12)
+                                        }
+
+                                        Text(verbatim: bank.name)
+                                            .font(StudioTokens.fontBodyMedium)
+                                            .foregroundStyle(StudioTokens.textPrimary)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+
+                                        Spacer(minLength: 6)
+
+                                        Text(verbatim: bank.formatExtension)
+                                            .font(.system(size: 10, weight: .semibold).monospaced())
+                                            .foregroundStyle(StudioTokens.textSecondary)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(StudioTokens.surfaceWindow, in: .rect(cornerRadius: 4))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+                                            )
+
+                                        Text(verbatim: bank.sizeLabel)
+                                            .font(.system(size: 11, weight: .regular).monospacedDigit())
+                                            .foregroundStyle(StudioTokens.textSecondary)
+                                            .frame(width: 56, alignment: .trailing)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(
+                                isCurrent ? StudioTokens.surfaceControl : Color.clear,
+                                in: .rect(cornerRadius: StudioTokens.controlRadius)
+                            )
+                        }
+                    }
+                }
+                .frame(height: 250)
+            }
+
+            Divider().overlay(StudioTokens.borderHairline)
+
+            // Footer: Load loose file (Cmd+O) + Choose Folder
+            HStack(spacing: 8) {
+                Text(String(localized: "\(items.count) sounds", bundle: .module))
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(StudioTokens.textSecondary)
+
+                Spacer()
+
+                Button {
+                    isPresented = false
+                    vm.chooseLibraryFolder()
+                } label: {
+                    Label(L("Choose Folder…"), systemImage: "folder.badge.gearshape")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+
+                Button {
+                    isPresented = false
+                    vm.openFilePicker(forLayer: layer)
+                } label: {
+                    Label(L("Load Sound…"), systemImage: "doc.badge.plus")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .frame(width: 440)
+        .background(StudioTokens.surfacePanel)
     }
 }
 
@@ -1013,10 +1211,64 @@ struct ContentView: View {
                 }
                 .frame(height: 24)
 
-                // Row 2: Sound selector (1 line) or loading progress bar
+                // Row 2: Sound selector (1 line), loading progress bar with Cancel, or inline actionable error
                 if slot.isLoading {
-                    ProgressView(value: Double(slot.loadProgress), total: 1.0)
-                        .frame(height: 24)
+                    HStack(spacing: 8) {
+                        ProgressView(value: Double(slot.loadProgress), total: 1.0)
+                            .controlSize(.small)
+                        Button(L("Cancel")) {
+                            vm.cancelLayerLoad(layer: layer)
+                        }
+                        .buttonStyle(.plain)
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    }
+                    .frame(height: 24)
+                } else if let err = slot.loadError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTokens.meterRed)
+                        Text(err.message)
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 2)
+                        if case .missingFile = err {
+                            Button(L("Locate…")) {
+                                vm.locateMissingSound(forLayer: layer)
+                            }
+                            .buttonStyle(.plain)
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                        } else if case .insufficientRAM = err {
+                            Button(L("Purge on Demand")) {
+                                vm.purgeOnDemandEnabled = true
+                                vm.dismissLayerLoadError(layer: layer)
+                            }
+                            .buttonStyle(.plain)
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                        }
+                        Button {
+                            vm.dismissLayerLoadError(layer: layer)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(StudioTokens.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .frame(height: 24)
+                    .background(StudioTokens.surfaceControl, in: .rect(cornerRadius: StudioTokens.controlRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioTokens.controlRadius)
+                            .stroke(StudioTokens.meterRed.opacity(0.65), lineWidth: 1)
+                    )
+                    .help(err.message)
                 } else {
                     TimbrePickerMenu(vm: vm, layer: layer)
                 }
@@ -1227,6 +1479,44 @@ struct ContentView: View {
             .padding(.horizontal, 2)
 
             // Only the editor scrolls, and only vertically; panels aligned to top with content height
+            if isLayerMode, let err = slot.loadError {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(StudioTokens.meterRed)
+                    Text(err.message)
+                        .font(StudioTokens.fontBody)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .lineLimit(2)
+                    Spacer()
+                    if case .missingFile = err {
+                        Button(L("Locate…")) {
+                            vm.locateMissingSound(forLayer: layer)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.small)
+                    } else if case .insufficientRAM = err {
+                        Button(L("Purge on Demand")) {
+                            vm.purgeOnDemandEnabled = true
+                            vm.dismissLayerLoadError(layer: layer)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .controlSize(.small)
+                    }
+                    Button(L("Dismiss")) {
+                        vm.dismissLayerLoadError(layer: layer)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(StudioTokens.surfacePanel, in: .rect(cornerRadius: StudioTokens.panelRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioTokens.panelRadius)
+                        .stroke(StudioTokens.meterRed.opacity(0.65), lineWidth: 1)
+                )
+            }
+
             ScrollView(.vertical, showsIndicators: false) {
                 Group {
                     switch vm.selectedTab {
