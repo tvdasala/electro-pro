@@ -319,26 +319,29 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geo in
             let scale = CGFloat(vm.uiScale)
+            let isScaled = abs(scale - 1.0) > 0.001
+            let contentW = isScaled ? (geo.size.width / scale) : geo.size.width
+            let contentH = isScaled ? (geo.size.height / scale) : geo.size.height
+
             VStack(spacing: StudioTokens.grid2) {
                 // 1. Faixa compacta de 4 camadas (~100pt) dentro de UM único GlassEffectContainer
                 layerStripSection
 
                 // 2. Editor da camada selecionada (painéis dimensionados ao conteúdo, alinhados ao topo; só rola na vertical)
-                layerEditorSection
+                layerEditorSection(availableWidth: max(800, contentW - StudioTokens.grid2 * 2))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 // 3. Teclado virtual de 61 teclas na base (~120pt), aberto por padrão (Cmd+K)
                 if vm.showVirtualKeyboard {
-                    VirtualKeyboard61View(vm: vm)
+                    VirtualKeyboard61View(vm: vm, telemetry: vm.telemetry)
                         .frame(height: 118)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, StudioTokens.grid2)
             .padding(.top, StudioTokens.grid2)
             .padding(.bottom, StudioTokens.grid1)
-            .frame(width: geo.size.width / scale, height: geo.size.height / scale, alignment: .top)
-            .scaleEffect(scale, anchor: .topLeading)
+            .frame(width: contentW, height: contentH, alignment: .top)
+            .scaleEffect(isScaled ? scale : 1.0, anchor: .topLeading)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
         .frame(minWidth: 1100, minHeight: 720)
@@ -466,12 +469,12 @@ struct ContentView: View {
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .fixedSize()
-                    .frame(minWidth: 52, alignment: .trailing)
+                    .frame(width: 54, alignment: .trailing)
                     .onTapGesture(count: 2) {
                         vm.masterGainDb = 0.0
                     }
 
-                StereoPeakMeter(peakL: vm.peakL, peakR: vm.peakR, segments: 10, barWidth: 52)
+                ToolbarPeakMeterView(telemetry: vm.telemetry)
             }
         }
 
@@ -763,20 +766,16 @@ struct ContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .onTapGesture {
-            if reduceMotion {
+            if vm.selectedLayer != layer {
                 vm.selectedLayer = layer
-            } else {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    vm.selectedLayer = layer
-                }
             }
         }
-        // Regra de Ouro: .glassEffect() DEPOIS dos modificadores de layout; sem preenchimento sólido vermelho; borda 1.5pt vermelha no selecionado
+        // Regra de Ouro: .glassEffect(.regular) estático no container para não deformar ao arrastar o slider de volume interno
         .glassEffect(
-            .regular.interactive(),
+            .regular,
             in: .rect(corners: .concentric(minimum: 12))
         )
         .glassEffectID("layer_card_\(layer)", in: layerGlassNamespace)
@@ -796,7 +795,7 @@ struct ContentView: View {
 
     // MARK: - 3. Editor Principal da Camada Selecionada (Superfícies Sólidas, Altura do Conteúdo)
 
-    private var layerEditorSection: some View {
+    private func layerEditorSection(availableWidth: CGFloat) -> some View {
         let layer = vm.selectedLayer
         let letter = kLayerLetters[layer]
         let slot = vm.layers[layer]
@@ -846,15 +845,15 @@ struct ContentView: View {
                 Group {
                     switch vm.selectedTab {
                     case .timbre:
-                        timbreTabContent(layer: layer)
+                        timbreTabContent(layer: layer, availableWidth: availableWidth)
                     case .keyboard:
-                        keyboardTabContent(layer: layer)
+                        keyboardTabContent(layer: layer, availableWidth: availableWidth)
                     case .midiCC:
-                        midiCCTabContent(layer: layer)
+                        midiCCTabContent(layer: layer, availableWidth: availableWidth)
                     case .eqMod:
-                        eqModTabContent
+                        eqModTabContent(availableWidth: availableWidth)
                     case .delayReverb:
-                        delayReverbTabContent
+                        delayReverbTabContent(availableWidth: availableWidth)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
@@ -875,42 +874,50 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Helper de Layout Responsivo: 3 Colunas quando couber, senão 2 + 1 abaixo
+    // MARK: - Helper de Layout Responsivo Determinístico (3 Colunas sem oscilar com largura de texto, ou 2 + 1 abaixo)
 
     @ViewBuilder
     private func responsiveThreePanelLayout<P1: View, P2: View, P3: View>(
-        p1Priority: Double = 1.2,
-        p2Priority: Double = 1.0,
-        p3Priority: Double = 1.0,
+        availableWidth: CGFloat,
+        p1Priority: Double = 1.15,
+        p2Priority: Double = 0.90,
+        p3Priority: Double = 0.95,
         @ViewBuilder panel1: () -> P1,
         @ViewBuilder panel2: () -> P2,
         @ViewBuilder panel3: () -> P3
     ) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 12) {
+        if availableWidth >= 980 {
+            let spacing: CGFloat = 12
+            let usable = max(300, availableWidth - spacing * 2)
+            let totalWeight = CGFloat(max(0.1, p1Priority + p2Priority + p3Priority))
+            let w1 = floor(usable * CGFloat(p1Priority) / totalWeight)
+            let w2 = floor(usable * CGFloat(p2Priority) / totalWeight)
+            let w3 = max(100, usable - w1 - w2)
+
+            HStack(alignment: .top, spacing: spacing) {
                 panel1()
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(p1Priority)
+                    .frame(width: w1)
                 panel2()
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(p2Priority)
+                    .frame(width: w2)
                 panel3()
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(p3Priority)
+                    .frame(width: w3)
             }
             .fixedSize(horizontal: false, vertical: true)
+        } else {
+            let spacing: CGFloat = 12
+            let halfW = floor(max(200, availableWidth - spacing) / 2.0)
 
-            VStack(spacing: 12) {
-                HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: spacing) {
+                HStack(alignment: .top, spacing: spacing) {
                     panel1()
-                        .frame(maxWidth: .infinity)
+                        .frame(width: halfW)
                     panel2()
-                        .frame(maxWidth: .infinity)
+                        .frame(width: max(100, availableWidth - spacing - halfW))
                 }
                 .fixedSize(horizontal: false, vertical: true)
 
                 panel3()
-                    .frame(maxWidth: .infinity)
+                    .frame(width: availableWidth)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -918,7 +925,7 @@ struct ContentView: View {
 
     // MARK: - Aba 1: Timbre (Perfil & Filtro · Compressor · Envelope)
 
-    private func timbreTabContent(layer: Int) -> some View {
+    private func timbreTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
 
         // Estado combinado do compressor: 0 = Desligado, 1 = Normal, 2 = Rápido
@@ -952,9 +959,10 @@ struct ContentView: View {
         ]
 
         return responsiveThreePanelLayout(
+            availableWidth: availableWidth,
             p1Priority: 1.25,
-            p2Priority: 0.85,
-            p3Priority: 1.10,
+            p2Priority: 0.75,
+            p3Priority: 1.00,
             panel1: {
                 // Painel 1: Perfil & Filtro (Knobs centralizados em 56pt; sem "Camada A" repetido)
                 SectionCard(title: "Perfil & Filtro") {
@@ -1170,14 +1178,15 @@ struct ContentView: View {
 
     // MARK: - Aba 2: Teclado & Toque (Sensibilidade · Zona do teclado / Dinâmica · Articulação)
 
-    private func keyboardTabContent(layer: Int) -> some View {
+    private func keyboardTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
         let globalIdx = Int(vm.globalVelocityCurve.rounded())
 
         return responsiveThreePanelLayout(
-            p1Priority: 1.05,
+            availableWidth: availableWidth,
+            p1Priority: 1.00,
             p2Priority: 1.15,
-            p3Priority: 0.95,
+            p3Priority: 0.85,
             panel1: {
                 // Painel 1: Sensibilidade (Grade 3x2 de miniaturas da curva + Segmented 3 itens de sensibilidade global)
                 SectionCard(title: "Sensibilidade") {
@@ -1357,11 +1366,13 @@ struct ContentView: View {
 
     // MARK: - Aba 3: MIDI CC (Tabela Parâmetro | CC | Learn + Mapeamentos dos Knobs)
 
-    private func midiCCTabContent(layer: Int) -> some View {
+    private func midiCCTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
         let mappings = vm.knobMidiMappings.sorted { $0.key < $1.key }
+        let spacing: CGFloat = 12
+        let colW = floor(max(300, availableWidth - spacing) / 2.0)
 
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: spacing) {
             // Coluna 1: Tabela de CC da Camada (Parâmetro | CC | Learn)
             SectionCard(title: "Controles MIDI da camada") {
                 VStack(alignment: .leading, spacing: 8) {
@@ -1416,8 +1427,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .layoutPriority(1.0)
+            .frame(width: colW)
 
             // Coluna 2: Tabela de Mapeamentos dos Knobs
             SectionCard(
@@ -1514,8 +1524,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .layoutPriority(1.0)
+            .frame(width: max(100, availableWidth - spacing - colW))
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -1573,11 +1582,12 @@ struct ContentView: View {
 
     // MARK: - Aba 4: EQ · Drive · Mod (EQ com Curva Visual + Mod 1 e Mod 2 Idênticos)
 
-    private var eqModTabContent: some View {
+    private func eqModTabContent(availableWidth: CGFloat) -> some View {
         responsiveThreePanelLayout(
-            p1Priority: 1.35,
-            p2Priority: 0.9,
-            p3Priority: 0.9,
+            availableWidth: availableWidth,
+            p1Priority: 1.30,
+            p2Priority: 0.85,
+            p3Priority: 0.85,
             panel1: {
                 // Card 1: Equalizador 3 Bandas (com gráfico de resposta) + Drive
                 SectionCard(
@@ -1781,10 +1791,14 @@ struct ContentView: View {
 
     // MARK: - Aba 5: Delay · Reverb (Mesma Gramática Visual, Painéis Dimensionados ao Conteúdo)
 
-    private var delayReverbTabContent: some View {
+    private func delayReverbTabContent(availableWidth: CGFloat) -> some View {
         let divisions = ["1/4", "1/8", "1/8 Pont.", "1/8 Terc.", "1/16"]
+        let spacing: CGFloat = 12
+        let usable = max(300, availableWidth - spacing)
+        let delayW = floor(usable * 0.46)
+        let reverbW = max(100, usable - delayW)
 
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: spacing) {
             // Card 1: Delay Estéreo
             SectionCard(
                 title: "Delay Estéreo",
@@ -1904,8 +1918,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .layoutPriority(1.0)
+            .frame(width: delayW)
 
             // Card 2: Reverb Estéreo
             SectionCard(
@@ -2003,8 +2016,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .layoutPriority(1.15)
+            .frame(width: reverbW)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -2013,21 +2025,8 @@ struct ContentView: View {
 
     private var statusBarSection: some View {
         HStack(spacing: 14) {
-            // Pedal Sustain
-            Button {
-                vm.setSustain(!vm.sustainDown)
-            } label: {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(vm.sustainDown ? StudioTokens.meterGreen : StudioTokens.textDisabled)
-                        .frame(width: 7, height: 7)
-                    Text("Sustain")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(vm.sustainDown ? StudioTokens.textPrimary : StudioTokens.textSecondary)
-                }
-            }
-            .buttonStyle(.plain)
-            .help("Estado do pedal Sustain (Espaço para acionar)")
+            // Pedal Sustain (isolado em subview para não invalidar ContentView a 60Hz)
+            StatusBarSustainButton(vm: vm, telemetry: vm.telemetry)
 
             Divider().frame(height: 14)
 
@@ -2064,27 +2063,8 @@ struct ContentView: View {
 
             Divider().frame(height: 14)
 
-            // Vozes ativas / limite
-            Menu {
-                ForEach([64, 128, 256, 512], id: \.self) { limit in
-                    Button {
-                        vm.maxVoices = limit
-                    } label: {
-                        if vm.maxVoices == limit {
-                            Label("Polifonia máxima: \(limit) vozes", systemImage: "checkmark")
-                        } else {
-                            Text("Polifonia máxima: \(limit) vozes")
-                        }
-                    }
-                }
-            } label: {
-                Text("Vozes: \(vm.activeVoices)/\(vm.maxVoices)")
-                    .font(StudioTokens.fontLabel.monospacedDigit())
-                    .foregroundStyle(vm.activeVoices > 0 ? StudioTokens.textPrimary : StudioTokens.textSecondary)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Vozes polifônicas ativas / clique para alterar o limite de polifonia")
+            // Vozes ativas / limite (isolado em subview com largura fixa para não pular ao tocar)
+            StatusBarVoicesMenu(vm: vm, telemetry: vm.telemetry)
 
             Divider().frame(height: 14)
 
@@ -2097,6 +2077,7 @@ struct ContentView: View {
                 ))
                 .font(StudioTokens.fontLabel.monospacedDigit())
                 .foregroundStyle(StudioTokens.textSecondary)
+                .frame(minWidth: 118, alignment: .trailing)
 
                 if vm.totalMemoryBytes < vm.totalUnpurgedBytes {
                     Button("Recarregar") {
@@ -2135,9 +2116,7 @@ struct ContentView: View {
 
             // Toggle Teclado 61 teclas (Cmd+K)
             Button {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.15)) {
-                    vm.showVirtualKeyboard.toggle()
-                }
+                vm.showVirtualKeyboard.toggle()
             } label: {
                 Label("Teclado", systemImage: "pianokeys")
                     .font(StudioTokens.fontLabel)
@@ -2157,10 +2136,72 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Subviews Folha Isoladas para Telemetria a 60Hz (Zero Re-render da Janela Principal)
+
+private struct ToolbarPeakMeterView: View {
+    @ObservedObject var telemetry: AudioTelemetryModel
+
+    var body: some View {
+        StereoPeakMeter(peakL: telemetry.peakL, peakR: telemetry.peakR, segments: 10, barWidth: 52)
+    }
+}
+
+private struct StatusBarSustainButton: View {
+    let vm: PianoViewModel
+    @ObservedObject var telemetry: AudioTelemetryModel
+
+    var body: some View {
+        Button {
+            vm.setSustain(!telemetry.sustainDown)
+        } label: {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(telemetry.sustainDown ? StudioTokens.meterGreen : StudioTokens.textDisabled)
+                    .frame(width: 7, height: 7)
+                Text("Sustain")
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(telemetry.sustainDown ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Estado do pedal Sustain (Espaço para acionar)")
+    }
+}
+
+private struct StatusBarVoicesMenu: View {
+    @ObservedObject var vm: PianoViewModel
+    @ObservedObject var telemetry: AudioTelemetryModel
+
+    var body: some View {
+        Menu {
+            ForEach([64, 128, 256, 512], id: \.self) { limit in
+                Button {
+                    vm.maxVoices = limit
+                } label: {
+                    if vm.maxVoices == limit {
+                        Label("Polifonia máxima: \(limit) vozes", systemImage: "checkmark")
+                    } else {
+                        Text("Polifonia máxima: \(limit) vozes")
+                    }
+                }
+            }
+        } label: {
+            Text(String(format: "Vozes: %3d/%d", telemetry.activeVoices, vm.maxVoices))
+                .font(StudioTokens.fontLabel.monospacedDigit())
+                .foregroundStyle(telemetry.activeVoices > 0 ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+                .frame(width: 92, alignment: .trailing)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Vozes polifônicas ativas / clique para alterar o limite de polifonia")
+    }
+}
+
 // MARK: - Teclado Virtual de 61 Teclas na Base (~120pt, C1 = 24 até C6 = 84) com Zonas das Camadas
 
 struct VirtualKeyboard61View: View {
     @ObservedObject var vm: PianoViewModel
+    @ObservedObject var telemetry: AudioTelemetryModel
     @State private var mouseHeldNote: Int? = nil
 
     private let startNote: Int = 24 // C1
@@ -2211,7 +2252,7 @@ struct VirtualKeyboard61View: View {
                     for (idx, note) in whites.enumerated() {
                         let x = CGFloat(idx) * whiteW
                         let rect = CGRect(x: x + 0.5, y: 0, width: whiteW - 1.0, height: size.height)
-                        let active = vm.keyVelocities[note] > 0 || mouseHeldNote == note
+                        let active = telemetry.keyVelocities[note] > 0 || mouseHeldNote == note
                         let fill = active ? StudioTokens.accent : StudioTokens.textPrimary.opacity(0.92)
                         context.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(fill))
 
@@ -2231,7 +2272,7 @@ struct VirtualKeyboard61View: View {
                         if nextNote <= endNote && isBlackKey(nextNote) {
                             let x = CGFloat(idx + 1) * whiteW - (blackW / 2.0)
                             let rect = CGRect(x: x, y: 0, width: blackW, height: blackH)
-                            let active = vm.keyVelocities[nextNote] > 0 || mouseHeldNote == nextNote
+                            let active = telemetry.keyVelocities[nextNote] > 0 || mouseHeldNote == nextNote
                             let fill = active ? StudioTokens.accent : StudioTokens.surfaceWindow
                             context.fill(Path(roundedRect: rect, cornerRadius: 2.5), with: .color(fill))
                             context.stroke(

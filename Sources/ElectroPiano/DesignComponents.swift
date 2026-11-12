@@ -304,7 +304,7 @@ struct ProKnob: View {
             valueReadout
                 .frame(height: 20)
         }
-        .frame(minWidth: columnWidth)
+        .frame(width: columnWidth)
         .opacity(enabled ? 1.0 : 0.55)
         .onAppear {
             PianoViewModel.shared?.registerKnob(idKey: effectiveKey, range: range, step: step) { nextVal in

@@ -255,6 +255,18 @@ nonisolated func decodeNullTerminatedCString(_ buffer: [CChar]) -> String {
     return String(decoding: prefix, as: UTF8.self)
 }
 
+// MARK: - Modelo Isolado de Telemetria em Tempo Real (60Hz)
+// Isolado de PianoViewModel para que tocar notas (peakL/R, vozes, teclas) NÃO reconstrua a Toolbar, Cards ou Editor.
+
+@MainActor
+final class AudioTelemetryModel: ObservableObject {
+    @Published var activeVoices: Int = 0
+    @Published var sustainDown: Bool = false
+    @Published var peakL: Float = 0.0
+    @Published var peakR: Float = 0.0
+    @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
+}
+
 // MARK: - ViewModel Principal da Workstation Nord
 
 @MainActor
@@ -265,6 +277,9 @@ final class PianoViewModel: ObservableObject {
     nonisolated(unsafe) private var keyMonitorDown: Any?
     nonisolated(unsafe) private var keyMonitorUp: Any?
     private var heldComputerKeys: Set<UInt16> = []
+
+    /// Sub-modelo isolado para medidor L/R, teclado virtual e contador de vozes a 60Hz.
+    let telemetry = AudioTelemetryModel()
 
     // Mapeamento MIDI Universal dos Knobs (Right-Click Context Menu & MIDI Learn)
     @Published var knobMidiMappings: [String: Int] = [:]
@@ -1009,6 +1024,8 @@ final class PianoViewModel: ObservableObject {
     private func pollTelemetry() {
         guard let h = host else { return }
 
+        var hadCCTraffic = false
+
         // 1. Drena fluxo contínuo de MIDI CC e progresso de carregamento da ponte lock-free/unfair_lock
         if let snap = RealtimeMIDIBridge.shared.drain() {
             if snap.loadMask != 0 {
@@ -1018,6 +1035,10 @@ final class PianoViewModel: ObservableObject {
                         layers[l].loadProgress = progresses[l]
                     }
                 }
+            }
+
+            if snap.lowMask != 0 || snap.highMask != 0 || snap.latestLearnCC >= 0 {
+                hadCCTraffic = true
             }
 
             if activeMidiLearnKey != nil, snap.latestLearnCC >= 0 {
@@ -1037,21 +1058,45 @@ final class PianoViewModel: ObservableObject {
             }
         }
 
-        // 2. Telemetria do motor C++ (medidor L/R, vozes, sustain, notas ativas)
+        // 2. Telemetria do motor C++ (medidor L/R, vozes, sustain, notas ativas) -> atualiza APENAS `telemetry`
         var tel = NPNOTelemetry()
         npno_host_get_telemetry(h, &tel)
 
         let newActiveVoices = Int(tel.activeVoices)
-        if activeVoices != newActiveVoices { activeVoices = newActiveVoices }
+        if telemetry.activeVoices != newActiveVoices { telemetry.activeVoices = newActiveVoices }
+        if telemetry.sustainDown != tel.sustainDown { telemetry.sustainDown = tel.sustainDown }
+        if abs(telemetry.peakL - tel.peakL) > 0.001 || (tel.peakL == 0 && telemetry.peakL != 0) {
+            telemetry.peakL = tel.peakL
+        }
+        if abs(telemetry.peakR - tel.peakR) > 0.001 || (tel.peakR == 0 && telemetry.peakR != 0) {
+            telemetry.peakR = tel.peakR
+        }
+
+        withUnsafePointer(to: &tel.keyVelocities) { ptr in
+            ptr.withMemoryRebound(to: UInt8.self, capacity: 128) { buf in
+                var changed = false
+                for i in 0..<128 where telemetry.keyVelocities[i] != buf[i] {
+                    changed = true
+                    break
+                }
+                if changed {
+                    var copy = [UInt8](repeating: 0, count: 128)
+                    for i in 0..<128 { copy[i] = buf[i] }
+                    telemetry.keyVelocities = copy
+                }
+            }
+        }
+
+        // 3. Eventos de baixa frequência em PianoViewModel (RAM, MIDI Learn da camada, dispositivos MIDI)
         if totalMemoryBytes != tel.totalMemoryBytes { totalMemoryBytes = tel.totalMemoryBytes }
         if totalUnpurgedBytes != tel.totalUnpurgedBytes { totalUnpurgedBytes = tel.totalUnpurgedBytes }
+
         let newLearnLayer = Int(tel.midiLearnLayer)
-        if midiLearnLayer != newLearnLayer { midiLearnLayer = newLearnLayer }
         let newLearnSlot = Int(tel.midiLearnSlot)
+        let learnChanged = (midiLearnLayer != newLearnLayer) || (midiLearnSlot != newLearnSlot)
+        if midiLearnLayer != newLearnLayer { midiLearnLayer = newLearnLayer }
         if midiLearnSlot != newLearnSlot { midiLearnSlot = newLearnSlot }
-        if sustainDown != tel.sustainDown { sustainDown = tel.sustainDown }
-        if abs(peakL - tel.peakL) > 0.0005 || (tel.peakL == 0 && peakL != 0) { peakL = tel.peakL }
-        if abs(peakR - tel.peakR) > 0.0005 || (tel.peakR == 0 && peakR != 0) { peakR = tel.peakR }
+
         if abs(sampleRate - tel.sampleRate) > 0.1 { sampleRate = tel.sampleRate }
 
         let newMidiCount = Int(tel.midiSourceCount)
@@ -1064,42 +1109,21 @@ final class PianoViewModel: ObservableObject {
             : rawSources
         if midiSources != cleanSources { midiSources = cleanSources }
 
-        let counts = [
-            Int(tel.layerActiveVoices.0),
-            Int(tel.layerActiveVoices.1),
-            Int(tel.layerActiveVoices.2),
-            Int(tel.layerActiveVoices.3)
-        ]
-        for l in 0..<4 {
-            if layers[l].activeVoices != counts[l] {
-                layers[l].activeVoices = counts[l]
-            }
-            var lp = NPNOLayerParams()
-            npno_host_get_layer_params(h, Int32(l), &lp)
-            let cur = layers[l].params
-            if cur.volume != lp.volume ||
-               cur.filter != lp.filter ||
-               cur.fxaAmount != lp.fxaAmount ||
-               cur.fxaRelease != lp.fxaRelease ||
-               cur.ccVolume != lp.ccVolume ||
-               cur.ccFilter != lp.ccFilter ||
-               cur.ccFxaAmount != lp.ccFxaAmount ||
-               cur.ccFxaRelease != lp.ccFxaRelease {
-                layers[l].params = lp
-            }
-        }
-
-        withUnsafePointer(to: &tel.keyVelocities) { ptr in
-            ptr.withMemoryRebound(to: UInt8.self, capacity: 128) { buf in
-                var changed = false
-                for i in 0..<128 where keyVelocities[i] != buf[i] {
-                    changed = true
-                    break
-                }
-                if changed {
-                    var copy = [UInt8](repeating: 0, count: 128)
-                    for i in 0..<128 { copy[i] = buf[i] }
-                    keyVelocities = copy
+        // Sincroniza parâmetros da camada com C++ APENAS quando houve tráfego de CC ou fim de MIDI Learn
+        if hadCCTraffic || learnChanged {
+            for l in 0..<4 {
+                var lp = NPNOLayerParams()
+                npno_host_get_layer_params(h, Int32(l), &lp)
+                let cur = layers[l].params
+                if abs(cur.volume - lp.volume) > 0.0005 ||
+                   abs(cur.filter - lp.filter) > 0.0005 ||
+                   abs(cur.fxaAmount - lp.fxaAmount) > 0.0005 ||
+                   abs(cur.fxaRelease - lp.fxaRelease) > 0.0005 ||
+                   cur.ccVolume != lp.ccVolume ||
+                   cur.ccFilter != lp.ccFilter ||
+                   cur.ccFxaAmount != lp.ccFxaAmount ||
+                   cur.ccFxaRelease != lp.ccFxaRelease {
+                    layers[l].params = lp
                 }
             }
         }
