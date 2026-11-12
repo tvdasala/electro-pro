@@ -2,7 +2,7 @@ import AppKit
 import NPNOBridge
 import SwiftUI
 
-// MARK: - Utilitários de Notas e Nomes de Parâmetros
+// MARK: - Note Utilities & Parameter Friendly Names
 
 let kLayerLetters = ["A", "B", "C", "D"]
 
@@ -12,7 +12,7 @@ func shortNoteName(_ note: Int) -> String {
     return "\(names[n % 12])\((n / 12) - 1)"
 }
 
-/// Mesmas curvas do motor (Engine.cpp): primeiro a sensibilidade global, depois a curva da camada.
+/// Same velocity curves as the C++ engine (Engine.cpp): global sensitivity first, then layer curve.
 func velocityCurveOutput(_ v: Double, layerCurve: Int, globalCurve: Int) -> Double {
     var x = min(max(v, 0.0), 1.0)
     if globalCurve < 0 { x = pow(x, 0.72) } else if globalCurve > 0 { x = pow(x, 1.38) }
@@ -27,30 +27,30 @@ func velocityCurveOutput(_ v: Double, layerCurve: Int, globalCurve: Int) -> Doub
 
 func friendlyKnobName(_ key: String) -> String {
     let fixed: [String: String] = [
-        "global_vol": "Volume Master",
-        "global_pan": "Pan Master",
-        "global_tune": "Afinação Fina",
-        "global_a4": "Referência A4",
-        "global_relnoise": "Ruído de Soltura",
-        "eq_bass": "EQ Graves",
-        "eq_mid": "EQ Médios",
-        "eq_midf": "EQ Freq. Médios",
-        "eq_treb": "EQ Agudos",
-        "eq_drive": "Drive Intensidade",
-        "dly_amt": "Delay Mix",
-        "dly_fb": "Delay Feedback",
-        "dly_time": "Delay Tempo",
-        "dly_div": "Delay Divisão",
-        "dly_bpm": "Delay BPM",
-        "rev_amt": "Reverb Mix",
-        "rev_size": "Reverb Tamanho",
-        "rev_dec": "Reverb Decaimento",
-        "rev_damp": "Reverb Absorção",
-        "rev_predly": "Reverb Pré-Delay",
-        "mod1_rate": "Mod 1 Velocidade",
-        "mod1_depth": "Mod 1 Profundidade",
-        "mod2_rate": "Mod 2 Velocidade",
-        "mod2_depth": "Mod 2 Profundidade"
+        "global_vol": L("Master Volume"),
+        "global_pan": L("Master Pan"),
+        "global_tune": L("Fine Tune"),
+        "global_a4": L("A4 Reference"),
+        "global_relnoise": L("Release Noise"),
+        "eq_bass": L("EQ Bass"),
+        "eq_mid": L("EQ Mid"),
+        "eq_midf": L("EQ Mid Freq"),
+        "eq_treb": L("EQ Treble"),
+        "eq_drive": L("Drive Amount"),
+        "dly_amt": L("Delay Mix"),
+        "dly_fb": L("Delay Feedback"),
+        "dly_time": L("Delay Time"),
+        "dly_div": L("Delay Division"),
+        "dly_bpm": L("Delay BPM"),
+        "rev_amt": L("Reverb Mix"),
+        "rev_size": L("Reverb Size"),
+        "rev_dec": L("Reverb Decay"),
+        "rev_damp": L("Reverb Damping"),
+        "rev_predly": L("Reverb Pre-Delay"),
+        "mod1_rate": L("Mod 1 Rate"),
+        "mod1_depth": L("Mod 1 Depth"),
+        "mod2_rate": L("Mod 2 Rate"),
+        "mod2_depth": L("Mod 2 Depth")
     ]
     if let f = fixed[key] { return f }
     if key.hasPrefix("L"),
@@ -59,27 +59,28 @@ func friendlyKnobName(_ key: String) -> String {
        (0..<4).contains(idx) {
         let suffix = String(key.dropFirst(3))
         let names: [String: String] = [
-            "vol": "Volume",
-            "flt": "Filtro",
-            "fxam": "Ambiência",
-            "fxrt": "Cauda de Ambiência",
-            "comp": "Compressor",
-            "att": "Ataque",
-            "rel": "Soltura",
-            "klo": "Nota Inicial",
-            "khi": "Nota Final",
-            "vlo": "Velocity Mínima",
-            "vhi": "Velocity Máxima",
-            "plo": "Pitch Bend ↓",
-            "phi": "Pitch Bend ↑",
-            "port": "Tempo de Portamento"
+            "vol": L("Volume"),
+            "flt": L("Filter"),
+            "fxam": L("String Resonance"),
+            "fxrt": L("Release Tail"),
+            "comp": L("Compressor"),
+            "att": L("Attack"),
+            "rel": L("Release"),
+            "klo": L("Low Key"),
+            "khi": L("High Key"),
+            "vlo": L("Minimum Velocity"),
+            "vhi": L("Maximum Velocity"),
+            "plo": L("Pitch Bend ↓"),
+            "phi": L("Pitch Bend ↑"),
+            "port": L("Portamento Time")
         ]
-        return "Camada \(kLayerLetters[idx]) · \(names[suffix] ?? suffix)"
+        let paramTitle = names[suffix] ?? suffix
+        return String(localized: "Layer \(kLayerLetters[idx]) · \(paramTitle)", bundle: .module)
     }
     return key
 }
 
-// MARK: - Escala de Zoom da Interface (Menu Visualizar: Cmd+, Cmd-, Cmd 0)
+// MARK: - UI Zoom Scale (View Menu: Cmd+, Cmd-, Cmd 0)
 
 enum PanelLayout {
     static let scales: [Double] = [0.85, 0.92, 1.00, 1.08, 1.15, 1.25]
@@ -109,7 +110,7 @@ extension PianoViewModel {
     }
 }
 
-// MARK: - Curva de Velocidade & Grade 3x2 de Miniaturas
+// MARK: - Velocity Curve & 3x2 Thumbnail Grid
 
 struct VelocityCurveShape: Shape {
     let layerCurve: Int
@@ -140,19 +141,21 @@ struct VelocityCurveThumbnailGrid: View {
         let title: String
     }
 
-    // Ordem 3x2: Suave, Log, Normal / Linear, Forte, Exp
-    private let rows: [[CurveItem]] = [
+    // 3x2 order: Soft, Log, Normal / Linear, Hard, Exp
+    private var rows: [[CurveItem]] {
         [
-            CurveItem(id: 1, title: "Suave"),
-            CurveItem(id: 5, title: "Log"),
-            CurveItem(id: 0, title: "Normal")
-        ],
-        [
-            CurveItem(id: 2, title: "Linear"),
-            CurveItem(id: 3, title: "Forte"),
-            CurveItem(id: 4, title: "Exp")
+            [
+                CurveItem(id: 1, title: L("Soft")),
+                CurveItem(id: 5, title: L("Log")),
+                CurveItem(id: 0, title: L("Normal"))
+            ],
+            [
+                CurveItem(id: 2, title: L("Linear")),
+                CurveItem(id: 3, title: L("Hard")),
+                CurveItem(id: 4, title: L("Exp"))
+            ]
         ]
-    ]
+    }
 
     var body: some View {
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
@@ -176,7 +179,7 @@ struct VelocityCurveThumbnailGrid: View {
                     let w = size.width
                     let h = size.height
 
-                    // Grade sutil 2x2 + linha diagonal de referência
+                    // Subtle 2x2 grid + reference diagonal line
                     var grid = Path()
                     grid.move(to: CGPoint(x: w * 0.5, y: 0))
                     grid.addLine(to: CGPoint(x: w * 0.5, y: h))
@@ -225,12 +228,12 @@ struct VelocityCurveThumbnailGrid: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Curva de velocidade \(item.title)")
+        .accessibilityLabel(String(localized: "Velocity curve \(item.title)", bundle: .module))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-// MARK: - Menu Seletor de Timbre (.npno / .nsmp4) — Visual Neutro
+// MARK: - Sound Picker Menu (.npno / .nsmp4) — Neutral Styling
 
 struct TimbrePickerMenu: View {
     @ObservedObject var vm: PianoViewModel
@@ -241,7 +244,7 @@ struct TimbrePickerMenu: View {
     var body: some View {
         Menu {
             if !vm.embeddedBanks.isEmpty {
-                Section("Biblioteca de Timbres") {
+                Section(L("Sound Library")) {
                     ForEach(vm.embeddedBanks) { bank in
                         Button {
                             vm.loadLayerInstrument(layer: layer, from: bank.path)
@@ -249,7 +252,7 @@ struct TimbrePickerMenu: View {
                             if slot.path == bank.path && slot.loaded {
                                 Label(bank.displayName, systemImage: "checkmark")
                             } else {
-                                Text(bank.displayName)
+                                Text(verbatim: bank.displayName)
                             }
                         }
                     }
@@ -259,7 +262,7 @@ struct TimbrePickerMenu: View {
             Button {
                 vm.openFilePicker(forLayer: layer)
             } label: {
-                Label("Carregar arquivo .npno / .nsmp4…", systemImage: "folder")
+                Label(L("Load .npno / .nsmp4 File…"), systemImage: "folder")
             }
         } label: {
             HStack(spacing: 6) {
@@ -267,7 +270,7 @@ struct TimbrePickerMenu: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(StudioTokens.textSecondary)
 
-                Text(slot.loaded ? slot.name : "Carregar timbre…")
+                Text(slot.loaded ? slot.name : L("Load Sound…"))
                     .font(StudioTokens.fontBodyMedium)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .lineLimit(1)
@@ -291,11 +294,11 @@ struct TimbrePickerMenu: View {
             )
         }
         .menuStyle(.borderlessButton)
-        .help(slot.loaded ? "\(slot.name) — \(slot.model)" : "Escolher arquivo .npno ou .nsmp4 para a Camada \(kLayerLetters[layer])")
+        .help(slot.loaded ? "\(slot.name) — \(slot.model)" : String(localized: "Choose a .npno or .nsmp4 file for Layer \(kLayerLetters[layer])", bundle: .module))
     }
 }
 
-// MARK: - Janela Principal (ContentView)
+// MARK: - Main Window (ContentView)
 
 struct ContentView: View {
     @ObservedObject var vm: PianoViewModel
@@ -313,7 +316,7 @@ struct ContentView: View {
         let activeNames = vm.layers
             .filter { $0.loaded && $0.params.enabled }
             .map { $0.name }
-        return activeNames.isEmpty ? "Inicial" : activeNames.joined(separator: " + ")
+        return activeNames.isEmpty ? L("Init") : activeNames.joined(separator: " + ")
     }
 
     var body: some View {
@@ -324,14 +327,14 @@ struct ContentView: View {
             let contentH = isScaled ? (geo.size.height / scale) : geo.size.height
 
             VStack(spacing: StudioTokens.grid2) {
-                // 1. Faixa compacta de 4 camadas (~100pt) dentro de UM único GlassEffectContainer
+                // 1. Compact 4-layer strip (~100pt) inside a single GlassEffectContainer
                 layerStripSection
 
-                // 2. Editor da camada selecionada (painéis dimensionados ao conteúdo, alinhados ao topo; só rola na vertical)
+                // 2. Selected layer/master editor (content-sized panels aligned to top; vertical scroll only)
                 layerEditorSection(availableWidth: max(800, contentW - StudioTokens.grid2 * 2))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                // 3. Teclado virtual de 61 teclas na base (~120pt), aberto por padrão (Cmd+K)
+                // 3. 61-key virtual keyboard at the bottom (~120pt), open by default (Cmd+K)
                 if vm.showVirtualKeyboard {
                     VirtualKeyboard61View(vm: vm, telemetry: vm.telemetry)
                         .frame(height: 118)
@@ -347,8 +350,8 @@ struct ContentView: View {
         .frame(minWidth: 1100, minHeight: 720)
         .background(StudioTokens.surfaceWindow)
         .preferredColorScheme(.dark)
-        .navigationTitle("Electro Pro")
-        .navigationSubtitle("Programa \(vm.selectedMemorySlot) — \(currentPresetTitle)")
+        .navigationTitle(L("Electro Pro"))
+        .navigationSubtitle(String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle)", bundle: .module))
         .toolbar {
             workstationToolbar
         }
@@ -357,30 +360,30 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 1. Toolbar Nativa (5 Grupos Separados por ToolbarSpacer = 5 Cápsulas de Glass)
+    // MARK: - 1. Native Toolbar (5 Groups Separated by ToolbarSpacer = 5 Glass Capsules)
 
     @ToolbarContentBuilder
     private var workstationToolbar: some ToolbarContent {
-        // Grupo 1: Programas 1–8 (Picker segmented, .fixedSize()) + Salvar (.glass, neutro)
+        // Group 1: Programs 1–8 (Segmented Picker, .fixedSize()) + Save (.glass, neutral)
         ToolbarItemGroup(placement: .automatic) {
-            Picker("Programa", selection: Binding(
+            Picker(L("Program"), selection: Binding(
                 get: { vm.selectedMemorySlot },
                 set: { slot in vm.recallMemory(slot: slot) }
             )) {
                 ForEach(1...8, id: \.self) { slot in
-                    Text("\(slot)").tag(slot)
+                    Text(verbatim: "\(slot)").tag(slot)
                 }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help("Selecionar Programa de Memória (1 a 8)")
+            .help(L("Select Program (1 to 8)"))
 
             Button {
                 vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
             } label: {
                 Label(
-                    vm.storeConfirmationActive ? "Salvo" : "Salvar",
+                    vm.storeConfirmationActive ? L("Saved") : L("Save"),
                     systemImage: vm.storeConfirmationActive ? "checkmark" : "square.and.arrow.down"
                 )
                 .labelStyle(.titleAndIcon)
@@ -389,12 +392,12 @@ struct ContentView: View {
             .popover(isPresented: $vm.showRenameProgramPopover, arrowEdge: .bottom) {
                 renameProgramPopover
             }
-            .help("Salvar estado atual no Programa \(vm.selectedMemorySlot) (⌘S). Para renomear: Arquivo > Renomear programa… (⇧⌘R)")
+            .help(String(localized: "Save current state to Program \(vm.selectedMemorySlot) (⌘S). To rename: File > Rename Program… (⇧⌘R)", bundle: .module))
         }
 
         ToolbarSpacer(.fixed)
 
-        // Grupo 2: Transpose [−] valor [+] com sinal (ex.: +2 st) + botão de Afinação (A4/Fine em popover)
+        // Group 2: Transpose [−] value [+] with sign (e.g. +2 st) + Tuning button (A4/Fine popover)
         ToolbarItemGroup(placement: .automatic) {
             HStack(spacing: 4) {
                 Button {
@@ -407,10 +410,10 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Diminuir transposição em 1 semitom")
+                .help(L("Decrease Transpose by 1 semitone"))
 
                 let st = Int(vm.transposeSemitones.rounded())
-                Text(st == 0 ? "0 st" : String(format: "%+d st", st))
+                Text(verbatim: st == 0 ? "0 st" : String(format: "%+d st", st))
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .fixedSize()
@@ -418,7 +421,7 @@ struct ContentView: View {
                     .onTapGesture(count: 2) {
                         vm.transposeSemitones = 0.0
                     }
-                    .help("Transposição global em semitons (duplo clique para 0 st)")
+                    .help(L("Global Transpose in semitones (double-click for 0 st)"))
 
                 Button {
                     let cur = Int(vm.transposeSemitones.rounded())
@@ -430,7 +433,7 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Aumentar transposição em 1 semitom")
+                .help(L("Increase Transpose by 1 semitone"))
             }
 
             Button {
@@ -442,12 +445,12 @@ struct ContentView: View {
             .popover(isPresented: $vm.showTuningPopover, arrowEdge: .bottom) {
                 masterTuningPopover
             }
-            .help("Afinação (Referência A4, Afinação Fina e Balanço Master)")
+            .help(L("Tuning (A4 Reference, Fine Tune, and Master Balance)"))
         }
 
         ToolbarSpacer(.fixed)
 
-        // Grupo 3: Volume master: slider ~140pt + valor em dB + medidor L/R sem corte
+        // Group 3: Master Volume: slider ~140pt + dB readout + unclipped L/R meter
         ToolbarItemGroup(placement: .automatic) {
             HStack(spacing: 8) {
                 Image(systemName: "speaker.wave.2.fill")
@@ -459,13 +462,13 @@ struct ContentView: View {
                     in: -36.0...12.0,
                     neutralValue: 0.0
                 ) {
-                    Text("Volume Master")
+                    Text(L("Master Volume"))
                 }
                 .labelsHidden()
                 .frame(width: 136)
-                .help(String(format: "Volume Master: %+.1f dB (duplo clique no valor para 0 dB)", vm.masterGainDb))
+                .help(String(localized: "Master Volume: \(String(format: "%+.1f dB", vm.masterGainDb)) (double-click value for 0 dB)", bundle: .module))
 
-                Text(String(format: "%+.1f dB", vm.masterGainDb))
+                Text(verbatim: String(format: "%+.1f dB", vm.masterGainDb))
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .fixedSize()
@@ -480,38 +483,38 @@ struct ContentView: View {
 
         ToolbarSpacer(.flexible)
 
-        // Grupo 4 (separado): Panic
+        // Group 4 (separated): Panic
         ToolbarItem(placement: .automatic) {
             Button(role: .destructive) {
                 vm.panic()
             } label: {
-                Label("Panic", systemImage: "xmark.octagon")
+                Label(L("Panic"), systemImage: "xmark.octagon")
             }
             .buttonStyle(.glass)
-            .help("Silenciar imediatamente todas as vozes ativas (⌘.)")
+            .help(L("Immediately silence all active voices (⌘.)"))
         }
 
         ToolbarSpacer(.fixed)
 
-        // Grupo 5 (separado, à direita): Configurações
+        // Group 5 (separated, rightmost): Settings
         ToolbarItem(placement: .automatic) {
             SettingsLink {
-                Label("Configurações", systemImage: "gearshape")
+                Label(L("Settings"), systemImage: "gearshape")
             }
             .buttonStyle(.glass)
-            .help("Abrir Configurações de Áudio, MIDI, Aparência e Teclado (⌘,)")
+            .help(L("Open Audio, MIDI, Keyboard, Library, and Appearance Settings (⌘,)"))
         }
     }
 
-    // MARK: - Popover "Renomear Programa…" (Arquivo > Renomear programa…)
+    // MARK: - "Rename Program…" Popover (File > Rename Program…)
 
     private var renameProgramPopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Renomear Programa \(vm.selectedMemorySlot)")
+            Text(String(localized: "Rename Program \(vm.selectedMemorySlot)", bundle: .module))
                 .font(StudioTokens.fontSectionTitle)
                 .foregroundStyle(StudioTokens.textPrimary)
 
-            TextField("Nome do programa", text: $vm.renameProgramDraft)
+            TextField(L("Program Name"), text: $vm.renameProgramDraft)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit {
                     vm.commitRenameCurrentProgram()
@@ -519,12 +522,12 @@ struct ContentView: View {
 
             HStack {
                 Spacer()
-                Button("Cancelar") {
+                Button(L("Cancel")) {
                     vm.showRenameProgramPopover = false
                 }
                 .buttonStyle(.glass)
 
-                Button("Salvar") {
+                Button(L("Save")) {
                     vm.commitRenameCurrentProgram()
                 }
                 .buttonStyle(.glassProminent)
@@ -534,15 +537,15 @@ struct ContentView: View {
         .frame(width: 260)
     }
 
-    // MARK: - Popover "Afinação" (A4 / Fine / Pan Master)
+    // MARK: - "Tuning" Popover (A4 / Fine / Master Pan)
 
     private var masterTuningPopover: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Afinação & Master")
+                Text(L("Tuning & Master"))
                     .font(StudioTokens.fontSectionTitle)
                 Spacer()
-                Button("Restaurar Padrão") {
+                Button(L("Reset to Default")) {
                     vm.masterGainDb = 0.0
                     vm.masterPan = 0.0
                     vm.baseTuningHz = 440.0
@@ -555,51 +558,51 @@ struct ContentView: View {
 
             Divider()
 
-            // Referência A4 (neutralValue em 440.0 Hz)
+            // A4 Reference (neutralValue at 440.0 Hz)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Referência Lá (A4)")
+                    Text(L("A4 Reference"))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
-                    Text(String(format: "%.1f Hz", vm.baseTuningHz))
+                    Text(verbatim: String(format: "%.1f Hz", vm.baseTuningHz))
                         .font(StudioTokens.fontValue)
                 }
                 Slider(value: $vm.baseTuningHz, in: 432.0...446.0, step: 0.5, neutralValue: 440.0) {
-                    Text("Referência A4")
+                    Text(L("A4 Reference"))
                 }
                 .labelsHidden()
             }
 
-            // Afinação Fina (cents, neutralValue em 0.0 ct)
+            // Fine Tune (cents, neutralValue at 0.0 ct)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Afinação Fina")
+                    Text(L("Fine Tune"))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
-                    Text(String(format: "%+.0f ct", vm.fineTuneCents))
+                    Text(verbatim: String(format: "%+.0f ct", vm.fineTuneCents))
                         .font(StudioTokens.fontValue)
                 }
                 Slider(value: $vm.fineTuneCents, in: -100.0...100.0, step: 5.0, neutralValue: 0.0) {
-                    Text("Afinação Fina")
+                    Text(L("Fine Tune"))
                 }
                 .labelsHidden()
             }
 
-            // Pan Master (centro em 0 com neutralValue)
+            // Master Balance / Pan (centered at 0 with neutralValue)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Balanço (Pan)")
+                    Text(L("Balance (Pan)"))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
                     let panInt = Int(vm.masterPan.rounded())
-                    Text(panInt == 0 ? "Centro" : (panInt < 0 ? "\(-panInt)% L" : "\(panInt)% R"))
+                    Text(panInt == 0 ? L("Center") : (panInt < 0 ? "\(-panInt)% L" : "\(panInt)% R"))
                         .font(StudioTokens.fontValue)
                 }
                 Slider(value: $vm.masterPan, in: -100.0...100.0, step: 5.0, neutralValue: 0.0) {
-                    Text("Balanço")
+                    Text(L("Balance (Pan)"))
                 }
                 .labelsHidden()
             }
@@ -608,7 +611,7 @@ struct ContentView: View {
         .frame(width: 280)
     }
 
-    // MARK: - 2. Faixa de Camadas (~100pt) dentro de UM único GlassEffectContainer
+    // MARK: - 2. Layer Strip (~100pt) inside a single GlassEffectContainer
 
     private var layerStripSection: some View {
         GlassEffectContainer(spacing: 12) {
@@ -629,10 +632,10 @@ struct ContentView: View {
 
         return VStack(alignment: .leading, spacing: 6) {
             if p.enabled {
-                // Camada ligada: Switch + Ponto + Letra + Faixa de notas (11pt, >= 4.5:1) + Setas ‹ › (>= 28pt)
+                // Enabled layer: Switch + Dot + Letter + Note range (11pt, >= 4.5:1) + Arrows ‹ › (>= 28pt)
                 HStack(spacing: 6) {
                     Toggle(
-                        "Ativar Camada \(letter)",
+                        String(localized: "Enable Layer \(letter)", bundle: .module),
                         isOn: Binding(
                             get: { p.enabled },
                             set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
@@ -641,19 +644,19 @@ struct ContentView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .help("Ligar ou desligar a Camada \(letter)")
+                    .help(String(localized: "Turn Layer \(letter) on or off", bundle: .module))
 
                     Circle()
                         .fill(isSelected ? StudioTokens.accent : StudioTokens.textSecondary)
                         .frame(width: 7, height: 7)
 
-                    Text("Camada \(letter)")
+                    Text(String(localized: "Layer \(letter)", bundle: .module))
                         .font(StudioTokens.fontValueSemibold)
                         .foregroundStyle(StudioTokens.textPrimary)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
 
-                    Text("\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh)))")
+                    Text(verbatim: "\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh)))")
                         .font(.system(size: 11, weight: .medium).monospacedDigit())
                         .foregroundStyle(StudioTokens.textSecondary)
                         .lineLimit(1)
@@ -672,7 +675,7 @@ struct ContentView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .help("Timbre anterior na pasta")
+                        .help(L("Previous sound in folder"))
 
                         Button {
                             vm.stepLayerInstrument(layer: layer, delta: 1)
@@ -684,12 +687,12 @@ struct ContentView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .help("Próximo timbre na pasta")
+                        .help(L("Next sound in folder"))
                     }
                 }
                 .frame(height: 24)
 
-                // Linha 2: Seletor de timbre (1 linha) ou barra de carregamento
+                // Row 2: Sound selector (1 line) or loading progress bar
                 if slot.isLoading {
                     ProgressView(value: Double(slot.loadProgress), total: 1.0)
                         .frame(height: 24)
@@ -697,7 +700,7 @@ struct ContentView: View {
                     TimbrePickerMenu(vm: vm, layer: layer)
                 }
 
-                // Linha 3: Volume da camada
+                // Row 3: Layer volume
                 let volPercent = Double(p.volume) * 100.0
                 let volBinding = Binding<Double>(
                     get: { Double(p.volume) * 100.0 },
@@ -713,12 +716,12 @@ struct ContentView: View {
                         in: 0.0...150.0,
                         neutralValue: 100.0
                     ) {
-                        Text("Volume")
+                        Text(L("Volume"))
                     }
                     .labelsHidden()
                     .controlSize(.small)
 
-                    Text(String(format: "%.0f%%", volPercent))
+                    Text(verbatim: String(format: "%.0f%%", volPercent))
                         .font(.system(size: 11, weight: .medium).monospacedDigit())
                         .foregroundStyle(StudioTokens.textPrimary)
                         .fixedSize()
@@ -726,10 +729,10 @@ struct ContentView: View {
                 }
                 .frame(height: 18)
             } else {
-                // Camada desligada: só switch + letra + nome do timbre (1 linha). Sem "Carregar timbre…", sem "Camada desligada", sem faixa de notas.
+                // Disabled layer: only switch + letter + sound name (1 line).
                 HStack(spacing: 8) {
                     Toggle(
-                        "Ativar Camada \(letter)",
+                        String(localized: "Enable Layer \(letter)", bundle: .module),
                         isOn: Binding(
                             get: { p.enabled },
                             set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
@@ -738,7 +741,7 @@ struct ContentView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .help("Ligar ou desligar a Camada \(letter)")
+                    .help(String(localized: "Turn Layer \(letter) on or off", bundle: .module))
 
                     if isSelected {
                         Circle()
@@ -746,7 +749,7 @@ struct ContentView: View {
                             .frame(width: 7, height: 7)
                     }
 
-                    Text("Camada \(letter)")
+                    Text(String(localized: "Layer \(letter)", bundle: .module))
                         .font(StudioTokens.fontValueSemibold)
                         .foregroundStyle(StudioTokens.textSecondary)
                         .lineLimit(1)
@@ -754,7 +757,7 @@ struct ContentView: View {
                     Spacer()
                 }
 
-                Text(slot.loaded ? slot.name : "Nenhum timbre")
+                Text(slot.loaded ? slot.name : L("No Sound"))
                     .font(StudioTokens.fontBodyMedium)
                     .foregroundStyle(StudioTokens.textSecondary)
                     .lineLimit(1)
@@ -773,7 +776,7 @@ struct ContentView: View {
                 vm.selectedLayer = layer
             }
         }
-        // Regra de Ouro: .glassEffect(.regular) estático no container para não deformar ao arrastar o slider de volume interno
+        // Static .glassEffect(.regular) on container so dragging the internal volume slider never warps the card
         .glassEffect(
             .regular,
             in: .rect(corners: .concentric(minimum: 12))
@@ -789,11 +792,11 @@ struct ContentView: View {
                 )
         )
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Camada \(letter), \(slot.loaded ? slot.name : "Nenhum timbre"), \(p.enabled ? "Ligada" : "Desligada")")
+        .accessibilityLabel(String(localized: "Layer \(letter), \(slot.loaded ? slot.name : L("No Sound")), \(p.enabled ? L("On") : L("Off"))", bundle: .module))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // MARK: - 3. Editor Principal da Camada Selecionada (Superfícies Sólidas, Altura do Conteúdo)
+    // MARK: - 3. Main Editor for Selected Layer / Master (Solid Surfaces, Content-Matched Height)
 
     private func layerEditorSection(availableWidth: CGFloat) -> some View {
         let layer = vm.selectedLayer
@@ -802,20 +805,20 @@ struct ContentView: View {
         let p = slot.params
 
         return VStack(alignment: .leading, spacing: 12) {
-            // Cabeçalho do Editor: "Camada A — nome do timbre" ("Nenhum timbre" quando vazio) + Abas em Picker segmented (.fixedSize())
+            // Editor Header: "Layer A — sound name" ("No Sound" when empty) + Segmented Tab Picker
             HStack(spacing: 12) {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(StudioTokens.accent)
                         .frame(width: 8, height: 8)
 
-                    Text("Camada \(letter) — \(slot.loaded ? slot.name : "Nenhum timbre")")
+                    Text(String(localized: "Layer \(letter) — \(slot.loaded ? slot.name : L("No Sound"))", bundle: .module))
                         .font(StudioTokens.fontSectionTitle)
                         .foregroundStyle(StudioTokens.textPrimary)
                         .lineLimit(1)
 
                     if slot.loaded {
-                        Text("\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh))) • \(String(format: "%.0f MiB", Double(slot.decodedBytes) / 1048576.0))")
+                        Text(verbatim: "\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh))) • \(String(format: "%.0f MiB", Double(slot.decodedBytes) / 1048576.0))")
                             .font(StudioTokens.fontLabel.monospacedDigit())
                             .foregroundStyle(StudioTokens.textSecondary)
                             .lineLimit(1)
@@ -829,7 +832,7 @@ struct ContentView: View {
 
                 Spacer(minLength: 8)
 
-                Picker("Seção do Editor", selection: $vm.selectedTab) {
+                Picker(L("Editor Section"), selection: $vm.selectedTab) {
                     ForEach(WorkstationTab.allCases) { tab in
                         Text(tab.title).tag(tab)
                     }
@@ -840,7 +843,7 @@ struct ContentView: View {
             }
             .padding(.horizontal, 2)
 
-            // Só o editor rola, e só na vertical; painéis alinhados ao topo com altura do conteúdo
+            // Only the editor scrolls, and only vertically; panels aligned to top with content height
             ScrollView(.vertical, showsIndicators: false) {
                 Group {
                     switch vm.selectedTab {
@@ -862,7 +865,7 @@ struct ContentView: View {
         }
     }
 
-    // Helper para Binding de parâmetros da camada
+    // Helper for Layer Parameter Bindings
     private func layerBinding<T>(
         _ layer: Int,
         _ get: @escaping (NPNOLayerParams) -> T,
@@ -874,7 +877,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Helper de Layout Responsivo Determinístico (3 Colunas sem oscilar com largura de texto, ou 2 + 1 abaixo)
+    // MARK: - Deterministic Responsive Layout Helper (3 Columns without oscillating on text width, or 2 + 1 below)
 
     @ViewBuilder
     private func responsiveThreePanelLayout<P1: View, P2: View, P3: View>(
@@ -923,12 +926,12 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Aba 1: Timbre (Perfil & Filtro · Compressor · Envelope)
+    // MARK: - Tab 1: Sound (Tone & Filter · Compressor · Envelope)
 
     private func timbreTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
 
-        // Estado combinado do compressor: 0 = Desligado, 1 = Normal, 2 = Rápido
+        // Combined compressor mode: 0 = Off, 1 = Normal, 2 = Fast
         let compModeBinding = Binding<Int>(
             get: {
                 if !lp.compOn { return 0 }
@@ -951,11 +954,11 @@ struct ContentView: View {
         )
 
         let timbreModes: [(tag: Int, title: String)] = [
-            (2, "Suave"),
-            (0, "Neutro"),
-            (1, "Brilhante"),
-            (3, "Dyno 1"),
-            (4, "Dyno 2")
+            (2, L("Soft")),
+            (0, L("Mid")),
+            (1, L("Bright")),
+            (3, L("Dyno 1")),
+            (4, L("Dyno 2"))
         ]
 
         return responsiveThreePanelLayout(
@@ -964,17 +967,16 @@ struct ContentView: View {
             p2Priority: 0.75,
             p3Priority: 1.00,
             panel1: {
-                // Painel 1: Perfil & Filtro (Knobs centralizados em 56pt; sem "Camada A" repetido)
-                SectionCard(title: "Perfil & Filtro") {
+                // Panel 1: Tone & Filter (Centered 56pt knobs)
+                SectionCard(title: L("Tone & Filter")) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(spacing: 10) {
-                            Text("Caráter tonal")
+                            Text(L("Tone Character"))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
 
                             Spacer()
 
-                            // Como há 5 modos tonais (acima do limite de 4 para segmented), usamos pílulas compactas
                             HStack(spacing: 4) {
                                 ForEach(timbreModes, id: \.tag) { mode in
                                     let active = Int(lp.timbreMode) == mode.tag
@@ -1002,22 +1004,22 @@ struct ContentView: View {
 
                         HStack(spacing: 14) {
                             Toggle(
-                                "Pedal Sustain",
+                                L("Sustain Pedal"),
                                 isOn: layerBinding(layer, { $0.sustainPedalOn }, { $0.sustainPedalOn = $1 })
                             )
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .font(StudioTokens.fontBody)
-                            .help("Permitir que o pedal de sustain sustente as notas desta camada")
+                            .help(L("Allow the sustain pedal to hold notes on this layer"))
 
                             Toggle(
-                                "Ressonância",
+                                L("String Resonance"),
                                 isOn: layerBinding(layer, { $0.undampedOn }, { $0.undampedOn = $1 })
                             )
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .font(StudioTokens.fontBody)
-                            .help("Ressonância simpatética das cordas agudas sem abafador")
+                            .help(L("Sympathetic resonance of undamped upper strings"))
 
                             Spacer(minLength: 4)
 
@@ -1026,22 +1028,22 @@ struct ContentView: View {
                                 in: -3...3
                             ) {
                                 let oct = Int(lp.octaveShift)
-                                Text("Oitava: \(oct == 0 ? "0" : String(format: "%+d", oct))")
+                                Text(String(localized: "Octave: \(oct == 0 ? "0" : String(format: "%+d", oct))", bundle: .module))
                                     .font(StudioTokens.fontValue)
                                     .fixedSize()
                             }
-                            .help("Transposição de oitava da camada (-3 a +3)")
+                            .help(L("Layer octave shift (-3 to +3)"))
                         }
 
                         Divider().overlay(StudioTokens.borderHairline)
 
-                        // Knobs do painel Perfil: centralizados, 56pt
+                        // Tone & Filter knobs: centered, 56pt
                         HStack(spacing: 18) {
                             Spacer(minLength: 0)
 
                             ProKnob(
                                 idKey: "L\(layer)_flt",
-                                title: "Filtro",
+                                title: L("Filter"),
                                 value: layerBinding(layer, { Double($0.filter) * 100.0 }, { $0.filter = Float($1 / 100.0) }),
                                 range: 0.0...100.0,
                                 defaultValue: 100.0,
@@ -1056,7 +1058,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_fxam",
-                                title: "Ambiência",
+                                title: L("String Resonance"),
                                 value: layerBinding(layer, { Double($0.fxaAmount) * 100.0 }, { $0.fxaAmount = Float($1 / 100.0) }),
                                 range: 0.0...100.0,
                                 defaultValue: 20.0,
@@ -1066,7 +1068,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_fxrt",
-                                title: "Cauda",
+                                title: L("Release Tail"),
                                 value: layerBinding(layer, { Double($0.fxaRelease) * 100.0 }, { $0.fxaRelease = Float($1 / 100.0) }),
                                 range: 0.0...100.0,
                                 defaultValue: 50.0,
@@ -1082,18 +1084,18 @@ struct ContentView: View {
                 }
             },
             panel2: {
-                // Painel 2: Compressor (Segmented Desligado/Normal/Rápido neutro + knob Intensidade)
-                SectionCard(title: "Compressor") {
+                // Panel 2: Compressor (Segmented Off/Normal/Fast + Amount knob)
+                SectionCard(title: L("Compressor")) {
                     VStack(alignment: .leading, spacing: 14) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Modo de resposta")
+                            Text(L("Response Mode"))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
 
-                            Picker("Modo do Compressor", selection: compModeBinding) {
-                                Text("Desligado").tag(0)
-                                Text("Normal").tag(1)
-                                Text("Rápido").tag(2)
+                            Picker(L("Compressor Mode"), selection: compModeBinding) {
+                                Text(L("Off")).tag(0)
+                                Text(L("Normal")).tag(1)
+                                Text(L("Fast")).tag(2)
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
@@ -1105,7 +1107,7 @@ struct ContentView: View {
                             Spacer()
                             ProKnob(
                                 idKey: "L\(layer)_comp",
-                                title: "Intensidade",
+                                title: L("Amount"),
                                 value: layerBinding(layer, { Double($0.compAmount) * 100.0 }, { $0.compAmount = Float($1 / 100.0) }),
                                 range: 0.0...100.0,
                                 defaultValue: 45.0,
@@ -1119,11 +1121,11 @@ struct ContentView: View {
                 }
             },
             panel3: {
-                // Painel 3: Envelope (Ataque/Soltura desabilitados em cinza com envelope original ligado)
-                SectionCard(title: "Envelope") {
+                // Panel 3: Envelope (Attack/Release disabled when Use Original Envelope is enabled)
+                SectionCard(title: L("Envelope")) {
                     VStack(alignment: .leading, spacing: 14) {
                         Toggle(
-                            "Usar envelope original da amostra",
+                            L("Use Original Envelope"),
                             isOn: layerBinding(layer, { $0.originalEnvelope }, { $0.originalEnvelope = $1 })
                         )
                         .toggleStyle(.switch)
@@ -1137,7 +1139,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_att",
-                                title: "Ataque",
+                                title: L("Attack"),
                                 value: layerBinding(layer, { Double($0.attackMs) }, { $0.attackMs = Float($1) }),
                                 range: 0.5...1500.0,
                                 defaultValue: 1.0,
@@ -1148,7 +1150,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_rel",
-                                title: "Soltura",
+                                title: L("Release"),
                                 value: layerBinding(layer, { Double($0.releaseMs) }, { $0.releaseMs = Float($1) }),
                                 range: 30.0...4000.0,
                                 defaultValue: 600.0,
@@ -1159,7 +1161,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "global_relnoise",
-                                title: "Ruído soltura",
+                                title: L("Release Noise"),
                                 value: $vm.releaseNoisePercent,
                                 range: 0.0...200.0,
                                 defaultValue: 100.0,
@@ -1176,7 +1178,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Aba 2: Teclado & Toque (Sensibilidade · Zona do teclado / Dinâmica · Articulação)
+    // MARK: - Tab 2: Keyboard & Touch (Touch · Keyboard Zone / Velocity Range · Articulation)
 
     private func keyboardTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
@@ -1188,10 +1190,10 @@ struct ContentView: View {
             p2Priority: 1.15,
             p3Priority: 0.85,
             panel1: {
-                // Painel 1: Sensibilidade (Grade 3x2 de miniaturas da curva + Segmented 3 itens de sensibilidade global)
-                SectionCard(title: "Sensibilidade") {
+                // Panel 1: Touch (3x2 velocity curve thumbnail grid + 3-item Global Touch segmented picker)
+                SectionCard(title: L("Touch")) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Curva de velocidade")
+                        Text(L("Velocity Curve"))
                             .font(StudioTokens.fontLabel)
                             .foregroundStyle(StudioTokens.textSecondary)
 
@@ -1203,17 +1205,17 @@ struct ContentView: View {
                         Divider().overlay(StudioTokens.borderHairline)
 
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Sensibilidade global")
+                            Text(L("Global Touch"))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
 
-                            Picker("Sensibilidade global", selection: Binding(
+                            Picker(L("Global Touch"), selection: Binding(
                                 get: { Int(vm.globalVelocityCurve.rounded()) },
                                 set: { vm.globalVelocityCurve = Double($0) }
                             )) {
-                                Text("Leve").tag(-1)
-                                Text("Normal").tag(0)
-                                Text("Pesada").tag(1)
+                                Text(L("Light")).tag(-1)
+                                Text(L("Normal")).tag(0)
+                                Text(L("Heavy")).tag(1)
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
@@ -1222,11 +1224,11 @@ struct ContentView: View {
                 }
             },
             panel2: {
-                // Painel 2: Dividido em dois blocos ("Zona do teclado" e "Dinâmica") no mesmo painel + "Restaurar Zona" (.glass neutro)
+                // Panel 2: Split into two blocks ("Keyboard Zone" and "Velocity Range") in the same card + "Reset Zone" (.glass)
                 SectionCard(
-                    title: "Zona do teclado",
+                    title: L("Keyboard Zone"),
                     headerTrailing: {
-                        Button("Restaurar Zona") {
+                        Button(L("Reset Zone")) {
                             vm.updateLayerParams(layer) {
                                 $0.keyLow = 0
                                 $0.keyHigh = 127
@@ -1239,7 +1241,7 @@ struct ContentView: View {
                     }
                 ) {
                     VStack(alignment: .leading, spacing: 14) {
-                        // Bloco 1: Zona do teclado (range slider sobre mini-teclado)
+                        // Block 1: Keyboard Zone (range slider over mini-keyboard)
                         KeyZoneRangeControl(
                             keyLow: layerBinding(layer, { Int($0.keyLow) }, { $0.keyLow = Int32($1) }),
                             keyHigh: layerBinding(layer, { Int($0.keyHigh) }, { $0.keyHigh = Int32($1) }),
@@ -1248,14 +1250,14 @@ struct ContentView: View {
 
                         Divider().overlay(StudioTokens.borderHairline)
 
-                        // Bloco 2: Dinâmica (faixa de velocity + canal MIDI)
+                        // Block 2: Velocity Range + MIDI Channel
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Dinâmica")
+                            Text(L("Velocity Range"))
                                 .font(StudioTokens.fontSectionTitle)
                                 .foregroundStyle(StudioTokens.textPrimary)
 
                             DualRangeSlider(
-                                title: "Faixa de velocity",
+                                title: L("Velocity Range"),
                                 lowValue: layerBinding(layer, { Int($0.velLow) }, { $0.velLow = Int32($1) }),
                                 highValue: layerBinding(layer, { Int($0.velHigh) }, { $0.velHigh = Int32($1) }),
                                 bounds: 1...127,
@@ -1263,14 +1265,14 @@ struct ContentView: View {
                             )
 
                             HStack {
-                                Text("Canal MIDI")
+                                Text(L("MIDI Channel"))
                                     .font(StudioTokens.fontLabel)
                                     .foregroundStyle(StudioTokens.textSecondary)
                                 Spacer()
-                                Picker("Canal MIDI", selection: layerBinding(layer, { Int($0.midiChannel) }, { $0.midiChannel = Int32($1) })) {
-                                    Text("Global / Omni").tag(0)
+                                Picker(L("MIDI Channel"), selection: layerBinding(layer, { Int($0.midiChannel) }, { $0.midiChannel = Int32($1) })) {
+                                    Text(L("Global / Omni")).tag(0)
                                     ForEach(1...16, id: \.self) { ch in
-                                        Text("Canal \(ch)").tag(ch)
+                                        Text(String(localized: "Channel \(ch)", bundle: .module)).tag(ch)
                                     }
                                 }
                                 .labelsHidden()
@@ -1281,15 +1283,15 @@ struct ContentView: View {
                 }
             },
             panel3: {
-                // Painel 3: Articulação
-                SectionCard(title: "Articulação") {
+                // Panel 3: Articulation
+                SectionCard(title: L("Articulation")) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(spacing: 10) {
                             Spacer(minLength: 0)
 
                             ProKnob(
                                 idKey: "L\(layer)_plo",
-                                title: "Bend ↓",
+                                title: L("Bend ↓"),
                                 value: layerBinding(layer, { Double($0.pitchBendDown) }, { $0.pitchBendDown = Int32($1.rounded()) }),
                                 range: -24.0...0.0,
                                 defaultValue: -2.0,
@@ -1300,7 +1302,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_phi",
-                                title: "Bend ↑",
+                                title: L("Bend ↑"),
                                 value: layerBinding(layer, { Double($0.pitchBendUp) }, { $0.pitchBendUp = Int32($1.rounded()) }),
                                 range: 0.0...24.0,
                                 defaultValue: 2.0,
@@ -1311,7 +1313,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_port",
-                                title: "Portamento",
+                                title: L("Portamento"),
                                 value: layerBinding(layer, { Double($0.portamentoTimeMs) }, { $0.portamentoTimeMs = Float($1) }),
                                 range: 5.0...1500.0,
                                 defaultValue: 120.0,
@@ -1327,19 +1329,19 @@ struct ContentView: View {
                         Divider().overlay(StudioTokens.borderHairline)
 
                         HStack(spacing: 16) {
-                            Toggle("Portamento", isOn: layerBinding(layer, { $0.portamentoOn }, { $0.portamentoOn = $1 }))
+                            Toggle(L("Portamento"), isOn: layerBinding(layer, { $0.portamentoOn }, { $0.portamentoOn = $1 }))
                                 .toggleStyle(.switch)
                                 .controlSize(.small)
                                 .font(StudioTokens.fontBody)
 
-                            Toggle("Legato mono", isOn: layerBinding(layer, { $0.legatoMono }, { $0.legatoMono = $1 }))
+                            Toggle(L("Mono Legato"), isOn: layerBinding(layer, { $0.legatoMono }, { $0.legatoMono = $1 }))
                                 .toggleStyle(.switch)
                                 .controlSize(.small)
                                 .font(StudioTokens.fontBody)
                         }
 
                         HStack(spacing: 10) {
-                            Toggle("Velocity fixa", isOn: layerBinding(layer, { $0.fixedVelocity }, { $0.fixedVelocity = $1 }))
+                            Toggle(L("Fixed Velocity"), isOn: layerBinding(layer, { $0.fixedVelocity }, { $0.fixedVelocity = $1 }))
                                 .toggleStyle(.switch)
                                 .controlSize(.small)
                                 .font(StudioTokens.fontBody)
@@ -1351,7 +1353,7 @@ struct ContentView: View {
                                 in: 1...127,
                                 step: 1
                             ) {
-                                Text("Valor: \(lp.fixedVelocityValue)")
+                                Text(String(localized: "Value: \(lp.fixedVelocityValue)", bundle: .module))
                                     .font(StudioTokens.fontValue)
                                     .foregroundStyle(lp.fixedVelocity ? StudioTokens.textPrimary : StudioTokens.textDisabled)
                                     .fixedSize()
@@ -1364,7 +1366,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Aba 3: MIDI CC (Tabela Parâmetro | CC | Learn + Mapeamentos dos Knobs)
+    // MARK: - Tab 3: MIDI CC (Table Parameter | CC | Learn + Knob Mappings)
 
     private func midiCCTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
@@ -1373,15 +1375,15 @@ struct ContentView: View {
         let colW = floor(max(300, availableWidth - spacing) / 2.0)
 
         return HStack(alignment: .top, spacing: spacing) {
-            // Coluna 1: Tabela de CC da Camada (Parâmetro | CC | Learn)
-            SectionCard(title: "Controles MIDI da camada") {
+            // Column 1: Layer CC Table (Parameter | CC | Learn)
+            SectionCard(title: L("Layer MIDI Controls")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Parâmetro")
+                        Text(L("Parameter"))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("CC")
+                        Text(L("CC"))
                             .frame(width: 130, alignment: .leading)
-                        Text("Learn")
+                        Text(L("Learn"))
                             .frame(width: 96, alignment: .trailing)
                     }
                     .font(StudioTokens.fontLabel)
@@ -1393,7 +1395,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 0,
-                        parameterName: "Volume da camada",
+                        parameterName: L("Layer Volume"),
                         ccValue: Int(lp.ccVolume)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccVolume = Int32(newCC) }
@@ -1402,7 +1404,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 1,
-                        parameterName: "Filtro passa-baixas",
+                        parameterName: L("LP/HP Cutoff"),
                         ccValue: Int(lp.ccFilter)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFilter = Int32(newCC) }
@@ -1411,7 +1413,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 2,
-                        parameterName: "Ambiência",
+                        parameterName: L("String Resonance"),
                         ccValue: Int(lp.ccFxaAmount)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFxaAmount = Int32(newCC) }
@@ -1420,7 +1422,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 3,
-                        parameterName: "Cauda de ambiência",
+                        parameterName: L("Release Tail"),
                         ccValue: Int(lp.ccFxaRelease)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFxaRelease = Int32(newCC) }
@@ -1429,21 +1431,21 @@ struct ContentView: View {
             }
             .frame(width: colW)
 
-            // Coluna 2: Tabela de Mapeamentos dos Knobs
+            // Column 2: Knob Mappings Table
             SectionCard(
-                title: "Mapeamentos MIDI dos knobs",
-                subtitle: "\(mappings.count) ativo(s)",
+                title: L("MIDI Mappings"),
+                subtitle: String(localized: "\(mappings.count) active", bundle: .module),
                 headerTrailing: {
                     if let activeKey = vm.activeMidiLearnKey {
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(StudioTokens.accent)
                                 .frame(width: 8, height: 8)
-                            Text("Aguardando CC para \(friendlyKnobName(activeKey))…")
+                            Text(String(localized: "Waiting for CC for \(friendlyKnobName(activeKey))…", bundle: .module))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textPrimary)
                                 .lineLimit(1)
-                            Button("Cancelar") {
+                            Button(L("Cancel")) {
                                 vm.activeMidiLearnKey = nil
                             }
                             .buttonStyle(.glass)
@@ -1459,10 +1461,10 @@ struct ContentView: View {
                             .foregroundStyle(StudioTokens.textSecondary)
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Nenhum knob mapeado")
+                            Text(L("No MIDI mappings"))
                                 .font(StudioTokens.fontBodyMedium)
                                 .foregroundStyle(StudioTokens.textPrimary)
-                            Text("Clique com o botão direito em qualquer knob e escolha \"Aprender MIDI CC\", depois mova um controle físico no seu teclado MIDI.")
+                            Text(L("Right-click any knob or control and choose \"Learn MIDI CC\", then move a physical control on your MIDI controller."))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -1475,11 +1477,11 @@ struct ContentView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Parâmetro")
+                            Text(L("Parameter"))
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Text("CC")
+                            Text(L("CC"))
                                 .frame(width: 72, alignment: .leading)
-                            Text("Remover")
+                            Text(L("Remove"))
                                 .frame(width: 64, alignment: .trailing)
                         }
                         .font(StudioTokens.fontLabel)
@@ -1497,7 +1499,7 @@ struct ContentView: View {
                                         .lineLimit(1)
                                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                                    Text("CC \(item.value)")
+                                    Text(String(localized: "CC \(item.value)", bundle: .module))
                                         .font(StudioTokens.fontValue)
                                         .foregroundStyle(StudioTokens.textPrimary)
                                         .frame(width: 72, alignment: .leading)
@@ -1511,7 +1513,7 @@ struct ContentView: View {
                                     .buttonStyle(.glass)
                                     .controlSize(.small)
                                     .frame(width: 64, alignment: .trailing)
-                                    .help("Remover mapeamento de \(friendlyKnobName(item.key))")
+                                    .help(String(localized: "Remove mapping for \(friendlyKnobName(item.key))", bundle: .module))
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
@@ -1546,17 +1548,17 @@ struct ContentView: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Picker("CC", selection: Binding(
+            Picker(L("CC"), selection: Binding(
                 get: { ccValue },
                 set: { onSelect($0) }
             )) {
-                Text("Desligado").tag(-1)
+                Text(L("Off")).tag(-1)
                 Divider()
                 ForEach(commonCCs, id: \.self) { c in
-                    Text("CC \(c)").tag(c)
+                    Text(String(localized: "CC \(c)", bundle: .module)).tag(c)
                 }
                 if ccValue >= 0 && !commonCCs.contains(ccValue) {
-                    Text("CC \(ccValue)").tag(ccValue)
+                    Text(String(localized: "CC \(ccValue)", bundle: .module)).tag(ccValue)
                 }
             }
             .labelsHidden()
@@ -1565,7 +1567,7 @@ struct ContentView: View {
             Button {
                 vm.toggleMidiLearn(layer: layer, slot: slot)
             } label: {
-                Text(isLearning ? "Aguardando…" : "Learn")
+                Text(isLearning ? L("Waiting…") : L("Learn"))
                     .frame(width: 82)
             }
             .buttonStyle(.glass)
@@ -1580,7 +1582,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Aba 4: EQ · Drive · Mod (EQ com Curva Visual + Mod 1 e Mod 2 Idênticos)
+    // MARK: - Tab 4: EQ · Drive · Mod (EQ with Visual Curve + Identical Mod 1 and Mod 2)
 
     private func eqModTabContent(availableWidth: CGFloat) -> some View {
         responsiveThreePanelLayout(
@@ -1589,11 +1591,11 @@ struct ContentView: View {
             p2Priority: 0.85,
             p3Priority: 0.85,
             panel1: {
-                // Card 1: Equalizador 3 Bandas (com gráfico de resposta) + Drive
+                // Card 1: 3-Band Equalizer (with response graph) + Drive
                 SectionCard(
-                    title: "Equalizador & Drive",
+                    title: L("3-Band Equalizer & Drive"),
                     headerTrailing: {
-                        Button("Flat (0 dB)") {
+                        Button(L("Flat (0 dB)")) {
                             vm.resetEq()
                         }
                         .buttonStyle(.glass)
@@ -1614,7 +1616,7 @@ struct ContentView: View {
                             Divider().overlay(StudioTokens.borderHairline)
 
                             HStack(spacing: 10) {
-                                Toggle("Drive", isOn: $vm.driveEnabled)
+                                Toggle(L("Drive"), isOn: $vm.driveEnabled)
                                     .toggleStyle(.switch)
                                     .controlSize(.small)
                                     .font(StudioTokens.fontBodyMedium)
@@ -1622,7 +1624,7 @@ struct ContentView: View {
 
                                 ProKnob(
                                     idKey: "eq_drive",
-                                    title: "Saturação",
+                                    title: L("Amount"),
                                     value: $vm.driveAmountPercent,
                                     range: 0.0...100.0,
                                     defaultValue: 25.0,
@@ -1638,7 +1640,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "eq_bass",
-                                title: "Graves",
+                                title: L("Bass"),
                                 value: $vm.eqBassDb,
                                 range: -15.0...15.0,
                                 defaultValue: 0.0,
@@ -1648,7 +1650,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "eq_mid",
-                                title: "Médios",
+                                title: L("Mid"),
                                 value: $vm.eqMidDb,
                                 range: -15.0...15.0,
                                 defaultValue: 0.0,
@@ -1658,7 +1660,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "eq_midf",
-                                title: "Freq. médios",
+                                title: L("Mid Freq"),
                                 value: $vm.eqMidFreqHz,
                                 range: 200.0...5000.0,
                                 defaultValue: 1000.0,
@@ -1672,7 +1674,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "eq_treb",
-                                title: "Agudos",
+                                title: L("Treble"),
                                 value: $vm.eqTrebleDb,
                                 range: -15.0...15.0,
                                 defaultValue: 0.0,
@@ -1687,10 +1689,10 @@ struct ContentView: View {
                 }
             },
             panel2: {
-                modulatorCard(title: "Mod 1", index: 1, mod: $vm.mod1)
+                modulatorCard(title: L("Mod 1"), index: 1, mod: $vm.mod1)
             },
             panel3: {
-                modulatorCard(title: "Mod 2", index: 2, mod: $vm.mod2)
+                modulatorCard(title: L("Mod 2"), index: 2, mod: $vm.mod2)
             }
         )
     }
@@ -1700,7 +1702,7 @@ struct ContentView: View {
         return SectionCard(
             title: title,
             headerTrailing: {
-                Toggle("Ativar \(title)", isOn: Binding(
+                Toggle(String(localized: "Enable \(title)", bundle: .module), isOn: Binding(
                     get: { mod.wrappedValue.enabled },
                     set: { mod.wrappedValue.enabled = $0 }
                 ))
@@ -1711,18 +1713,18 @@ struct ContentView: View {
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Destino")
+                    Text(L("Destination"))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
-                    Picker("Destino", selection: Binding(
+                    Picker(L("Destination"), selection: Binding(
                         get: { Int(mod.wrappedValue.target) },
                         set: { mod.wrappedValue.target = Int32($0) }
                     )) {
-                        Text("Tremolo").tag(0)
-                        Text("Wah (Filtro)").tag(1)
-                        Text("Vibrato").tag(2)
-                        Text("Auto-Pan").tag(3)
+                        Text(L("Tremolo")).tag(0)
+                        Text(L("Wah (Filter)")).tag(1)
+                        Text(L("Vibrato")).tag(2)
+                        Text(L("Auto-Pan")).tag(3)
                     }
                     .labelsHidden()
                     .frame(width: 145)
@@ -1730,19 +1732,19 @@ struct ContentView: View {
                 }
 
                 HStack {
-                    Text("Onda")
+                    Text(L("Wave"))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
-                    Picker("Forma de onda", selection: Binding(
+                    Picker(L("Waveform"), selection: Binding(
                         get: { Int(mod.wrappedValue.wave) },
                         set: { mod.wrappedValue.wave = Int32($0) }
                     )) {
-                        Text("Seno").tag(0)
-                        Text("Triângulo").tag(1)
-                        Text("Serra").tag(2)
-                        Text("Quadrada").tag(3)
-                        Text("Envelope").tag(4)
+                        Text(L("Sine")).tag(0)
+                        Text(L("Triangle")).tag(1)
+                        Text(L("Saw")).tag(2)
+                        Text(L("Square")).tag(3)
+                        Text(L("Envelope")).tag(4)
                     }
                     .labelsHidden()
                     .frame(width: 145)
@@ -1756,7 +1758,7 @@ struct ContentView: View {
 
                     ProKnob(
                         idKey: "mod\(index)_rate",
-                        title: "Velocidade",
+                        title: L("Rate"),
                         value: Binding(
                             get: { Double(mod.wrappedValue.rateHz) },
                             set: { mod.wrappedValue.rateHz = Float($0) }
@@ -1770,7 +1772,7 @@ struct ContentView: View {
 
                     ProKnob(
                         idKey: "mod\(index)_depth",
-                        title: "Profundidade",
+                        title: L("Depth"),
                         value: Binding(
                             get: { Double(mod.wrappedValue.depth) * 100.0 },
                             set: { mod.wrappedValue.depth = Float($0 / 100.0) }
@@ -1789,30 +1791,30 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Aba 5: Delay · Reverb (Mesma Gramática Visual, Painéis Dimensionados ao Conteúdo)
+    // MARK: - Tab 5: Delay · Reverb (Same Visual Grammar, Content-Sized Panels)
 
     private func delayReverbTabContent(availableWidth: CGFloat) -> some View {
-        let divisions = ["1/4", "1/8", "1/8 Pont.", "1/8 Terc.", "1/16"]
+        let divisions = [L("1/4"), L("1/8"), L("1/8 Dotted"), L("1/8 Triplet"), L("1/16")]
         let spacing: CGFloat = 12
         let usable = max(300, availableWidth - spacing)
         let delayW = floor(usable * 0.46)
         let reverbW = max(100, usable - delayW)
 
         return HStack(alignment: .top, spacing: spacing) {
-            // Card 1: Delay Estéreo
+            // Card 1: Stereo Delay
             SectionCard(
-                title: "Delay Estéreo",
+                title: L("Stereo Delay"),
                 headerTrailing: {
                     HStack(spacing: 10) {
                         Button {
                             vm.tapDelayTempo()
                         } label: {
-                            Label("Tap Tempo", systemImage: "hand.tap")
+                            Label(L("Tap Tempo"), systemImage: "hand.tap")
                         }
                         .buttonStyle(.glass)
                         .controlSize(.small)
 
-                        Toggle("Ativar Delay", isOn: $vm.delay.enabled)
+                        Toggle(L("Enable Delay"), isOn: $vm.delay.enabled)
                             .labelsHidden()
                             .toggleStyle(.switch)
                             .controlSize(.small)
@@ -1821,13 +1823,13 @@ struct ContentView: View {
             ) {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 20) {
-                        Toggle("Ping-Pong estéreo", isOn: $vm.delay.pingPong)
+                        Toggle(L("Stereo Ping-Pong"), isOn: $vm.delay.pingPong)
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .font(StudioTokens.fontBody)
                             .disabled(!vm.delay.enabled)
 
-                        Toggle("Sincronizar ao BPM", isOn: $vm.delay.syncToHost)
+                        Toggle(L("Sync to BPM"), isOn: $vm.delay.syncToHost)
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .font(StudioTokens.fontBody)
@@ -1841,7 +1843,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "dly_amt",
-                            title: "Mix",
+                            title: L("Mix"),
                             value: Binding(
                                 get: { Double(vm.delay.amount) * 100.0 },
                                 set: { vm.delay.amount = Float($0 / 100.0) }
@@ -1855,7 +1857,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "dly_fb",
-                            title: "Feedback",
+                            title: L("Feedback"),
                             value: Binding(
                                 get: { Double(vm.delay.feedback) * 100.0 },
                                 set: { vm.delay.feedback = Float($0 / 100.0) }
@@ -1870,7 +1872,7 @@ struct ContentView: View {
                         if vm.delay.syncToHost {
                             ProKnob(
                                 idKey: "dly_div",
-                                title: "Divisão",
+                                title: L("Division"),
                                 value: Binding(
                                     get: { Double(vm.delay.syncDivision) },
                                     set: { vm.delay.syncDivision = Int32($0.rounded()) }
@@ -1885,7 +1887,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "dly_bpm",
-                                title: "BPM",
+                                title: L("BPM"),
                                 value: Binding(
                                     get: { Double(vm.delay.hostBpm) },
                                     set: { vm.delay.hostBpm = Float($0.rounded()) }
@@ -1900,7 +1902,7 @@ struct ContentView: View {
                         } else {
                             ProKnob(
                                 idKey: "dly_time",
-                                title: "Tempo",
+                                title: L("Time"),
                                 value: Binding(
                                     get: { Double(vm.delay.timeMs) },
                                     set: { vm.delay.timeMs = Float($0) }
@@ -1920,18 +1922,18 @@ struct ContentView: View {
             }
             .frame(width: delayW)
 
-            // Card 2: Reverb Estéreo
+            // Card 2: Stereo Reverb
             SectionCard(
-                title: "Reverb Estéreo",
+                title: L("Stereo Reverb"),
                 headerTrailing: {
-                    Toggle("Ativar Reverb", isOn: $vm.reverb.enabled)
+                    Toggle(L("Enable Reverb"), isOn: $vm.reverb.enabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
                 }
             ) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Reverberação algorítmica com controle de sala, decaimento e absorção de agudos.")
+                    Text(L("Algorithmic stereo reverb with room size, decay, and high-frequency damping."))
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                         .lineLimit(1)
@@ -1943,7 +1945,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "rev_amt",
-                            title: "Mix",
+                            title: L("Mix"),
                             value: Binding(
                                 get: { Double(vm.reverb.amount) * 100.0 },
                                 set: { vm.reverb.amount = Float($0 / 100.0) }
@@ -1957,7 +1959,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "rev_size",
-                            title: "Tamanho",
+                            title: L("Size"),
                             value: Binding(
                                 get: { Double(vm.reverb.size) * 100.0 },
                                 set: { vm.reverb.size = Float($0 / 100.0) }
@@ -1971,7 +1973,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "rev_dec",
-                            title: "Decaimento",
+                            title: L("Decay"),
                             value: Binding(
                                 get: { Double(vm.reverb.decay) * 100.0 },
                                 set: { vm.reverb.decay = Float($0 / 100.0) }
@@ -1985,7 +1987,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "rev_damp",
-                            title: "Absorção",
+                            title: L("Damping"),
                             value: Binding(
                                 get: { Double(vm.reverb.damping) * 100.0 },
                                 set: { vm.reverb.damping = Float($0 / 100.0) }
@@ -1999,7 +2001,7 @@ struct ContentView: View {
 
                         ProKnob(
                             idKey: "rev_predly",
-                            title: "Pré-Delay",
+                            title: L("Pre-Delay"),
                             value: Binding(
                                 get: { Double(vm.reverb.preDelayMs) },
                                 set: { vm.reverb.preDelayMs = Float($0) }
@@ -2021,29 +2023,29 @@ struct ContentView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    // MARK: - 4. Barra de Status Inferior (safeAreaInset, Material Leve, Não Glass)
+    // MARK: - 4. Bottom Status Bar (safeAreaInset, Light Material, Not Glass)
 
     private var statusBarSection: some View {
         HStack(spacing: 14) {
-            // Pedal Sustain (isolado em subview para não invalidar ContentView a 60Hz)
+            // Sustain Pedal (isolated in leaf subview to avoid invalidating ContentView at 60 Hz)
             StatusBarSustainButton(vm: vm, telemetry: vm.telemetry)
 
             Divider().frame(height: 14)
 
-            // Dispositivo MIDI (truncado + tooltip completo)
+            // MIDI Device (truncated + full tooltip)
             HStack(spacing: 6) {
                 Circle()
                     .fill(vm.midiSourceCount > 0 ? StudioTokens.meterGreen : StudioTokens.textDisabled)
                     .frame(width: 7, height: 7)
 
-                Text("MIDI: \(vm.midiSources)")
+                Text(String(localized: "MIDI: \(vm.midiSources)", bundle: .module))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: 240, alignment: .leading)
             }
-            .help("Controladores MIDI: \(vm.midiSources)")
+            .help(String(localized: "MIDI Controllers: \(vm.midiSources)", bundle: .module))
 
             if let err = vm.errorMessage {
                 Divider().frame(height: 14)
@@ -2056,21 +2058,21 @@ struct ContentView: View {
             Spacer(minLength: 10)
 
             // Sample Rate
-            Text(String(format: "%.1f kHz", vm.sampleRate / 1000.0))
+            Text(verbatim: String(format: "%.1f kHz", vm.sampleRate / 1000.0))
                 .font(StudioTokens.fontLabel.monospacedDigit())
                 .foregroundStyle(StudioTokens.textSecondary)
-                .help("Taxa de amostragem ativa do motor CoreAudio")
+                .help(L("Active Core Audio engine sample rate"))
 
             Divider().frame(height: 14)
 
-            // Vozes ativas / limite (isolado em subview com largura fixa para não pular ao tocar)
+            // Active Voices / Limit (isolated in leaf subview with fixed width so it never jumps while playing)
             StatusBarVoicesMenu(vm: vm, telemetry: vm.telemetry)
 
             Divider().frame(height: 14)
 
-            // Memória RAM + Purge / Reload
+            // RAM + Purge / Reload
             HStack(spacing: 8) {
-                Text(String(
+                Text(verbatim: String(
                     format: "RAM: %.0f / %.0f MiB",
                     Double(vm.totalMemoryBytes) / 1048576.0,
                     Double(vm.totalUnpurgedBytes) / 1048576.0
@@ -2080,21 +2082,21 @@ struct ContentView: View {
                 .frame(minWidth: 118, alignment: .trailing)
 
                 if vm.totalMemoryBytes < vm.totalUnpurgedBytes {
-                    Button("Recarregar") {
+                    Button(L("Reload")) {
                         vm.reloadPurgedMemory()
                     }
                     .buttonStyle(.plain)
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textPrimary)
-                    .help("Recarregar samples purgados na memória RAM")
+                    .help(L("Reload purged samples into RAM"))
                 } else {
-                    Button("Purge") {
+                    Button(L("Purge")) {
                         vm.purgeUnusedMemory()
                     }
                     .buttonStyle(.plain)
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textPrimary)
-                    .help("Liberar samples não tocados da memória RAM (⇧⌘P)")
+                    .help(L("Purge unused samples from RAM (⇧⌘P)"))
                 }
             }
 
@@ -2104,26 +2106,26 @@ struct ContentView: View {
                 Button {
                     vm.uiScale = 1.0
                 } label: {
-                    Text("Zoom: \(Int((vm.uiScale * 100).rounded()))%")
+                    Text(String(localized: "Zoom: \(Int((vm.uiScale * 100).rounded()))%", bundle: .module))
                         .font(StudioTokens.fontLabel.monospacedDigit())
                         .foregroundStyle(StudioTokens.textPrimary)
                 }
                 .buttonStyle(.plain)
-                .help("Clique para restaurar o zoom em 100% (⌘0)")
+                .help(L("Click to reset zoom to 100% (⌘0)"))
 
                 Divider().frame(height: 14)
             }
 
-            // Toggle Teclado 61 teclas (Cmd+K)
+            // Toggle 61-key Keyboard (Cmd+K)
             Button {
                 vm.showVirtualKeyboard.toggle()
             } label: {
-                Label("Teclado", systemImage: "pianokeys")
+                Label(L("Keyboard"), systemImage: "pianokeys")
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(vm.showVirtualKeyboard ? StudioTokens.textPrimary : StudioTokens.textSecondary)
             }
             .buttonStyle(.plain)
-            .help("Mostrar ou recolher teclado virtual de 61 teclas (⌘K)")
+            .help(L("Show or hide 61-key on-screen keyboard (⌘K)"))
         }
         .padding(.horizontal, StudioTokens.grid2)
         .frame(height: 28)
@@ -2136,7 +2138,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Subviews Folha Isoladas para Telemetria a 60Hz (Zero Re-render da Janela Principal)
+// MARK: - Isolated Leaf Subviews for 60 Hz Telemetry (Zero Main Window Re-render)
 
 private struct ToolbarPeakMeterView: View {
     @ObservedObject var telemetry: AudioTelemetryModel
@@ -2158,13 +2160,13 @@ private struct StatusBarSustainButton: View {
                 Circle()
                     .fill(telemetry.sustainDown ? StudioTokens.meterGreen : StudioTokens.textDisabled)
                     .frame(width: 7, height: 7)
-                Text("Sustain")
+                Text(L("Sustain"))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(telemetry.sustainDown ? StudioTokens.textPrimary : StudioTokens.textSecondary)
             }
         }
         .buttonStyle(.plain)
-        .help("Estado do pedal Sustain (Espaço para acionar)")
+        .help(L("Sustain pedal state (Spacebar to hold)"))
     }
 }
 
@@ -2179,25 +2181,25 @@ private struct StatusBarVoicesMenu: View {
                     vm.maxVoices = limit
                 } label: {
                     if vm.maxVoices == limit {
-                        Label("Polifonia máxima: \(limit) vozes", systemImage: "checkmark")
+                        Label(String(localized: "Max Polyphony: \(limit) voices", bundle: .module), systemImage: "checkmark")
                     } else {
-                        Text("Polifonia máxima: \(limit) vozes")
+                        Text(String(localized: "Max Polyphony: \(limit) voices", bundle: .module))
                     }
                 }
             }
         } label: {
-            Text(String(format: "Vozes: %3d/%d", telemetry.activeVoices, vm.maxVoices))
+            Text(String(localized: "Voices: \(String(format: "%3d", telemetry.activeVoices))/\(vm.maxVoices)", bundle: .module))
                 .font(StudioTokens.fontLabel.monospacedDigit())
                 .foregroundStyle(telemetry.activeVoices > 0 ? StudioTokens.textPrimary : StudioTokens.textSecondary)
-                .frame(width: 92, alignment: .trailing)
+                .frame(width: 96, alignment: .trailing)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("Vozes polifônicas ativas / clique para alterar o limite de polifonia")
+        .help(L("Active polyphonic voices / click to change polyphony limit"))
     }
 }
 
-// MARK: - Teclado Virtual de 61 Teclas na Base (~120pt, C1 = 24 até C6 = 84) com Zonas das Camadas
+// MARK: - 61-Key On-Screen Keyboard at Bottom (~120pt, C1 = 24 to C6 = 84) with Layer Zones
 
 struct VirtualKeyboard61View: View {
     @ObservedObject var vm: PianoViewModel
@@ -2205,7 +2207,7 @@ struct VirtualKeyboard61View: View {
     @State private var mouseHeldNote: Int? = nil
 
     private let startNote: Int = 24 // C1
-    private let endNote: Int = 84   // C6 (61 teclas)
+    private let endNote: Int = 84   // C6 (61 keys)
 
     private func isBlackKey(_ note: Int) -> Bool {
         let pc = note % 12
@@ -2218,7 +2220,7 @@ struct VirtualKeyboard61View: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Faixas de zonas das camadas ligadas (A, B, C, D)
+            // Zone strips for enabled layers (A, B, C, D)
             GeometryReader { geo in
                 let totalSpan = CGFloat(endNote - startNote + 1)
                 ZStack(alignment: .leading) {
@@ -2241,14 +2243,14 @@ struct VirtualKeyboard61View: View {
             }
             .frame(height: 14)
 
-            // Teclado de 61 teclas em Canvas + interação por mouse e MIDI
+            // 61-key Canvas keyboard + mouse and MIDI interaction
             GeometryReader { geo in
                 let whites = whiteNotes
                 let whiteW = max(1.0, geo.size.width / CGFloat(whites.count))
                 let h = geo.size.height
 
                 Canvas { context, size in
-                    // 1. Teclas brancas
+                    // 1. White keys
                     for (idx, note) in whites.enumerated() {
                         let x = CGFloat(idx) * whiteW
                         let rect = CGRect(x: x + 0.5, y: 0, width: whiteW - 1.0, height: size.height)
@@ -2257,14 +2259,14 @@ struct VirtualKeyboard61View: View {
                         context.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(fill))
 
                         if note % 12 == 0 {
-                            let label = Text(shortNoteName(note))
+                            let label = Text(verbatim: shortNoteName(note))
                                 .font(.system(size: 10, weight: .semibold).monospacedDigit())
                                 .foregroundColor(active ? .white : Color.black.opacity(0.68))
                             context.draw(label, at: CGPoint(x: x + whiteW / 2, y: size.height - 10))
                         }
                     }
 
-                    // 2. Teclas pretas
+                    // 2. Black keys
                     let blackW = whiteW * 0.62
                     let blackH = size.height * 0.60
                     for (idx, wNote) in whites.enumerated() {
@@ -2338,7 +2340,7 @@ struct VirtualKeyboard61View: View {
     }
 }
 
-// MARK: - Previews das 5 Abas nas Larguras 1100, 1280 e 1440
+// MARK: - Previews of the 5 Tabs at 1100, 1280, and 1440 Widths
 
 @MainActor
 private func makePreviewViewModel(tab: WorkstationTab) -> PianoViewModel {
@@ -2347,77 +2349,77 @@ private func makePreviewViewModel(tab: WorkstationTab) -> PianoViewModel {
     return vm
 }
 
-#Preview("Aba 1: Timbre — 1100pt") {
+#Preview("Tab 1: Sound — 1100pt") {
     ContentView(vm: makePreviewViewModel(tab: .timbre))
         .frame(width: 1100, height: 720)
 }
 
-#Preview("Aba 1: Timbre — 1280pt") {
+#Preview("Tab 1: Sound — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .timbre))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Aba 1: Timbre — 1440pt") {
+#Preview("Tab 1: Sound — 1440pt") {
     ContentView(vm: makePreviewViewModel(tab: .timbre))
         .frame(width: 1440, height: 820)
 }
 
-#Preview("Aba 2: Teclado & Toque — 1100pt") {
+#Preview("Tab 2: Keyboard & Touch — 1100pt") {
     ContentView(vm: makePreviewViewModel(tab: .keyboard))
         .frame(width: 1100, height: 720)
 }
 
-#Preview("Aba 2: Teclado & Toque — 1280pt") {
+#Preview("Tab 2: Keyboard & Touch — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .keyboard))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Aba 2: Teclado & Toque — 1440pt") {
+#Preview("Tab 2: Keyboard & Touch — 1440pt") {
     ContentView(vm: makePreviewViewModel(tab: .keyboard))
         .frame(width: 1440, height: 820)
 }
 
-#Preview("Aba 3: MIDI CC — 1100pt") {
+#Preview("Tab 3: MIDI CC — 1100pt") {
     ContentView(vm: makePreviewViewModel(tab: .midiCC))
         .frame(width: 1100, height: 720)
 }
 
-#Preview("Aba 3: MIDI CC — 1280pt") {
+#Preview("Tab 3: MIDI CC — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .midiCC))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Aba 3: MIDI CC — 1440pt") {
+#Preview("Tab 3: MIDI CC — 1440pt") {
     ContentView(vm: makePreviewViewModel(tab: .midiCC))
         .frame(width: 1440, height: 820)
 }
 
-#Preview("Aba 4: EQ · Drive · Mod — 1100pt") {
+#Preview("Tab 4: EQ · Drive · Mod — 1100pt") {
     ContentView(vm: makePreviewViewModel(tab: .eqMod))
         .frame(width: 1100, height: 720)
 }
 
-#Preview("Aba 4: EQ · Drive · Mod — 1280pt") {
+#Preview("Tab 4: EQ · Drive · Mod — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .eqMod))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Aba 4: EQ · Drive · Mod — 1440pt") {
+#Preview("Tab 4: EQ · Drive · Mod — 1440pt") {
     ContentView(vm: makePreviewViewModel(tab: .eqMod))
         .frame(width: 1440, height: 820)
 }
 
-#Preview("Aba 5: Delay · Reverb — 1100pt") {
+#Preview("Tab 5: Delay · Reverb — 1100pt") {
     ContentView(vm: makePreviewViewModel(tab: .delayReverb))
         .frame(width: 1100, height: 720)
 }
 
-#Preview("Aba 5: Delay · Reverb — 1280pt") {
+#Preview("Tab 5: Delay · Reverb — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .delayReverb))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Aba 5: Delay · Reverb — 1440pt") {
+#Preview("Tab 5: Delay · Reverb — 1440pt") {
     ContentView(vm: makePreviewViewModel(tab: .delayReverb))
         .frame(width: 1440, height: 820)
 }

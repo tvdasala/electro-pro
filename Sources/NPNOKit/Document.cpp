@@ -90,52 +90,52 @@ std::unique_ptr<Document> Document::open(const std::string& path) {
     HANDLE hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                                FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
     if (hFile == INVALID_HANDLE_VALUE) {
-        throw FormatError("Não foi possível abrir o arquivo: " + path);
+        throw FormatError("Could not open file: " + path);
     }
     LARGE_INTEGER fileSizeLI{};
     if (!GetFileSizeEx(hFile, &fileSizeLI)) {
         CloseHandle(hFile);
-        throw FormatError("Falha ao obter o tamanho do arquivo");
+        throw FormatError("Failed to read file size");
     }
     size_t size = size_t(fileSizeLI.QuadPart);
     if (size <= 0x2B) {
         CloseHandle(hFile);
-        throw FormatError("Arquivo pequeno demais para ser um .npno");
+        throw FormatError("File is too small to be a valid .npno / .nsmp4");
     }
     if (size > (size_t(1) << 31)) {
         CloseHandle(hFile);
-        throw FormatError("Arquivo maior que 2 GiB");
+        throw FormatError("File exceeds 2 GiB limit");
     }
     HANDLE hMap = CreateFileMappingW(hFile, nullptr, PAGE_READONLY, 0, 0, nullptr);
     CloseHandle(hFile);
     if (!hMap) {
-        throw FormatError("Falha ao criar mapeamento do arquivo em memória");
+        throw FormatError("Failed to create memory mapping for file");
     }
     void* m = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
     CloseHandle(hMap);
     if (!m) {
-        throw FormatError("Falha ao mapear o arquivo em memória");
+        throw FormatError("Failed to map file into memory");
     }
 #else
     int fd = ::open(path.c_str(), O_RDONLY);
-    if (fd < 0) throw FormatError("Não foi possível abrir o arquivo: " + path);
+    if (fd < 0) throw FormatError("Could not open file: " + path);
     struct stat st {};
     if (fstat(fd, &st) != 0) {
         ::close(fd);
-        throw FormatError("Falha ao obter o tamanho do arquivo");
+        throw FormatError("Failed to read file size");
     }
     size_t size = size_t(st.st_size);
     if (size <= 0x2B) {
         ::close(fd);
-        throw FormatError("Arquivo pequeno demais para ser um .npno");
+        throw FormatError("File is too small to be a valid .npno / .nsmp4");
     }
     if (size > (size_t(1) << 31)) {
         ::close(fd);
-        throw FormatError("Arquivo maior que 2 GiB");
+        throw FormatError("File exceeds 2 GiB limit");
     }
     void* m = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
     ::close(fd);
-    if (m == MAP_FAILED) throw FormatError("Falha ao mapear o arquivo em memória");
+    if (m == MAP_FAILED) throw FormatError("Failed to map file into memory");
     madvise(m, size, MADV_SEQUENTIAL);
 #endif
 
@@ -162,12 +162,12 @@ void Document::unmap() {
 
 void Document::parse() {
     const uint8_t* d = data_;
-    if (std::memcmp(d, "CBIN", 4) != 0) corrupt("Assinatura CBIN ausente");
+    if (std::memcmp(d, "CBIN", 4) != 0) corrupt("Missing CBIN signature (unsupported format)");
     containerVersion = le32(d + 4);
-    if (containerVersion > 1) corrupt("Versão de container CBIN não suportada: " + std::to_string(containerVersion));
+    if (containerVersion > 1) corrupt("Unsupported CBIN container version: " + std::to_string(containerVersion));
     const bool isNpno = (std::memcmp(d + 8, "npno", 4) == 0);
     const bool isNsmp = (std::memcmp(d + 8, "nsmp", 4) == 0);
-    if (!isNpno && !isNsmp) corrupt("O container CBIN não é do tipo npno nem nsmp");
+    if (!isNpno && !isNsmp) corrupt("CBIN container is neither npno nor nsmp (unsupported format)");
     isNsmp4 = isNsmp;
     fileVersion = le32(d + 0x14);
 
@@ -190,9 +190,9 @@ void Document::parse() {
         return;
     }
 
-    if (payloadEnd < headerLength + kCnspSize) corrupt("Cabeçalho CNSP truncado");
+    if (payloadEnd < headerLength + kCnspSize) corrupt("Truncated CNSP header (corrupted file)");
     const uint8_t* c = d + headerLength;
-    if (std::memcmp(c, "CNSP", 4) != 0 || c[4] != 4) corrupt("Cabeçalho CNSP inválido ou versão diferente de 4");
+    if (std::memcmp(c, "CNSP", 4) != 0 || c[4] != 4) corrupt("Invalid CNSP header or unsupported version");
 
     comboName = field(c + 0x1C, 32);
     name = field(c + 0x3C, 32);
@@ -207,23 +207,23 @@ void Document::parse() {
     damperBoundary = c[0x40D];
 
     channels = be16(c + 0x61E);
-    if (channels < 1 || channels > 2) corrupt("Número de canais inválido: " + std::to_string(channels));
+    if (channels < 1 || channels > 2) corrupt("Invalid channel count: " + std::to_string(channels));
     blockBytes = size_t(channels) * 1022;
     totalRecords = be16(c + 0x620);
-    if (totalRecords == 0) corrupt("O arquivo não contém amostras");
+    if (totalRecords == 0) corrupt("File contains no audio samples");
     uint32_t sum = 0;
     for (int k = 0; k < 128; ++k) {
         perKeyCount[k] = be16(c + 0x622 + 2 * k);
         sum += perKeyCount[k];
     }
-    if (sum != totalRecords) corrupt("As contagens por tecla não somam o total de amostras");
+    if (sum != totalRecords) corrupt("Per-key sample counts do not match total records (corrupted file)");
     for (int n = 0; n < 128; ++n) {
         if (keymap[n] < 128 && perKeyCount[keymap[n]] == 0)
-            corrupt("Mapa de teclas aponta para uma tecla sem amostras (nota " + std::to_string(n) + ")");
+            corrupt("Keymap points to an empty key (note " + std::to_string(n) + ")");
     }
 
     const size_t tableOffset = headerLength + kCnspSize;
-    if (payloadEnd - tableOffset < size_t(totalRecords) * kRecordSize) corrupt("Tabela de registros truncada");
+    if (payloadEnd - tableOffset < size_t(totalRecords) * kRecordSize) corrupt("Truncated record table (corrupted file)");
     audioBase = tableOffset + size_t(totalRecords) * kRecordSize;
 
     records.reserve(totalRecords);
@@ -256,13 +256,13 @@ void Document::parse() {
             rec.releaseParam = r[0x72];
             rec.layerMin = r[0x74];
 
-            const std::string where = " (registro " + std::to_string(idx) + ")";
-            if (rec.absOffset < audioBase) corrupt("Offset de áudio aponta para dentro do cabeçalho" + where);
-            if (rec.decodedFrames > kMaxDecodedFrames) corrupt("Amostra excede o limite de frames" + where);
+            const std::string where = " (record " + std::to_string(idx) + ")";
+            if (rec.absOffset < audioBase) corrupt("Audio offset points inside header" + where);
+            if (rec.decodedFrames > kMaxDecodedFrames) corrupt("Sample exceeds frame limit" + where);
             if (uint64_t(rec.loopStart) + rec.loopLength > rec.decodedFrames)
-                corrupt("Loop excede a quantidade de frames decodificados" + where);
+                corrupt("Loop exceeds decoded frame count" + where);
             const uint64_t end = rec.absOffset + uint64_t(rec.blockCount) * blockBytes;
-            if (end > payloadEnd) corrupt("Blocos de áudio ultrapassam o fim do arquivo" + where);
+            if (end > payloadEnd) corrupt("Audio blocks extend past end of file" + where);
             if (rec.absOffset != expected) audioContiguous = false;
             expected = size_t(end);
             if (end > maxEnd) maxEnd = size_t(end);
@@ -274,9 +274,9 @@ void Document::parse() {
 
 void Document::parseNsmp4() {
     const uint8_t* d = data_;
-    if (payloadEnd < headerLength + 0x10) corrupt("Cabeçalho NSMP truncado");
+    if (payloadEnd < headerLength + 0x10) corrupt("Truncated NSMP header (corrupted file)");
     const uint8_t* nsmp = d + headerLength;
-    if (std::memcmp(nsmp, "NSMP", 4) != 0) corrupt("Cabeçalho NSMP inválido");
+    if (std::memcmp(nsmp, "NSMP", 4) != 0) corrupt("Invalid NSMP header (unsupported format)");
 
     keymap.fill(0xFF);
     noteTrim.fill(0);
@@ -423,11 +423,11 @@ void Document::parseNsmp4() {
     }
 
     totalRecords = uint16_t(records.size());
-    if (totalRecords == 0) corrupt("O arquivo .nsmp4 não contém amostras válidas");
+    if (totalRecords == 0) corrupt("The .nsmp4 file contains no valid samples");
 }
 
 std::vector<int16_t> Document::decodeNsmp4(const Record& rec, DecodeStats* stats) const {
-    if (!data_) throw FormatError("Documento já foi desmapeado");
+    if (!data_) throw FormatError("Document has already been unmapped");
     const uint32_t ch = std::clamp<uint32_t>(rec.channels, 1, 2);
     std::vector<int16_t> out;
     out.reserve(size_t(rec.decodedFrames) * ch);
@@ -524,11 +524,11 @@ std::vector<int16_t> Document::decodeNsmp4(const Record& rec, DecodeStats* stats
 
 std::vector<int16_t> Document::decode(const Record& rec, DecodeStats* stats) const {
     if (rec.isNsmp4) return decodeNsmp4(rec, stats);
-    if (!data_) throw FormatError("Documento já foi desmapeado");
+    if (!data_) throw FormatError("Document has already been unmapped");
     const uint32_t ch = channels;
     const size_t bb = blockBytes;
     const uint8_t* base = data_ + rec.absOffset;
-    const std::string where = " (registro " + std::to_string(rec.index) + ")";
+    const std::string where = " (record " + std::to_string(rec.index) + ")";
 
     std::vector<int16_t> out;
     out.reserve(size_t(rec.decodedFrames) * ch);
@@ -546,9 +546,9 @@ std::vector<int16_t> Document::decode(const Record& rec, DecodeStats* stats) con
         const uint8_t hdr = blk[1];
         const uint32_t width = hdr & 0x1F;
         const uint32_t order = hdr >> 5;
-        if (width < 1 || width > 16 || order > 4) corrupt("Cabeçalho de bloco inválido" + where);
+        if (width < 1 || width > 16 || order > 4) corrupt("Invalid block header" + where);
         const uint32_t rawFrames = uint32_t(((bb * 8 - 16) / width) / ch);
-        if (rawFrames <= kBlockOverlap) corrupt("Bloco comprimido sem frames reproduzíveis" + where);
+        if (rawFrames <= kBlockOverlap) corrupt("Compressed block has no playable frames" + where);
         local.orderHistogram[order]++;
 
         const uint8_t* bp = blk + 2;
@@ -581,7 +581,7 @@ std::vector<int16_t> Document::decode(const Record& rec, DecodeStats* stats) con
                     default: pred = 4 * h[3] - 6 * h[2] + 4 * h[1] - h[0]; break;
                 }
                 const int64_t s = residual + pred;
-                if (s < -32768 || s > 32767) corrupt("Estouro na reconstrução PCM16" + where);
+                if (s < -32768 || s > 32767) corrupt("PCM16 reconstruction overflow" + where);
                 h[0] = h[1];
                 h[1] = h[2];
                 h[2] = h[3];
@@ -606,7 +606,7 @@ std::vector<int16_t> Document::decode(const Record& rec, DecodeStats* stats) con
     }
 
     if (out.size() != size_t(rec.decodedFrames) * ch)
-        corrupt("Quantidade de frames declarada não confere com os blocos" + where);
+        corrupt("Declared frame count does not match decoded blocks" + where);
 
     if (rec.loopLength > 0 && rec.decodedFrames > rec.loopStart + rec.loopLength) {
         const uint32_t avail = rec.decodedFrames - (rec.loopStart + rec.loopLength);

@@ -73,7 +73,7 @@ struct NPNOHost {
     MIDIPortRef midiInPort = 0;
     std::mutex midiMutex;
     int midiSourceCount = 0;
-    std::string midiSourcesSummary = "Nenhum controlador MIDI conectado";
+    std::string midiSourcesSummary = "No MIDI controller detected";
     std::atomic<int> midiChannelFilter{0}; // 0 = Omni, 1..16 = Canal específico
 
     struct MidiInputEntry {
@@ -230,7 +230,7 @@ struct NPNOHost {
             MIDIEndpointRef src = MIDIGetSource(i);
             if (!src) continue;
 
-            std::string epName = "Dispositivo MIDI";
+            std::string epName = "MIDI Device";
             CFStringRef cfName = nullptr;
             if (MIDIObjectGetStringProperty(src, kMIDIPropertyDisplayName, &cfName) != noErr || !cfName) {
                 MIDIObjectGetStringProperty(src, kMIDIPropertyName, &cfName);
@@ -262,7 +262,7 @@ struct NPNOHost {
 
         midiInputs = std::move(updated);
         midiSourceCount = connected;
-        midiSourcesSummary = connected > 0 ? names : "Nenhum controlador MIDI ativo";
+        midiSourcesSummary = connected > 0 ? names : "No MIDI controller detected";
     }
 
     void updateMidiSummaryLocked() {
@@ -276,13 +276,13 @@ struct NPNOHost {
             }
         }
         midiSourceCount = connected;
-        midiSourcesSummary = connected > 0 ? names : "Nenhum controlador MIDI ativo";
+        midiSourcesSummary = connected > 0 ? names : "No MIDI controller detected";
     }
 
     void enumerateAudioOutputDevices() {
         std::lock_guard<std::mutex> lock(audioDevMutex);
         audioOutputDevices.clear();
-        audioOutputDevices.push_back({0, "Saída Padrão do Sistema (macOS)"});
+        audioOutputDevices.push_back({0, "System Default"});
 
         AudioObjectPropertyAddress addr = {
             kAudioHardwarePropertyDevices,
@@ -329,7 +329,7 @@ struct NPNOHost {
             };
             CFStringRef cfName = nullptr;
             UInt32 nameSize = sizeof(cfName);
-            std::string devName = "Saída de Áudio";
+            std::string devName = "Audio Output";
             if (AudioObjectGetPropertyData(devID, &nameAddr, 0, nullptr, &nameSize, &cfName) == noErr && cfName) {
                 char cbuf[192] = {};
                 if (CFStringGetCString(cfName, cbuf, sizeof(cbuf), kCFStringEncodingUTF8)) {

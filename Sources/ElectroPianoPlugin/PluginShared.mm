@@ -1018,12 +1018,12 @@ static NSString* formatMidiNote(int note) {
     _midiChannelPopup.action = @selector(onMidiChannelChanged:);
     [v addSubview:_midiChannelPopup];
 
-    NSButton* asioBtn = [NSButton buttonWithTitle:@"Painel ASIO / Configurar Áudio e MIDI"
-                                           target:self
-                                           action:@selector(onOpenAudioPanel:)];
-    asioBtn.frame = NSMakeRect(16, 76, 348, 28);
-    asioBtn.bezelStyle = NSBezelStyleRounded;
-    [v addSubview:asioBtn];
+    NSButton* audioSetupBtn = [NSButton buttonWithTitle:@"Open Audio MIDI Setup…"
+                                                 target:self
+                                                 action:@selector(onOpenAudioPanel:)];
+    audioSetupBtn.frame = NSMakeRect(16, 76, 348, 28);
+    audioSetupBtn.bezelStyle = NSBezelStyleRounded;
+    [v addSubview:audioSetupBtn];
 
     _audioInfoLabel = [NSTextField labelWithString:@"Saída Estéreo 32-bit Float (Host DAW / MainStage)"];
     _audioInfoLabel.font = [NSFont monospacedSystemFontOfSize:10.5 weight:NSFontWeightMedium];
@@ -1370,7 +1370,7 @@ static NSString* const kPluginUIScaleDefaultsKey = @"ElectroPiano_PluginUIScale_
 
     _buttons.push_back({NSMakeRect(880, 35, 114, 21), @"⚙ CONFIG", false, 3,
                         [self]() { [self showSettingsPopoverAtRect:NSMakeRect(880, 35, 114, 21)]; }});
-    _buttons.push_back({NSMakeRect(998, 35, 118, 21), @"PAINEL ASIO", false, 3,
+    _buttons.push_back({NSMakeRect(998, 35, 118, 21), @"CORE AUDIO", false, 3,
                         []() {
                             NSURL* url = [NSURL fileURLWithPath:@"/System/Applications/Utilities/Audio MIDI Setup.app"];
                             [[NSWorkspace sharedWorkspace] openURL:url];

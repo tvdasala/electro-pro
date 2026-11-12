@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ElectroPiano",
+    defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
         .executable(name: "ElectroPiano", targets: ["ElectroPiano"]),

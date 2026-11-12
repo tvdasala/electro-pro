@@ -5,7 +5,7 @@ import os
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Ponte Thread-Safe para Fluxo Contínuo MIDI / Progresso C++ (Nonisolated, Zero Task por Evento)
+// MARK: - Thread-Safe Bridge for Continuous MIDI / C++ Progress Stream (Nonisolated, Zero Task per Event)
 
 final class RealtimeMIDIBridge: @unchecked Sendable {
     static let shared = RealtimeMIDIBridge()
@@ -80,7 +80,7 @@ final class RealtimeMIDIBridge: @unchecked Sendable {
     }
 }
 
-// Callbacks C puras definidas fora de @MainActor para jamais injetar checagem de isolamento na thread CoreMIDI/Background
+// Pure C callbacks defined outside @MainActor so actor-isolation checks are never injected on CoreMIDI/Background threads
 private nonisolated let kMidiCCBridgeCallback: NPNOMidiCCCallback = { cc, val, _, _ in
     RealtimeMIDIBridge.shared.recordMidiCC(cc: cc, value: val)
 }
@@ -110,7 +110,7 @@ private nonisolated func loadProgressCallback(forLayer layer: Int) -> (@conventi
     }
 }
 
-// MARK: - Modelos Auxiliares de Áudio, MIDI e Camadas
+// MARK: - Helper Models for Audio, MIDI, and Layers
 
 struct AudioOutputDeviceItem: Identifiable, Hashable {
     let id: UInt32
@@ -138,8 +138,8 @@ struct LayerSlotState {
     var loaded: Bool = false
     var isLoading: Bool = false
     var loadProgress: Float = 0.0
-    var name: String = "Nenhum timbre"
-    var model: String = "Carregue um .npno"
+    var name: String = L("No Sound")
+    var model: String = L("Load a .npno or .nsmp4 file")
     var path: String = ""
     var summary: String = ""
     var decodedBytes: UInt64 = 0
@@ -187,7 +187,7 @@ struct LayerSlotState {
     }()
 }
 
-// MARK: - Modelos de Memória de Salvamento dos 4 Timbres
+// MARK: - Memory Preset Models for the 4 Layers
 
 struct LayerMemoryPreset: Codable, Equatable {
     var path: String = ""
@@ -199,7 +199,7 @@ struct LayerMemoryPreset: Codable, Equatable {
 }
 
 struct ProgramMemoryPreset: Codable, Equatable {
-    var name: String = "Inicial"
+    var name: String = L("Init")
     var hasData: Bool = false
     var layers: [LayerMemoryPreset] = [
         LayerMemoryPreset(enabled: true),
@@ -220,11 +220,11 @@ enum WorkstationTab: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .timbre: return "Timbre"
-        case .keyboard: return "Teclado & Toque"
-        case .midiCC: return "MIDI CC"
-        case .eqMod: return "EQ · Drive · Mod"
-        case .delayReverb: return "Delay · Reverb"
+        case .timbre: return L("Sound")
+        case .keyboard: return L("Keyboard & Touch")
+        case .midiCC: return L("MIDI CC")
+        case .eqMod: return L("EQ · Drive · Mod")
+        case .delayReverb: return L("Delay · Reverb")
         }
     }
 
@@ -238,7 +238,7 @@ enum WorkstationTab: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// Abas que editam a camada selecionada (A/B/C/D).
+    /// Tabs that edit the selected layer (A/B/C/D).
     var isPerLayer: Bool { self == .timbre || self == .keyboard || self == .midiCC }
 }
 
@@ -255,8 +255,8 @@ nonisolated func decodeNullTerminatedCString(_ buffer: [CChar]) -> String {
     return String(decoding: prefix, as: UTF8.self)
 }
 
-// MARK: - Modelo Isolado de Telemetria em Tempo Real (60Hz)
-// Isolado de PianoViewModel para que tocar notas (peakL/R, vozes, teclas) NÃO reconstrua a Toolbar, Cards ou Editor.
+// MARK: - Isolated Real-Time Telemetry Model (60 Hz)
+// Isolated from PianoViewModel so playing notes (peakL/R, voices, keys) does NOT rebuild Toolbar, Cards, or Editor.
 
 @MainActor
 final class AudioTelemetryModel: ObservableObject {
@@ -267,7 +267,7 @@ final class AudioTelemetryModel: ObservableObject {
     @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
 }
 
-// MARK: - ViewModel Principal da Workstation Nord
+// MARK: - Main Nord Workstation ViewModel
 
 @MainActor
 final class PianoViewModel: ObservableObject {
@@ -278,10 +278,10 @@ final class PianoViewModel: ObservableObject {
     nonisolated(unsafe) private var keyMonitorUp: Any?
     private var heldComputerKeys: Set<UInt16> = []
 
-    /// Sub-modelo isolado para medidor L/R, teclado virtual e contador de vozes a 60Hz.
+    /// Isolated sub-model for L/R meter, virtual keyboard, and voice counter at 60 Hz.
     let telemetry = AudioTelemetryModel()
 
-    // Mapeamento MIDI Universal dos Knobs (Right-Click Context Menu & MIDI Learn)
+    // Universal Knob MIDI Mapping (Right-Click Context Menu & MIDI Learn)
     @Published var knobMidiMappings: [String: Int] = [:]
     @Published var activeMidiLearnKey: String? = nil
     private var knobSetters: [String: (Double) -> Void] = [:]
@@ -335,19 +335,19 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // Aba selecionada e camada selecionada para edição detalhada (0=A, 1=B, 2=C, 3=D)
+    // Selected tab and layer for detailed editing (0=A, 1=B, 2=C, 3=D)
     @Published var selectedTab: WorkstationTab = .timbre
     @Published var selectedLayer: Int = 0
     @Published var activeLoadingLayer: Int = 0
     @Published var showTuningPopover: Bool = false
     @Published var showRenameProgramPopover: Bool = false
     @Published var renameProgramDraft: String = ""
-    // Teclado virtual de 61 teclas na base aberto por padrão
+    // 61-key virtual keyboard at the bottom, open by default
     @Published var showVirtualKeyboard: Bool = true
     @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
     @Published var errorMessage: String? = nil
 
-    // Cor de acento (Configurações > Aparência)
+    // Accent color (Settings > Appearance)
     @Published var accentOption: AccentOption = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_AccentOption")
         return AccentOption(rawValue: saved) ?? .nordRed
@@ -357,20 +357,25 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - 8 Memórias de Salvamento dos 4 Timbres
+    // MARK: - 8 Program Slots for the 4 Layers
     @Published var selectedMemorySlot: Int = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_ActiveMemorySlot")
         return (saved >= 1 && saved <= 8) ? saved : 1
     }()
     @Published var memorySlots: [ProgramMemoryPreset] = {
         if let data = UserDefaults.standard.data(forKey: "ElectroPiano_Memories_JSON"),
-           let decoded = try? JSONDecoder().decode([ProgramMemoryPreset].self, from: data),
+           var decoded = try? JSONDecoder().decode([ProgramMemoryPreset].self, from: data),
            decoded.count == 8 {
+            for i in 0..<decoded.count {
+                if decoded[i].name == "Inicial" || decoded[i].name == "Vazio" || decoded[i].name.isEmpty {
+                    decoded[i].name = L("Init")
+                }
+            }
             return decoded
         }
         return Array(repeating: ProgramMemoryPreset(), count: 8)
     }()
-    @Published var memoryStatusText: String = "M1: Inicial"
+    @Published var memoryStatusText: String = "M1: Init"
     @Published var storeConfirmationActive: Bool = false
 
     func memoryHasData(slot: Int) -> Bool {
@@ -381,7 +386,7 @@ final class PianoViewModel: ObservableObject {
     func beginRenameCurrentProgram() {
         let idx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
         let currentName = memorySlots[idx].name
-        renameProgramDraft = currentName.isEmpty ? "Programa \(selectedMemorySlot)" : currentName
+        renameProgramDraft = currentName.isEmpty ? String(localized: "Program \(selectedMemorySlot)", bundle: .module) : currentName
         showRenameProgramPopover = true
     }
 
@@ -422,10 +427,10 @@ final class PianoViewModel: ObservableObject {
             }
         }
 
-        if !existingName.isEmpty && existingName != "Inicial" && existingName != "Vazio" {
+        if !existingName.isEmpty && existingName != L("Init") && existingName != "Init" && existingName != "Inicial" && existingName != "Vazio" {
             p.name = existingName
         } else {
-            p.name = names.isEmpty ? "Inicial" : names.joined(separator: " + ")
+            p.name = names.isEmpty ? L("Init") : names.joined(separator: " + ")
         }
         memorySlots[slot - 1] = p
         persistMemories()
@@ -445,7 +450,7 @@ final class PianoViewModel: ObservableObject {
 
         let p = memorySlots[slot - 1]
         if !p.hasData {
-            memoryStatusText = "M\(slot): Inicial"
+            memoryStatusText = "M\(slot): \(L("Init"))"
             return
         }
 
@@ -474,21 +479,21 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // Escala da interface (zoom via Menu Visualizar: Cmd+, Cmd-, Cmd 0).
+    // UI scale (zoom via View menu: Cmd+, Cmd-, Cmd 0).
     @Published var uiScale: Double = PianoViewModel.initialUIScale() {
         didSet {
             UserDefaults.standard.set(uiScale, forKey: "ElectroPiano_UIScale")
         }
     }
 
-    // 4 Camadas independentes (A, B, C, D)
+    // 4 independent layers (A, B, C, D)
     @Published var layers: [LayerSlotState] = {
         var arr = Array(repeating: LayerSlotState(), count: 4)
         arr[0].params.enabled = true
         return arr
     }()
 
-    // Telemetria em tempo real
+    // Real-time telemetry
     @Published var activeVoices: Int = 0
     @Published var maxVoices: Int = 256 {
         didSet {
@@ -503,10 +508,10 @@ final class PianoViewModel: ObservableObject {
     @Published var peakL: Float = 0.0
     @Published var peakR: Float = 0.0
     @Published var sampleRate: Double = 48000.0
-    @Published var midiSources: String = "Nenhum controlador conectado"
+    @Published var midiSources: String = L("No MIDI controller connected")
     @Published var midiSourceCount: Int = 0
 
-    // Dispositivos de Áudio e MIDI
+    // Audio and MIDI devices
     @Published var audioOutputDevices: [AudioOutputDeviceItem] = []
     @Published var selectedAudioDeviceID: UInt32 = 0 {
         didSet {
@@ -523,7 +528,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // Controles Gerais
+    // Global Master Controls
     @Published var fineTuneCents: Double = 0.0 {
         didSet {
             if let h = host { npno_host_set_fine_tune_cents(h, Float(fineTuneCents)) }
@@ -550,7 +555,7 @@ final class PianoViewModel: ObservableObject {
             if let h = host { npno_host_set_transpose(h, Int32(transposeSemitones.rounded())) }
         }
     }
-    @Published var globalVelocityCurve: Double = 0.0 { // -1 = Soft, 0 = Main, +1 = Hard
+    @Published var globalVelocityCurve: Double = 0.0 { // -1 = Light, 0 = Normal, +1 = Heavy
         didSet {
             if let h = host { npno_host_set_velocity_curve(h, Int32(globalVelocityCurve.rounded())) }
         }
@@ -614,7 +619,7 @@ final class PianoViewModel: ObservableObject {
         didSet { pushModulator(1, mod2) }
     }
 
-    // Delay e Reverb
+    // Delay & Reverb
     @Published var delay: NPNODelayParams = {
         var d = NPNODelayParams()
         d.enabled = false
@@ -643,7 +648,7 @@ final class PianoViewModel: ObservableObject {
         didSet { pushReverb() }
     }
 
-    // Teclado do Mac (QWERTY) & Demo
+    // Mac Keyboard (QWERTY) & Demo
     @Published var computerBaseOctave: Int = 4
     @Published var computerVelocity: Int = 96
     @Published var isPlayingDemo: Bool = false
@@ -664,7 +669,6 @@ final class PianoViewModel: ObservableObject {
                 npno_host_get_layer_params(h, Int32(l), &lp)
                 layers[l].params = lp
             }
-            // Registra callback C nonisolated que grava no RealtimeMIDIBridge sem checagem de @MainActor
             npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
         }
         refreshAudioAndMidiDevices()
@@ -682,7 +686,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Sincronização de Parâmetros
+    // MARK: - Parameter Synchronization
 
     func updateLayerParams(_ layer: Int, _ mutate: (inout NPNOLayerParams) -> Void) {
         guard (0..<4).contains(layer), let h = host else { return }
@@ -746,7 +750,7 @@ final class PianoViewModel: ObservableObject {
         eqTrebleDb = 0.0
     }
 
-    // MARK: - Áudio e MIDI
+    // MARK: - Audio and MIDI
 
     func refreshAudioAndMidiDevices() {
         guard let h = host else { return }
@@ -785,7 +789,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Carregamento de Bancos .npno nas Camadas A/B/C/D
+    // MARK: - Loading .npno / .nsmp4 Sound Banks on Layers A/B/C/D
 
     @Published var embeddedBanks: [EmbeddedBankItem] = []
 
@@ -860,7 +864,7 @@ final class PianoViewModel: ObservableObject {
         let panel = NSOpenPanel()
         let layerNames = ["A", "B", "C", "D"]
         let lName = (0..<4).contains(layer) ? layerNames[layer] : "A"
-        panel.title = "Selecionar timbre .npno / .nsmp4 para a Camada \(lName)"
+        panel.title = String(localized: "Select .npno / .nsmp4 sound for Layer \(lName)", bundle: .module)
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -916,7 +920,7 @@ final class PianoViewModel: ObservableObject {
                 if ok {
                     vm.refreshLayerInfo(layer)
                 } else {
-                    vm.errorMessage = errText.isEmpty ? "Falha ao carregar o arquivo .npno" : errText
+                    vm.errorMessage = errText.isEmpty ? L("Failed to load .npno file") : errText
                 }
             }
         }
@@ -980,7 +984,7 @@ final class PianoViewModel: ObservableObject {
         layers[layer].params = lp
         layers[layer].loaded = info.loaded
         guard info.loaded else {
-            layers[layer].name = "Nenhum timbre"
+            layers[layer].name = L("No Sound")
             return
         }
 
@@ -1008,7 +1012,7 @@ final class PianoViewModel: ObservableObject {
         layers[layer].bankCount = Int(info.bankCount)
     }
 
-    // Timer de leitura da UI a ~60Hz no MainActor (drena CCs e telemetria sem criar Tasks por evento MIDI)
+    // UI polling timer at ~60 Hz on MainActor (drains CCs and telemetry without creating Tasks per MIDI event)
     private func startTelemetryTimer() {
         telemetryTimer = Self.makeTelemetryTimer(for: self)
     }
@@ -1026,7 +1030,7 @@ final class PianoViewModel: ObservableObject {
 
         var hadCCTraffic = false
 
-        // 1. Drena fluxo contínuo de MIDI CC e progresso de carregamento da ponte lock-free/unfair_lock
+        // 1. Drain continuous MIDI CC stream and load progress from lock-free/unfair_lock bridge
         if let snap = RealtimeMIDIBridge.shared.drain() {
             if snap.loadMask != 0 {
                 let progresses = [snap.loadProgress.0, snap.loadProgress.1, snap.loadProgress.2, snap.loadProgress.3]
@@ -1058,7 +1062,7 @@ final class PianoViewModel: ObservableObject {
             }
         }
 
-        // 2. Telemetria do motor C++ (medidor L/R, vozes, sustain, notas ativas) -> atualiza APENAS `telemetry`
+        // 2. C++ engine telemetry (L/R meter, voices, sustain, active keys) -> updates ONLY `telemetry`
         var tel = NPNOTelemetry()
         npno_host_get_telemetry(h, &tel)
 
@@ -1087,7 +1091,7 @@ final class PianoViewModel: ObservableObject {
             }
         }
 
-        // 3. Eventos de baixa frequência em PianoViewModel (RAM, MIDI Learn da camada, dispositivos MIDI)
+        // 3. Low-frequency events in PianoViewModel (RAM, Layer MIDI Learn, MIDI devices)
         if totalMemoryBytes != tel.totalMemoryBytes { totalMemoryBytes = tel.totalMemoryBytes }
         if totalUnpurgedBytes != tel.totalUnpurgedBytes { totalUnpurgedBytes = tel.totalUnpurgedBytes }
 
@@ -1104,12 +1108,12 @@ final class PianoViewModel: ObservableObject {
         let rawSources = withUnsafePointer(to: &tel.midiSources) {
             $0.withMemoryRebound(to: CChar.self, capacity: 256) { String(cString: $0) }
         }
-        let cleanSources = (newMidiCount == 0 || rawSources.contains("Nenhum"))
-            ? "Nenhum controlador conectado"
+        let cleanSources = (newMidiCount == 0 || rawSources.contains("Nenhum") || rawSources.contains("No MIDI"))
+            ? L("No MIDI controller connected")
             : rawSources
         if midiSources != cleanSources { midiSources = cleanSources }
 
-        // Sincroniza parâmetros da camada com C++ APENAS quando houve tráfego de CC ou fim de MIDI Learn
+        // Synchronize layer parameters with C++ ONLY when there was CC traffic or MIDI Learn finished
         if hadCCTraffic || learnChanged {
             for l in 0..<4 {
                 var lp = NPNOLayerParams()
@@ -1129,7 +1133,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Disparo de notas e controles
+    // MARK: - Note Triggering and Controls
 
     func noteOn(_ note: Int, velocity: Float = 0.78) {
         guard let h = host else { return }
@@ -1191,7 +1195,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Teclado do Mac (QWERTY)
+    // MARK: - Mac Keyboard (QWERTY)
 
     private func installKeyboardMonitors() {
         keyMonitorDown = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -1277,26 +1281,26 @@ final class PianoViewModel: ObservableObject {
     }
 }
 
-// MARK: - Cena Nativa de Configurações (Cmd+,) — Abas: Áudio · MIDI · Aparência · Teclado
+// MARK: - Native Settings Scene (Cmd+,)
 
 struct ElectroProSettingsView: View {
     @ObservedObject var vm: PianoViewModel
 
     var body: some View {
         TabView {
-            Tab("Áudio", systemImage: "speaker.wave.3.fill") {
+            Tab(L("Audio"), systemImage: "speaker.wave.3.fill") {
                 audioSettingsTab
             }
 
-            Tab("MIDI", systemImage: "pianokeys") {
+            Tab(L("MIDI"), systemImage: "pianokeys") {
                 midiSettingsTab
             }
 
-            Tab("Aparência", systemImage: "paintpalette.fill") {
+            Tab(L("Appearance"), systemImage: "paintpalette.fill") {
                 appearanceSettingsTab
             }
 
-            Tab("Teclado", systemImage: "keyboard") {
+            Tab(L("Keyboard"), systemImage: "keyboard") {
                 keyboardSettingsTab
             }
         }
@@ -1307,34 +1311,34 @@ struct ElectroProSettingsView: View {
         }
     }
 
-    // Aba 1: Áudio
+    // Tab 1: Audio
     private var audioSettingsTab: some View {
         Form {
-            Section("Saída de Áudio (CoreAudio)") {
-                Picker("Dispositivo de saída", selection: $vm.selectedAudioDeviceID) {
+            Section(L("Audio Output (Core Audio)")) {
+                Picker(L("Output Device"), selection: $vm.selectedAudioDeviceID) {
                     ForEach(vm.audioOutputDevices) { dev in
-                        Text(dev.name).tag(dev.id)
+                        Text(verbatim: dev.name).tag(dev.id)
                     }
                 }
 
-                LabeledContent("Taxa de amostragem ativa") {
-                    Text(String(format: "%.1f kHz • 32-bit Float Estéreo", vm.sampleRate / 1000.0))
+                LabeledContent(L("Sample Rate")) {
+                    Text(String(localized: "\(String(format: "%.1f", vm.sampleRate / 1000.0)) kHz • 32-bit Float Stereo", bundle: .module))
                         .font(StudioTokens.fontValue)
                         .foregroundStyle(StudioTokens.textSecondary)
                 }
 
-                Picker("Polifonia máxima", selection: $vm.maxVoices) {
-                    Text("64 vozes").tag(64)
-                    Text("128 vozes").tag(128)
-                    Text("256 vozes (Padrão)").tag(256)
-                    Text("512 vozes").tag(512)
+                Picker(L("Maximum Polyphony"), selection: $vm.maxVoices) {
+                    Text(L("64 Voices")).tag(64)
+                    Text(L("128 Voices")).tag(128)
+                    Text(L("256 Voices (Default)")).tag(256)
+                    Text(L("512 Voices")).tag(512)
                 }
 
                 HStack {
                     Button {
                         vm.refreshAudioAndMidiDevices()
                     } label: {
-                        Label("Atualizar dispositivos", systemImage: "arrow.clockwise")
+                        Label(L("Refresh Devices"), systemImage: "arrow.clockwise")
                     }
 
                     Spacer()
@@ -1342,7 +1346,7 @@ struct ElectroProSettingsView: View {
                     Button {
                         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Audio MIDI Setup.app"))
                     } label: {
-                        Label("Abrir Configuração Áudio e MIDI…", systemImage: "slider.horizontal.below.rectangle")
+                        Label(L("Open Audio MIDI Setup…"), systemImage: "slider.horizontal.below.rectangle")
                     }
                 }
             }
@@ -1350,15 +1354,15 @@ struct ElectroProSettingsView: View {
         .formStyle(.grouped)
     }
 
-    // Aba 2: MIDI
+    // Tab 2: MIDI
     private var midiSettingsTab: some View {
         Form {
-            Section("Recepção MIDI Global") {
-                Picker("Canal MIDI principal", selection: $vm.midiChannel) {
-                    Text("Omni (Todos os canais 1–16)").tag(0)
+            Section(L("Global MIDI Receive")) {
+                Picker(L("Receive Channel"), selection: $vm.midiChannel) {
+                    Text(L("Omni (All Channels 1–16)")).tag(0)
                     Divider()
                     ForEach(1...16, id: \.self) { ch in
-                        Text("Canal \(ch)").tag(ch)
+                        Text(String(localized: "Channel \(ch)", bundle: .module)).tag(ch)
                     }
                 }
             }
@@ -1370,10 +1374,10 @@ struct ElectroProSettingsView: View {
                             .font(.system(size: 18))
                             .foregroundStyle(StudioTokens.textSecondary)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Nenhum controlador conectado")
+                            Text(L("No MIDI controller connected"))
                                 .font(StudioTokens.fontBodyMedium)
                                 .foregroundStyle(StudioTokens.textPrimary)
-                            Text("Conecte um teclado MIDI USB ou interface DIN e clique em Reescanear.")
+                            Text(L("Connect a USB or DIN MIDI controller and click Rescan."))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
                         }
@@ -1381,7 +1385,7 @@ struct ElectroProSettingsView: View {
                         Button {
                             vm.refreshAudioAndMidiDevices()
                         } label: {
-                            Label("Reescanear", systemImage: "arrow.clockwise")
+                            Label(L("Rescan"), systemImage: "arrow.clockwise")
                         }
                     }
                     .padding(.vertical, 6)
@@ -1401,22 +1405,22 @@ struct ElectroProSettingsView: View {
                         Button {
                             vm.refreshAudioAndMidiDevices()
                         } label: {
-                            Label("Reescanear", systemImage: "arrow.clockwise")
+                            Label(L("Rescan"), systemImage: "arrow.clockwise")
                         }
                     }
                 }
             } header: {
-                Text("Controladores MIDI")
+                Text(L("MIDI Controllers"))
             }
         }
         .formStyle(.grouped)
     }
 
-    // Aba 3: Aparência
+    // Tab 3: Appearance
     private var appearanceSettingsTab: some View {
         Form {
-            Section("Cor de Acento") {
-                Picker("Cor de acento da interface", selection: $vm.accentOption) {
+            Section(L("Accent Color")) {
+                Picker(L("Interface Accent Color"), selection: $vm.accentOption) {
                     ForEach(AccentOption.allCases) { option in
                         HStack(spacing: 8) {
                             Circle()
@@ -1429,7 +1433,7 @@ struct ElectroProSettingsView: View {
                 }
                 .pickerStyle(.radioGroup)
 
-                Text("A cor de acento destaca exclusivamente o arco de valor dos knobs, a camada selecionada e o pico do medidor.")
+                Text(L("The accent color highlights only knob value arcs, the selected layer, and the meter peak."))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
             }
@@ -1437,41 +1441,41 @@ struct ElectroProSettingsView: View {
         .formStyle(.grouped)
     }
 
-    // Aba 4: Teclado (QWERTY)
+    // Tab 4: Keyboard (QWERTY)
     private var keyboardSettingsTab: some View {
         Form {
-            Section("Teclado do Mac (QWERTY)") {
+            Section(L("Mac Keyboard (QWERTY)")) {
                 Stepper(
-                    "Oitava base: C\(vm.computerBaseOctave)",
+                    String(localized: "Base Octave: C\(vm.computerBaseOctave)", bundle: .module),
                     value: $vm.computerBaseOctave,
                     in: 1...6
                 )
 
                 Stepper(
-                    "Velocidade das notas: \(vm.computerVelocity)",
+                    String(localized: "Velocity: \(vm.computerVelocity)", bundle: .module),
                     value: $vm.computerVelocity,
                     in: 16...127,
                     step: 8
                 )
 
-                Toggle("Exibir teclado virtual de 61 teclas na janela (⌘K)", isOn: $vm.showVirtualKeyboard)
+                Toggle(L("Show 61-Key On-Screen Keyboard (⌘K)"), isOn: $vm.showVirtualKeyboard)
             }
 
-            Section("Atalhos Rápidos de Execução") {
-                LabeledContent("Notas brancas") {
-                    Text("A S D F G H J K L Ç")
+            Section(L("Quick Playing Shortcuts")) {
+                LabeledContent(L("White Keys")) {
+                    Text(verbatim: "A S D F G H J K L ;")
                         .font(StudioTokens.fontValue)
                 }
-                LabeledContent("Notas pretas") {
-                    Text("W E   T Y U   O P")
+                LabeledContent(L("Black Keys")) {
+                    Text(verbatim: "W E   T Y U   O P")
                         .font(StudioTokens.fontValue)
                 }
-                LabeledContent("Oitava − / + e Velocity − / +") {
-                    Text("Z / X  •  C / V")
+                LabeledContent(L("Octave − / + & Velocity − / +")) {
+                    Text(verbatim: "Z / X  •  C / V")
                         .font(StudioTokens.fontValue)
                 }
-                LabeledContent("Pedal Sustain") {
-                    Text("Barra de Espaço")
+                LabeledContent(L("Sustain Pedal")) {
+                    Text(L("Spacebar"))
                         .font(StudioTokens.fontValue)
                 }
             }
@@ -1480,7 +1484,7 @@ struct ElectroProSettingsView: View {
     }
 }
 
-// MARK: - Ponto de Entrada do App (macOS 26 Tahoe)
+// MARK: - App Entry Point (macOS 26 Tahoe)
 
 @main
 struct ElectroPianoApp: App {
@@ -1492,80 +1496,80 @@ struct ElectroPianoApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Electro Pro") {
+        WindowGroup(L("Electro Pro")) {
             ContentView(vm: viewModel)
         }
         .defaultSize(width: 1200, height: 760)
         .windowResizability(.contentMinSize)
         .commands {
-            // Menu Arquivo
+            // File Menu
             CommandGroup(replacing: .newItem) {
-                Button("Carregar Timbre na Camada A…") {
+                Button(L("Load Sound into Layer A…")) {
                     viewModel.openFilePicker(forLayer: 0)
                 }
                 .keyboardShortcut("o", modifiers: [.command])
 
-                Button("Carregar Timbre na Camada B…") {
+                Button(L("Load Sound into Layer B…")) {
                     viewModel.openFilePicker(forLayer: 1)
                 }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
 
-                Button("Carregar Timbre na Camada C…") {
+                Button(L("Load Sound into Layer C…")) {
                     viewModel.openFilePicker(forLayer: 2)
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift])
 
-                Button("Carregar Timbre na Camada D…") {
+                Button(L("Load Sound into Layer D…")) {
                     viewModel.openFilePicker(forLayer: 3)
                 }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
 
                 Divider()
 
-                Button("Salvar no Programa Atual (M\(viewModel.selectedMemorySlot))") {
+                Button(String(localized: "Save to Current Program (M\(viewModel.selectedMemorySlot))", bundle: .module)) {
                     viewModel.storeCurrentToMemory(slot: viewModel.selectedMemorySlot)
                 }
                 .keyboardShortcut("s", modifiers: [.command])
 
-                Button("Renomear programa…") {
+                Button(L("Rename Program…")) {
                     viewModel.beginRenameCurrentProgram()
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 
                 Divider()
 
-                Button("Liberar Samples Não Usados da RAM (Purge)") {
+                Button(L("Purge Unused Samples from RAM")) {
                     viewModel.purgeUnusedMemory()
                 }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
 
-                Button("Recarregar Samples Purgados") {
+                Button(L("Reload Purged Samples")) {
                     viewModel.reloadPurgedMemory()
                 }
             }
 
-            // Menu Editar
+            // Edit Menu
             CommandGroup(after: .pasteboard) {
                 Divider()
-                Button("Restaurar Equalizador (Flat 0 dB)") {
+                Button(L("Reset Equalizer (Flat 0 dB)")) {
                     viewModel.resetEq()
                 }
                 if viewModel.activeMidiLearnKey != nil || viewModel.midiLearnLayer >= 0 {
-                    Button("Cancelar MIDI Learn") {
+                    Button(L("Cancel MIDI Learn")) {
                         viewModel.activeMidiLearnKey = nil
                         viewModel.toggleMidiLearn(layer: viewModel.midiLearnLayer, slot: viewModel.midiLearnSlot)
                     }
                     .keyboardShortcut(.escape, modifiers: [])
                 }
-                Button("Panic — Silenciar Todas as Vozes") {
+                Button(L("Panic — All Notes Off")) {
                     viewModel.panic()
                 }
                 .keyboardShortcut(".", modifiers: [.command])
             }
 
-            // Menu Visualizar (Abas, Camadas, Teclado Virtual e Zoom em Cmd +/−)
+            // View Menu (Tabs, Layers, On-Screen Keyboard, and Zoom on Cmd +/−)
             CommandGroup(after: .toolbar) {
-                Button(viewModel.showVirtualKeyboard ? "Ocultar Teclado Virtual (61 Teclas)" : "Mostrar Teclado Virtual (61 Teclas)") {
+                Button(viewModel.showVirtualKeyboard ? L("Hide On-Screen Keyboard (61 Keys)") : L("Show On-Screen Keyboard (61 Keys)")) {
                     viewModel.showVirtualKeyboard.toggle()
                 }
                 .keyboardShortcut("k", modifiers: [.command])
@@ -1573,7 +1577,7 @@ struct ElectroPianoApp: App {
                 Divider()
 
                 ForEach(WorkstationTab.allCases) { tab in
-                    Button("Aba \(tab.title)") {
+                    Button(String(localized: "Tab: \(tab.title)", bundle: .module)) {
                         viewModel.selectedTab = tab
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(tab.rawValue + 1)")), modifiers: [.command])
@@ -1582,7 +1586,7 @@ struct ElectroPianoApp: App {
                 Divider()
 
                 ForEach(0..<4, id: \.self) { layer in
-                    Button("Selecionar Camada \(kLayerLetters[layer])") {
+                    Button(String(localized: "Select Layer \(kLayerLetters[layer])", bundle: .module)) {
                         viewModel.selectedLayer = layer
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(layer + 1)")), modifiers: [.option])
@@ -1590,37 +1594,24 @@ struct ElectroPianoApp: App {
 
                 Divider()
 
-                Button("Aumentar Zoom") {
+                Button(L("Zoom In")) {
                     viewModel.zoomIn()
                 }
                 .keyboardShortcut("=", modifiers: [.command])
 
-                Button("Diminuir Zoom") {
+                Button(L("Zoom Out")) {
                     viewModel.zoomOut()
                 }
                 .keyboardShortcut("-", modifiers: [.command])
 
-                Button("Tamanho Real (100%)") {
-                    viewModel.uiScale = 1.0
+                Button(L("Actual Size (100%)")) {
+                    viewModel.zoomToFitScreen()
                 }
                 .keyboardShortcut("0", modifiers: [.command])
             }
-
-            // Menu Ajuda (Demo + Guia de Gestos)
-            CommandGroup(replacing: .help) {
-                Button(viewModel.isPlayingDemo ? "Parar Demonstração Musical" : "Tocar Demonstração Musical (Demo)") {
-                    viewModel.toggleDemo()
-                }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button("Guia Rápido de Controles: Arraste = Ajustar • Shift = Fino • Duplo Clique = Padrão/Digitar • Botão Direito = MIDI Learn") {}
-                    .disabled(true)
-            }
         }
 
-        // Cena Nativa de Configurações (Cmd+,)
+        // Native Settings Window (Cmd+,)
         Settings {
             ElectroProSettingsView(vm: viewModel)
         }

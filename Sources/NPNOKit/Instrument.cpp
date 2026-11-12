@@ -222,7 +222,7 @@ void Instrument::resolveLayerBoundaries(bool legacyScale) {
 std::unique_ptr<Instrument> Instrument::load(const std::string& path, const Progress& progress,
                                              const std::atomic<bool>* cancel) {
     auto doc = Document::open(path);
-    if (!doc->crcOk) throw FormatError("Checksum do arquivo não confere (arquivo corrompido?)");
+    if (!doc->crcOk) throw FormatError("File checksum mismatch (corrupted file?)");
 
     auto inst = std::make_unique<Instrument>();
     inst->name = doc->name;
@@ -377,7 +377,7 @@ std::unique_ptr<Instrument> Instrument::load(const std::string& path, const Prog
     for (unsigned t = 0; t < n; ++t) pool.emplace_back(worker);
     for (auto& th : pool) th.join();
     if (failed) throw FormatError(error);
-    if (cancel && cancel->load()) throw FormatError("Carregamento cancelado");
+    if (cancel && cancel->load()) throw FormatError("Loading cancelled");
 
     for (uint32_t i = 0; i < inst->samples.size(); ++i) {
         const Sample& s = inst->samples[i];
@@ -535,7 +535,7 @@ std::string Instrument::summary() const {
     for (auto& s : samples) (s.release ? rel : normal)++;
     char buf[256];
     std::snprintf(buf, sizeof buf,
-                  "%s %s v%.2f | %zu amostras (%zu normais, %zu soltura) | %.0f MiB | notas %d-%d | abafador < %d",
+                  "%s %s v%.2f | %zu samples (%zu normal, %zu release) | %.0f MB | notes %d-%d | damper < %d",
                   name.c_str(), model.c_str(), fileVersion / 100.0, samples.size(), normal, rel,
                   decodedBytes / 1048576.0, lowestNote, highestNote, damperBoundary);
     return buf;

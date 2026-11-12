@@ -1,7 +1,13 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Opções de Cor de Acento (Configurações > Aparência)
+// MARK: - Localization Helper (Bundle.module String Catalog)
+
+func L(_ key: String.LocalizationValue) -> String {
+    String(localized: key, bundle: .module)
+}
+
+// MARK: - Accent Color Options (Settings > Appearance)
 
 enum AccentOption: Int, CaseIterable, Identifiable {
     case nordRed = 0
@@ -13,10 +19,10 @@ enum AccentOption: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .nordRed: return "Vermelho Nord (Padrão)"
-        case .studioBlue: return "Azul Estúdio"
-        case .warmAmber: return "Âmbar Analógico"
-        case .neutralSilver: return "Cinza Neutro"
+        case .nordRed: return L("Nord Red (Default)")
+        case .studioBlue: return L("Studio Blue")
+        case .warmAmber: return L("Analog Amber")
+        case .neutralSilver: return L("Neutral Silver")
         }
     }
 
@@ -34,47 +40,47 @@ enum AccentOption: Int, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Tokens Visuais (Direção Visual macOS 26 Tahoe)
+// MARK: - Visual Tokens (macOS 26 Tahoe Visual Direction)
 
 @MainActor
 enum StudioTokens {
-    // Superfícies sólidas de conteúdo (Sem Glass)
+    // Solid content surfaces (No Glass)
     static let surfaceWindow = Color(red: 0x14 / 255.0, green: 0x14 / 255.0, blue: 0x16 / 255.0)   // #141416
     static let surfacePanel = Color(red: 0x1C / 255.0, green: 0x1C / 255.0, blue: 0x1F / 255.0)    // #1C1C1F
     static let surfaceControl = Color(red: 0x26 / 255.0, green: 0x26 / 255.0, blue: 0x2A / 255.0)  // #26262A
     static let borderHairline = Color(red: 0x2F / 255.0, green: 0x2F / 255.0, blue: 0x34 / 255.0)  // #2F2F34
 
-    // Texto com contraste mínimo WCAG AA (≥ 4.5:1 sobre #141416 e #1C1C1F)
+    // WCAG AA contrast text (>= 4.5:1 on #141416 and #1C1C1F)
     static let textPrimary = Color(red: 0xED / 255.0, green: 0xED / 255.0, blue: 0xEF / 255.0)     // #EDEDEF
     static let textSecondary = Color(red: 0x9A / 255.0, green: 0x9A / 255.0, blue: 0xA2 / 255.0)   // #9A9AA2
     static let textDisabled = Color(red: 0x5A / 255.0, green: 0x5A / 255.0, blue: 0x62 / 255.0)    // #5A5A62
 
-    // Acento ativo (usado APENAS em: arco de valor dos knobs, borda+ponto da camada selecionada e pico do medidor)
+    // Active accent (used ONLY on: knob value arc, selected layer border+dot, and meter peak)
     static var accent: Color {
         PianoViewModel.shared?.accentOption.color ?? Color("AccentColor", bundle: .module)
     }
 
-    // Medidores de áudio (verde -> amarelo -> vermelho)
+    // Audio meters (green -> yellow -> red)
     static let meterGreen = Color(red: 0x30 / 255.0, green: 0xD1 / 255.0, blue: 0x58 / 255.0)
     static let meterYellow = Color(red: 0xFF / 255.0, green: 0xD6 / 255.0, blue: 0x0A / 255.0)
     static let meterRed = Color(red: 0xD6 / 255.0, green: 0x20 / 255.0, blue: 0x2A / 255.0)
 
-    // Cores para visualização de zonas das 4 camadas no teclado de 61 teclas
+    // Layer zone visualization colors on the 61-key keyboard
     static let layerZoneColors: [Color] = [
-        Color(red: 0xD6 / 255.0, green: 0x20 / 255.0, blue: 0x2A / 255.0), // Camada A
-        Color(red: 0x2E / 255.0, green: 0x7C / 255.0, blue: 0xF6 / 255.0), // Camada B
-        Color(red: 0xE0 / 255.0, green: 0x8A / 255.0, blue: 0x1E / 255.0), // Camada C
-        Color(red: 0x26 / 255.0, green: 0xA6 / 255.0, blue: 0x6B / 255.0)  // Camada D
+        Color(red: 0xD6 / 255.0, green: 0x20 / 255.0, blue: 0x2A / 255.0), // Layer A
+        Color(red: 0x2E / 255.0, green: 0x7C / 255.0, blue: 0xF6 / 255.0), // Layer B
+        Color(red: 0xE0 / 255.0, green: 0x8A / 255.0, blue: 0x1E / 255.0), // Layer C
+        Color(red: 0x26 / 255.0, green: 0xA6 / 255.0, blue: 0x6B / 255.0)  // Layer D
     ]
 
-    // Grid base 8pt
+    // 8pt base grid
     static let grid1: CGFloat = 8
     static let grid2: CGFloat = 16
     static let grid3: CGFloat = 24
     static let panelRadius: CGFloat = 10
     static let controlRadius: CGFloat = 6
 
-    // Escala tipográfica (SF Pro, mínimo 11pt)
+    // Typography scale (SF Pro, minimum 11pt)
     static let fontLabel = Font.system(size: 11, weight: .medium)
     static let fontSectionCaps = Font.system(size: 11, weight: .semibold)
     static let fontBody = Font.system(size: 12, weight: .regular)
@@ -84,7 +90,7 @@ enum StudioTokens {
     static let fontSectionTitle = Font.system(size: 15, weight: .semibold)
 }
 
-// MARK: - Card Sólido de Seção (Superfície Sólida Escura #1C1C1F, Sem Glass, Altura do Conteúdo por Linha)
+// MARK: - Solid Section Card (Dark Solid Surface #1C1C1F, No Glass, Row-matched Height)
 
 struct SectionCard<HeaderTrailing: View, Content: View>: View {
     let title: String
@@ -154,7 +160,7 @@ struct SectionCard<HeaderTrailing: View, Content: View>: View {
     }
 }
 
-// MARK: - ProKnob (Chapado, Sem Glass, 56pt / 48pt / 36pt, Digitação por Duplo Clique, Acessível)
+// MARK: - ProKnob (Flat, No Glass, 56pt / 48pt / 36pt, Double-Click Value Entry, Accessible)
 
 struct ProKnob: View {
     var idKey: String = ""
@@ -184,7 +190,7 @@ struct ProKnob: View {
         return min(max((value - range.lowerBound) / span, 0.0), 1.0)
     }
 
-    /// Origem do arco: no centro para controles bipolares (ex.: -15..+15 dB), senão na base (0.0).
+    /// Arc origin: center for bipolar controls (e.g., -15..+15 dB), otherwise base (0.0).
     private var arcOrigin: Double {
         (range.lowerBound < 0 && range.upperBound > 0 && span > 0) ? (-range.lowerBound / span) : 0.0
     }
@@ -230,7 +236,7 @@ struct ProKnob: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Rótulo superior (11pt Sentence case) + badge de CC mapeado
+            // Top label (11pt Sentence case) + mapped CC badge
             HStack(spacing: 3) {
                 Text(title)
                     .font(StudioTokens.fontLabel)
@@ -239,7 +245,7 @@ struct ProKnob: View {
                     .fixedSize(horizontal: true, vertical: false)
 
                 if let cc = mappedCC {
-                    Text("CC\(cc)")
+                    Text(verbatim: "CC\(cc)")
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
                         .foregroundStyle(enabled ? StudioTokens.accent : StudioTokens.textDisabled)
                         .lineLimit(1)
@@ -248,7 +254,7 @@ struct ProKnob: View {
             }
             .frame(height: 16)
 
-            // Dial chapado em Canvas (sem glass, sem brilho, sem bisel)
+            // Flat Canvas dial (no glass, no gloss, no bevel)
             dialCanvas
                 .frame(width: size, height: size)
                 .contentShape(Rectangle())
@@ -300,7 +306,7 @@ struct ProKnob: View {
                     return .handled
                 }
 
-            // Valor numérico abaixo (13pt monospacedDigit) — duplo clique para digitar
+            // Numeric value readout below (13pt monospacedDigit) — double-click to type
             valueReadout
                 .frame(height: 20)
         }
@@ -316,7 +322,7 @@ struct ProKnob: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue(valueFormatter(value))
-        .accessibilityHint("Arraste ou use as setas para ajustar. Duplo clique restaura o padrão.")
+        .accessibilityHint(L("Drag or use arrow keys to adjust. Double-click to reset to default."))
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment: nudge(1)
@@ -329,9 +335,9 @@ struct ProKnob: View {
     private var tooltipText: String {
         var base = "\(title): \(valueFormatter(value))"
         if let cc = mappedCC {
-            base += " (Mapeado para MIDI CC \(cc))"
+            base += " (\(String(localized: "Mapped to MIDI CC \(cc)", bundle: .module)))"
         }
-        base += " — Arraste para ajustar, Shift para ajuste fino, duplo clique no knob restaura o padrão, duplo clique no valor para digitar, botão direito para MIDI Learn."
+        base += " — \(L("Drag to adjust, hold Shift for fine control, double-click knob to reset, double-click value to type, right-click for MIDI Learn."))"
         return base
     }
 
@@ -347,7 +353,7 @@ struct ProKnob: View {
             let radius = (min(canvasSize.width, canvasSize.height) / 2) - lineWidth
             let bodyRadius = radius - 4.0
 
-            // Disco interno chapado (#26262A com borda hairline #2F2F34)
+            // Inner flat disc (#26262A with #2F2F34 hairline border)
             let bodyRect = CGRect(
                 x: center.x - bodyRadius,
                 y: center.y - bodyRadius,
@@ -358,7 +364,7 @@ struct ProKnob: View {
             context.fill(bodyPath, with: .color(StudioTokens.surfaceControl))
             context.stroke(bodyPath, with: .color(StudioTokens.borderHairline), lineWidth: 1.0)
 
-            // Trilho neutro de 3pt (270 graus: 135° a 405°)
+            // Neutral 3pt track (270 degrees: 135° to 405°)
             var trackPath = Path()
             trackPath.addArc(
                 center: center,
@@ -373,7 +379,7 @@ struct ProKnob: View {
                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
             )
 
-            // Arco de preenchimento em acento
+            // Accent fill arc
             let startDeg = 135.0 + lo * 270.0
             let endDeg = 135.0 + max(hi, lo + 0.004) * 270.0
             var valuePath = Path()
@@ -390,7 +396,7 @@ struct ProKnob: View {
                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
             )
 
-            // Ponteiro em linha nítida
+            // Crisp pointer line
             let angleRad = (135.0 + normalized * 270.0) * .pi / 180.0
             let innerR = bodyRadius * 0.28
             let outerR = bodyRadius * 0.82
@@ -414,7 +420,7 @@ struct ProKnob: View {
     @ViewBuilder
     private var valueReadout: some View {
         if isEditingText && enabled {
-            TextField("", text: $textInput)
+            TextField(L("Value"), text: $textInput)
                 .textFieldStyle(.plain)
                 .font(StudioTokens.fontValueSemibold)
                 .foregroundStyle(StudioTokens.textPrimary)
@@ -437,7 +443,7 @@ struct ProKnob: View {
                     isTextFieldFocused = false
                 }
         } else {
-            Text(isLearning ? "Learn…" : valueFormatter(value))
+            Text(verbatim: isLearning ? L("Learn…") : valueFormatter(value))
                 .font(StudioTokens.fontValue)
                 .foregroundStyle(
                     isLearning
@@ -462,42 +468,42 @@ struct ProKnob: View {
 
     @ViewBuilder
     private var midiContextMenu: some View {
-        Text("\(title) — \(valueFormatter(value))")
+        Text(verbatim: "\(title) — \(valueFormatter(value))")
         if let cc = mappedCC {
-            Text("Mapeado para MIDI CC \(cc)")
+            Text(String(localized: "Mapped to MIDI CC \(cc)", bundle: .module))
         } else {
-            Text("Sem MIDI CC atribuído")
+            Text(L("No MIDI CC assigned"))
         }
         Divider()
-        Button(isLearning ? "Cancelar MIDI Learn" : "Aprender MIDI CC (MIDI Learn)") {
+        Button(isLearning ? L("Cancel MIDI Learn") : L("Learn MIDI CC (MIDI Learn)")) {
             PianoViewModel.shared?.startKnobMidiLearn(idKey: effectiveKey)
         }
-        Menu("Atribuir CC manualmente") {
+        Menu(L("Assign CC Manually")) {
             ForEach([1, 2, 4, 7, 10, 11, 64, 71, 72, 73, 74, 91, 93], id: \.self) { cc in
-                Button("CC \(cc)") {
+                Button(String(localized: "CC \(cc)", bundle: .module)) {
                     PianoViewModel.shared?.assignKnobCC(idKey: effectiveKey, cc: cc)
                 }
             }
         }
         if mappedCC != nil {
-            Button("Remover mapeamento MIDI", role: .destructive) {
+            Button(L("Remove MIDI Mapping"), role: .destructive) {
                 PianoViewModel.shared?.unassignKnobCC(idKey: effectiveKey)
             }
         }
         Divider()
-        Button("Digitar valor…") {
+        Button(L("Enter Value…")) {
             guard enabled else { return }
             textInput = step >= 1.0 ? String(format: "%.0f", value) : String(format: "%.1f", value)
             isEditingText = true
             isTextFieldFocused = true
         }
-        Button("Restaurar valor padrão") {
+        Button(L("Reset to Default")) {
             if enabled { value = defaultValue }
         }
     }
 }
 
-// MARK: - Medidor Estéreo Compacto L/R (Verde -> Amarelo -> Vermelho, Sem Corte, Sem Blur)
+// MARK: - Compact Stereo L/R Peak Meter (Green -> Yellow -> Red, Unclipped, No Blur)
 
 struct StereoPeakMeter: View {
     let peakL: Float
@@ -512,13 +518,13 @@ struct StereoPeakMeter: View {
         }
         .fixedSize()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Medidor de saída estéreo")
-        .accessibilityValue(String(format: "Esquerda %.0f por cento, Direita %.0f por cento", min(peakL, 1.0) * 100, min(peakR, 1.0) * 100))
+        .accessibilityLabel(L("Stereo output meter"))
+        .accessibilityValue(String(localized: "Left \(Int((min(peakL, 1.0) * 100).rounded())) percent, Right \(Int((min(peakR, 1.0) * 100).rounded())) percent", bundle: .module))
     }
 
     private func meterRow(label: String, level: Float) -> some View {
         HStack(spacing: 4) {
-            Text(label)
+            Text(verbatim: label)
                 .font(.system(size: 10, weight: .semibold).monospacedDigit())
                 .foregroundStyle(StudioTokens.textSecondary)
                 .frame(width: 9, alignment: .leading)
@@ -555,7 +561,7 @@ struct StereoPeakMeter: View {
     }
 }
 
-// MARK: - Range Slider Duplo (Para Faixa de Velocity e Intervalos)
+// MARK: - Dual Range Slider (For Velocity Range and Intervals)
 
 struct DualRangeSlider: View {
     let title: String
@@ -582,7 +588,7 @@ struct DualRangeSlider: View {
                     .foregroundStyle(StudioTokens.textSecondary)
                     .lineLimit(1)
                 Spacer()
-                Text("\(valueFormatter(lowValue)) – \(valueFormatter(highValue))")
+                Text(verbatim: "\(valueFormatter(lowValue)) – \(valueFormatter(highValue))")
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .lineLimit(1)
@@ -598,26 +604,26 @@ struct DualRangeSlider: View {
                 let highX = handleRadius + highNorm * usableWidth
 
                 ZStack(alignment: .leading) {
-                    // Trilho base
+                    // Base track
                     Capsule()
                         .fill(StudioTokens.surfaceControl)
                         .frame(height: 6)
                         .overlay(Capsule().stroke(StudioTokens.borderHairline, lineWidth: 1))
 
-                    // Faixa ativa (neutra clara)
+                    // Active range
                     Capsule()
                         .fill(StudioTokens.textSecondary.opacity(0.65))
                         .frame(width: max(4, highX - lowX), height: 6)
                         .offset(x: lowX)
 
-                    // Handle inferior
+                    // Low handle
                     Circle()
                         .fill(StudioTokens.textPrimary)
                         .frame(width: handleRadius * 2, height: handleRadius * 2)
                         .overlay(Circle().stroke(StudioTokens.surfaceWindow, lineWidth: 1.5))
                         .position(x: lowX, y: geo.size.height / 2)
 
-                    // Handle superior
+                    // High handle
                     Circle()
                         .fill(StudioTokens.textPrimary)
                         .frame(width: handleRadius * 2, height: handleRadius * 2)
@@ -653,11 +659,11 @@ struct DualRangeSlider: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue("De \(valueFormatter(lowValue)) até \(valueFormatter(highValue))")
+        .accessibilityValue(String(localized: "From \(valueFormatter(lowValue)) to \(valueFormatter(highValue))", bundle: .module))
     }
 }
 
-// MARK: - Range Slider de Zona sobre Mini-Teclado
+// MARK: - Key Zone Range Control Over Mini-Keyboard
 
 struct KeyZoneRangeControl: View {
     @Binding var keyLow: Int
@@ -680,11 +686,11 @@ struct KeyZoneRangeControl: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Faixa de notas")
+                Text(L("Note Range"))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
                 Spacer()
-                Text("\(shortNoteName(keyLow)) (\(keyLow)) – \(shortNoteName(keyHigh)) (\(keyHigh))")
+                Text(verbatim: "\(shortNoteName(keyLow)) (\(keyLow)) – \(shortNoteName(keyHigh)) (\(keyHigh))")
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
             }
@@ -783,26 +789,26 @@ struct KeyZoneRangeControl: View {
             .frame(height: 34)
 
             HStack {
-                Text("C-1")
+                Text(verbatim: "C-1")
                 Spacer()
-                Text("C2")
+                Text(verbatim: "C2")
                 Spacer()
-                Text("C4")
+                Text(verbatim: "C4")
                 Spacer()
-                Text("C6")
+                Text(verbatim: "C6")
                 Spacer()
-                Text("G9")
+                Text(verbatim: "G9")
             }
             .font(.system(size: 11, weight: .regular).monospacedDigit())
             .foregroundStyle(StudioTokens.textSecondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Zona do teclado da camada")
-        .accessibilityValue("De \(shortNoteName(keyLow)) até \(shortNoteName(keyHigh))")
+        .accessibilityLabel(L("Layer keyboard zone"))
+        .accessibilityValue(String(localized: "From \(shortNoteName(keyLow)) to \(shortNoteName(keyHigh))", bundle: .module))
     }
 }
 
-// MARK: - Gráfico de Resposta do Equalizador de 3 Bandas
+// MARK: - 3-Band Equalizer Response Graph
 
 struct EQResponseGraph: View {
     let bassDb: Double
@@ -886,7 +892,12 @@ struct EQResponseGraph: View {
                 .stroke(StudioTokens.borderHairline, lineWidth: 1)
         )
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Curva do Equalizador")
-        .accessibilityValue(String(format: "Graves %+.1f dB, Médios %+.1f dB em %.0f Hz, Agudos %+.1f dB", bassDb, midDb, midFreqHz, trebleDb))
+        .accessibilityLabel(L("Equalizer response curve"))
+        .accessibilityValue(
+            String(
+                localized: "Bass \(String(format: "%+.1f", bassDb)) dB, Mid \(String(format: "%+.1f", midDb)) dB at \(String(format: "%.0f", midFreqHz)) Hz, Treble \(String(format: "%+.1f", trebleDb)) dB",
+                bundle: .module
+            )
+        )
     }
 }
