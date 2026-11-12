@@ -1,13 +1,13 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Opções de Cor de Acento (Aparência)
+// MARK: - Opções de Cor de Acento (Configurações > Aparência)
 
 enum AccentOption: Int, CaseIterable, Identifiable {
     case nordRed = 0
     case studioBlue = 1
     case warmAmber = 2
-    case emeraldGreen = 3
+    case neutralSilver = 3
 
     var id: Int { rawValue }
 
@@ -16,7 +16,7 @@ enum AccentOption: Int, CaseIterable, Identifiable {
         case .nordRed: return "Vermelho Nord (Padrão)"
         case .studioBlue: return "Azul Estúdio"
         case .warmAmber: return "Âmbar Analógico"
-        case .emeraldGreen: return "Verde Esmeralda"
+        case .neutralSilver: return "Cinza Neutro"
         }
     }
 
@@ -28,8 +28,8 @@ enum AccentOption: Int, CaseIterable, Identifiable {
             return Color(red: 0x2E / 255.0, green: 0x7C / 255.0, blue: 0xF6 / 255.0)
         case .warmAmber:
             return Color(red: 0xE0 / 255.0, green: 0x8A / 255.0, blue: 0x1E / 255.0)
-        case .emeraldGreen:
-            return Color(red: 0x26 / 255.0, green: 0xA6 / 255.0, blue: 0x6B / 255.0)
+        case .neutralSilver:
+            return Color(red: 0xD8 / 255.0, green: 0xD8 / 255.0, blue: 0xDE / 255.0)
         }
     }
 }
@@ -49,7 +49,7 @@ enum StudioTokens {
     static let textSecondary = Color(red: 0x9A / 255.0, green: 0x9A / 255.0, blue: 0xA2 / 255.0)   // #9A9AA2
     static let textDisabled = Color(red: 0x5A / 255.0, green: 0x5A / 255.0, blue: 0x62 / 255.0)    // #5A5A62
 
-    // Acento ativo
+    // Acento ativo (usado APENAS em: arco de valor dos knobs, borda+ponto da camada selecionada e pico do medidor)
     static var accent: Color {
         PianoViewModel.shared?.accentOption.color ?? Color("AccentColor", bundle: .module)
     }
@@ -57,9 +57,9 @@ enum StudioTokens {
     // Medidores de áudio (verde -> amarelo -> vermelho)
     static let meterGreen = Color(red: 0x30 / 255.0, green: 0xD1 / 255.0, blue: 0x58 / 255.0)
     static let meterYellow = Color(red: 0xFF / 255.0, green: 0xD6 / 255.0, blue: 0x0A / 255.0)
-    static let meterRed = Color(red: 0xFF / 255.0, green: 0x45 / 255.0, blue: 0x3A / 255.0)
+    static let meterRed = Color(red: 0xD6 / 255.0, green: 0x20 / 255.0, blue: 0x2A / 255.0)
 
-    // Cores distintas e sóbrias para visualização de zonas das 4 camadas no teclado de 61 teclas
+    // Cores para visualização de zonas das 4 camadas no teclado de 61 teclas
     static let layerZoneColors: [Color] = [
         Color(red: 0xD6 / 255.0, green: 0x20 / 255.0, blue: 0x2A / 255.0), // Camada A
         Color(red: 0x2E / 255.0, green: 0x7C / 255.0, blue: 0xF6 / 255.0), // Camada B
@@ -84,7 +84,7 @@ enum StudioTokens {
     static let fontSectionTitle = Font.system(size: 15, weight: .semibold)
 }
 
-// MARK: - Card Sólido de Seção (Conteúdo = Superfície Sólida Escura, Sem Glass)
+// MARK: - Card Sólido de Seção (Superfície Sólida Escura #1C1C1F, Sem Glass, Altura do Conteúdo por Linha)
 
 struct SectionCard<HeaderTrailing: View, Content: View>: View {
     let title: String
@@ -109,11 +109,12 @@ struct SectionCard<HeaderTrailing: View, Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 Text(title)
                     .font(StudioTokens.fontSectionTitle)
                     .foregroundStyle(StudioTokens.textPrimary)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
@@ -122,7 +123,7 @@ struct SectionCard<HeaderTrailing: View, Content: View>: View {
                         .lineLimit(1)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
 
                 headerTrailing
             }
@@ -131,9 +132,12 @@ struct SectionCard<HeaderTrailing: View, Content: View>: View {
                 .overlay(StudioTokens.borderHairline)
 
             content
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+
+            Spacer(minLength: 0)
         }
         .padding(StudioTokens.grid2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             StudioTokens.surfacePanel,
             in: .rect(cornerRadius: StudioTokens.panelRadius)
@@ -150,7 +154,7 @@ struct SectionCard<HeaderTrailing: View, Content: View>: View {
     }
 }
 
-// MARK: - ProKnob (Chapado, Sem Glass, 48pt / 36pt, Digitação por Duplo Clique, Acessível)
+// MARK: - ProKnob (Chapado, Sem Glass, 56pt / 48pt / 36pt, Digitação por Duplo Clique, Acessível)
 
 struct ProKnob: View {
     var idKey: String = ""
@@ -186,7 +190,9 @@ struct ProKnob: View {
     }
 
     private var columnWidth: CGFloat {
-        max(size + 42, 90)
+        if size >= 54 { return 90 }
+        if size <= 38 { return 72 }
+        return 78
     }
 
     private var travelPixels: Double {
@@ -225,16 +231,19 @@ struct ProKnob: View {
     var body: some View {
         VStack(spacing: 4) {
             // Rótulo superior (11pt Sentence case) + badge de CC mapeado
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Text(title)
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(enabled ? StudioTokens.textSecondary : StudioTokens.textDisabled)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
                 if let cc = mappedCC {
                     Text("CC\(cc)")
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
                         .foregroundStyle(enabled ? StudioTokens.accent : StudioTokens.textDisabled)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .frame(height: 16)
@@ -249,7 +258,7 @@ struct ProKnob: View {
                 .overlay {
                     if isKnobFocused {
                         Circle()
-                            .stroke(StudioTokens.accent.opacity(0.85), lineWidth: 1.5)
+                            .stroke(StudioTokens.textPrimary.opacity(0.85), lineWidth: 1.5)
                             .padding(-3)
                     }
                 }
@@ -295,8 +304,8 @@ struct ProKnob: View {
             valueReadout
                 .frame(height: 20)
         }
-        .frame(width: columnWidth)
-        .opacity(enabled ? 1.0 : 0.65)
+        .frame(minWidth: columnWidth)
+        .opacity(enabled ? 1.0 : 0.55)
         .onAppear {
             PianoViewModel.shared?.registerKnob(idKey: effectiveKey, range: range, step: step) { nextVal in
                 value = nextVal
@@ -349,7 +358,7 @@ struct ProKnob: View {
             context.fill(bodyPath, with: .color(StudioTokens.surfaceControl))
             context.stroke(bodyPath, with: .color(StudioTokens.borderHairline), lineWidth: 1.0)
 
-            // Trilho de 270 graus (135° a 405°)
+            // Trilho neutro de 3pt (270 graus: 135° a 405°)
             var trackPath = Path()
             trackPath.addArc(
                 center: center,
@@ -408,17 +417,18 @@ struct ProKnob: View {
             TextField("", text: $textInput)
                 .textFieldStyle(.plain)
                 .font(StudioTokens.fontValueSemibold)
-                .foregroundStyle(StudioTokens.accent)
+                .foregroundStyle(StudioTokens.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
+                .frame(width: 68)
                 .background(
                     StudioTokens.surfaceControl,
                     in: .rect(cornerRadius: 4)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(StudioTokens.accent, lineWidth: 1)
+                        .stroke(StudioTokens.textSecondary, lineWidth: 1)
                 )
                 .focused($isTextFieldFocused)
                 .onSubmit { commitTextEntry() }
@@ -427,7 +437,7 @@ struct ProKnob: View {
                     isTextFieldFocused = false
                 }
         } else {
-            Text(isLearning ? "Aguardando CC…" : valueFormatter(value))
+            Text(isLearning ? "Learn…" : valueFormatter(value))
                 .font(StudioTokens.fontValue)
                 .foregroundStyle(
                     isLearning
@@ -435,6 +445,7 @@ struct ProKnob: View {
                         : (enabled ? StudioTokens.textPrimary : StudioTokens.textDisabled)
                 )
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2) {
                     guard enabled else { return }
@@ -486,19 +497,20 @@ struct ProKnob: View {
     }
 }
 
-// MARK: - Medidor Estéreo Compacto L/R (Alta Performance, Sem Blur)
+// MARK: - Medidor Estéreo Compacto L/R (Verde -> Amarelo -> Vermelho, Sem Corte, Sem Blur)
 
 struct StereoPeakMeter: View {
     let peakL: Float
     let peakR: Float
     var segments: Int = 12
-    var barWidth: CGFloat = 68
+    var barWidth: CGFloat = 64
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             meterRow(label: "L", level: peakL)
             meterRow(label: "R", level: peakR)
         }
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Medidor de saída estéreo")
         .accessibilityValue(String(format: "Esquerda %.0f por cento, Direita %.0f por cento", min(peakL, 1.0) * 100, min(peakR, 1.0) * 100))
@@ -507,21 +519,21 @@ struct StereoPeakMeter: View {
     private func meterRow(label: String, level: Float) -> some View {
         HStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .font(.system(size: 10, weight: .semibold).monospacedDigit())
                 .foregroundStyle(StudioTokens.textSecondary)
-                .frame(width: 10, alignment: .leading)
+                .frame(width: 9, alignment: .leading)
 
             Canvas { context, size in
                 let clamped = CGFloat(min(max(level, 0.0), 1.0))
                 let litCount = Int((clamped * CGFloat(segments)).rounded(.up))
-                let spacing: CGFloat = 2.0
+                let spacing: CGFloat = 1.5
                 let totalSpacing = spacing * CGFloat(max(0, segments - 1))
                 let segW = max(2.0, (size.width - totalSpacing) / CGFloat(segments))
 
                 for idx in 0..<segments {
                     let x = CGFloat(idx) * (segW + spacing)
                     let rect = CGRect(x: x, y: 0, width: segW, height: size.height)
-                    let path = Path(roundedRect: rect, cornerRadius: 1.5)
+                    let path = Path(roundedRect: rect, cornerRadius: 1.2)
 
                     if idx < litCount {
                         let color: Color
@@ -538,7 +550,7 @@ struct StereoPeakMeter: View {
                     }
                 }
             }
-            .frame(width: barWidth, height: 6)
+            .frame(width: barWidth, height: 5)
         }
     }
 }
@@ -568,15 +580,17 @@ struct DualRangeSlider: View {
                 Text(title)
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
+                    .lineLimit(1)
                 Spacer()
                 Text("\(valueFormatter(lowValue)) – \(valueFormatter(highValue))")
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
+                    .lineLimit(1)
             }
 
             GeometryReader { geo in
                 let width = max(1.0, geo.size.width)
-                let handleRadius: CGFloat = 7
+                let handleRadius: CGFloat = 6.5
                 let usableWidth = max(1.0, width - handleRadius * 2)
                 let lowNorm = CGFloat(Double(lowValue - bounds.lowerBound) / span)
                 let highNorm = CGFloat(Double(highValue - bounds.lowerBound) / span)
@@ -590,9 +604,9 @@ struct DualRangeSlider: View {
                         .frame(height: 6)
                         .overlay(Capsule().stroke(StudioTokens.borderHairline, lineWidth: 1))
 
-                    // Faixa ativa
+                    // Faixa ativa (neutra clara)
                     Capsule()
-                        .fill(StudioTokens.accent)
+                        .fill(StudioTokens.textSecondary.opacity(0.65))
                         .frame(width: max(4, highX - lowX), height: 6)
                         .offset(x: lowX)
 
@@ -635,7 +649,7 @@ struct DualRangeSlider: View {
                         }
                 )
             }
-            .frame(height: 22)
+            .frame(height: 20)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -643,7 +657,7 @@ struct DualRangeSlider: View {
     }
 }
 
-// MARK: - Range Slider de Zona sobre Mini-Teclado (Substitui 4 Knobs de Zona)
+// MARK: - Range Slider de Zona sobre Mini-Teclado
 
 struct KeyZoneRangeControl: View {
     @Binding var keyLow: Int
@@ -666,7 +680,7 @@ struct KeyZoneRangeControl: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Zona do teclado")
+                Text("Faixa de notas")
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
                 Spacer()
@@ -683,10 +697,8 @@ struct KeyZoneRangeControl: View {
                 let zoneColor = StudioTokens.layerZoneColors[min(max(layerIndex, 0), 3)]
 
                 ZStack(alignment: .leading) {
-                    // Mini-teclado de 128 notas em Canvas
                     Canvas { context, size in
                         let keyW = size.width / 128.0
-                        // Fundo das teclas brancas
                         let bgRect = CGRect(origin: .zero, size: size)
                         context.fill(Path(roundedRect: bgRect, cornerRadius: 5), with: .color(StudioTokens.surfaceControl))
 
@@ -696,7 +708,6 @@ struct KeyZoneRangeControl: View {
                                 let blackRect = CGRect(x: x, y: 0, width: max(1.2, keyW * 0.9), height: size.height * 0.58)
                                 context.fill(Path(blackRect), with: .color(StudioTokens.surfaceWindow.opacity(0.9)))
                             } else if note % 12 == 0 {
-                                // Marcador de Dó (C)
                                 var line = Path()
                                 line.move(to: CGPoint(x: x, y: 0))
                                 line.addLine(to: CGPoint(x: x, y: size.height))
@@ -704,7 +715,6 @@ struct KeyZoneRangeControl: View {
                             }
                         }
 
-                        // Região ativa da zona
                         let zoneRect = CGRect(
                             x: lowX,
                             y: 0,
@@ -714,7 +724,6 @@ struct KeyZoneRangeControl: View {
                         context.fill(Path(zoneRect), with: .color(zoneColor.opacity(0.28)))
                     }
 
-                    // Bordas de início e fim da zona (handles arrastáveis)
                     Rectangle()
                         .fill(zoneColor)
                         .frame(width: 3, height: h)
@@ -771,9 +780,8 @@ struct KeyZoneRangeControl: View {
                         }
                 )
             }
-            .frame(height: 36)
+            .frame(height: 34)
 
-            // Rótulos de referência das oitavas
             HStack {
                 Text("C-1")
                 Spacer()
@@ -802,19 +810,15 @@ struct EQResponseGraph: View {
     let midFreqHz: Double
     let trebleDb: Double
 
-    /// Aproximação suave da resposta em magnitude (dB) entre 20 Hz e 20 kHz para visualização
     private func gainAtFrequency(_ f: Double) -> Double {
         let logF = log10(max(20.0, f))
-        // Low shelf em ~110 Hz
         let lowNorm = 1.0 / (1.0 + exp((logF - log10(130.0)) * 6.5))
         let lowContrib = bassDb * lowNorm
 
-        // Bell peaking em midFreqHz
         let logMid = log10(min(max(200.0, midFreqHz), 5000.0))
         let bellDist = (logF - logMid) / 0.32
         let midContrib = midDb * exp(-(bellDist * bellDist))
 
-        // High shelf em ~4000 Hz
         let highNorm = 1.0 / (1.0 + exp(-(logF - log10(3600.0)) * 6.5))
         let highContrib = trebleDb * highNorm
 
@@ -827,11 +831,9 @@ struct EQResponseGraph: View {
             let h = size.height
             let midY = h / 2.0
 
-            // Fundo sólido
             let bgRect = CGRect(origin: .zero, size: size)
             context.fill(Path(roundedRect: bgRect, cornerRadius: 6), with: .color(StudioTokens.surfaceControl))
 
-            // Grade sutil (linhas horizontais -12, 0, +12 dB e verticais 100 Hz, 1 kHz, 10 kHz)
             var gridPath = Path()
             for fracY in [0.2, 0.5, 0.8] {
                 let y = h * CGFloat(fracY)
@@ -846,7 +848,6 @@ struct EQResponseGraph: View {
             }
             context.stroke(gridPath, with: .color(StudioTokens.borderHairline), lineWidth: 1.0)
 
-            // Curva de resposta preenchida + linha em acento
             let steps = 80
             var linePath = Path()
             var fillPath = Path()
@@ -873,10 +874,10 @@ struct EQResponseGraph: View {
             fillPath.addLine(to: CGPoint(x: w, y: midY))
             fillPath.closeSubpath()
 
-            context.fill(fillPath, with: .color(StudioTokens.accent.opacity(0.18)))
+            context.fill(fillPath, with: .color(StudioTokens.textPrimary.opacity(0.10)))
             context.stroke(
                 linePath,
-                with: .color(StudioTokens.accent),
+                with: .color(StudioTokens.textPrimary),
                 style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round)
             )
         }

@@ -109,7 +109,7 @@ extension PianoViewModel {
     }
 }
 
-// MARK: - Curva de Velocidade (Gráfico Sólido com Grade Sutil)
+// MARK: - Curva de Velocidade & Grade 3x2 de Miniaturas
 
 struct VelocityCurveShape: Shape {
     let layerCurve: Int
@@ -117,7 +117,7 @@ struct VelocityCurveShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         var p = Path()
-        let steps = 48
+        let steps = 36
         for i in 0...steps {
             let x = Double(i) / Double(steps)
             let y = velocityCurveOutput(x, layerCurve: layerCurve, globalCurve: globalCurve)
@@ -131,54 +131,106 @@ struct VelocityCurveShape: Shape {
     }
 }
 
-struct VelocityCurveGraph: View {
-    let layerCurve: Int
+struct VelocityCurveThumbnailGrid: View {
+    @Binding var selectedCurve: Int
     let globalCurve: Int
-    var lineWidth: CGFloat = 2.0
-    var showGrid: Bool = true
+
+    private struct CurveItem: Identifiable {
+        let id: Int
+        let title: String
+    }
+
+    // Ordem 3x2: Suave, Log, Normal / Linear, Forte, Exp
+    private let rows: [[CurveItem]] = [
+        [
+            CurveItem(id: 1, title: "Suave"),
+            CurveItem(id: 5, title: "Log"),
+            CurveItem(id: 0, title: "Normal")
+        ],
+        [
+            CurveItem(id: 2, title: "Linear"),
+            CurveItem(id: 3, title: "Forte"),
+            CurveItem(id: 4, title: "Exp")
+        ]
+    ]
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                RoundedRectangle(cornerRadius: StudioTokens.controlRadius)
-                    .fill(StudioTokens.surfaceControl)
-
-                if showGrid {
-                    Path { p in
-                        for i in 1..<4 {
-                            let fx = geo.size.width * CGFloat(i) / 4.0
-                            let fy = geo.size.height * CGFloat(i) / 4.0
-                            p.move(to: CGPoint(x: fx, y: 0))
-                            p.addLine(to: CGPoint(x: fx, y: geo.size.height))
-                            p.move(to: CGPoint(x: 0, y: fy))
-                            p.addLine(to: CGPoint(x: geo.size.width, y: fy))
-                        }
+        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            ForEach(0..<rows.count, id: \.self) { rowIdx in
+                GridRow {
+                    ForEach(rows[rowIdx]) { item in
+                        curveCell(item)
                     }
-                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
-
-                    Path { p in
-                        p.move(to: CGPoint(x: 0, y: geo.size.height))
-                        p.addLine(to: CGPoint(x: geo.size.width, y: 0))
-                    }
-                    .stroke(StudioTokens.textSecondary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 }
-
-                VelocityCurveShape(layerCurve: layerCurve, globalCurve: globalCurve)
-                    .stroke(
-                        StudioTokens.accent,
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
-                    )
-                    .padding(4)
             }
+        }
+    }
+
+    private func curveCell(_ item: CurveItem) -> some View {
+        let isSelected = selectedCurve == item.id
+        return Button {
+            selectedCurve = item.id
+        } label: {
+            VStack(spacing: 4) {
+                Canvas { context, size in
+                    let w = size.width
+                    let h = size.height
+
+                    // Grade sutil 2x2 + linha diagonal de referência
+                    var grid = Path()
+                    grid.move(to: CGPoint(x: w * 0.5, y: 0))
+                    grid.addLine(to: CGPoint(x: w * 0.5, y: h))
+                    grid.move(to: CGPoint(x: 0, y: h * 0.5))
+                    grid.addLine(to: CGPoint(x: w, y: h * 0.5))
+                    context.stroke(grid, with: .color(StudioTokens.borderHairline.opacity(0.8)), lineWidth: 0.75)
+
+                    var diag = Path()
+                    diag.move(to: CGPoint(x: 2, y: h - 2))
+                    diag.addLine(to: CGPoint(x: w - 2, y: 2))
+                    context.stroke(
+                        diag,
+                        with: .color(StudioTokens.textSecondary.opacity(0.22)),
+                        style: StrokeStyle(lineWidth: 0.75, dash: [2, 2])
+                    )
+
+                    let inset = CGRect(x: 3, y: 3, width: max(1, w - 6), height: max(1, h - 6))
+                    let curvePath = VelocityCurveShape(layerCurve: item.id, globalCurve: globalCurve).path(in: inset)
+                    context.stroke(
+                        curvePath,
+                        with: .color(isSelected ? StudioTokens.textPrimary : StudioTokens.textSecondary),
+                        style: StrokeStyle(lineWidth: isSelected ? 2.0 : 1.5, lineCap: .round, lineJoin: .round)
+                    )
+                }
+                .frame(height: 28)
+
+                Text(item.title)
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(isSelected ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(
+                isSelected ? StudioTokens.borderHairline.opacity(0.85) : StudioTokens.surfaceControl,
+                in: .rect(cornerRadius: StudioTokens.controlRadius)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioTokens.controlRadius)
-                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+                    .stroke(
+                        isSelected ? StudioTokens.textPrimary.opacity(0.75) : StudioTokens.borderHairline,
+                        lineWidth: isSelected ? 1.25 : 1.0
+                    )
             )
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Curva de velocidade \(item.title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-// MARK: - Menu Seletor de Timbre (.npno / .nsmp4)
+// MARK: - Menu Seletor de Timbre (.npno / .nsmp4) — Visual Neutro
 
 struct TimbrePickerMenu: View {
     @ObservedObject var vm: PianoViewModel
@@ -213,7 +265,7 @@ struct TimbrePickerMenu: View {
             HStack(spacing: 6) {
                 Image(systemName: slot.loaded ? "pianokeys" : "folder.badge.plus")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(slot.loaded ? StudioTokens.textSecondary : StudioTokens.accent)
+                    .foregroundStyle(StudioTokens.textSecondary)
 
                 Text(slot.loaded ? slot.name : "Carregar timbre…")
                     .font(StudioTokens.fontBodyMedium)
@@ -230,7 +282,7 @@ struct TimbrePickerMenu: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(
-                StudioTokens.surfaceControl.opacity(0.75),
+                StudioTokens.surfaceControl.opacity(0.82),
                 in: .rect(cornerRadius: StudioTokens.controlRadius)
             )
             .overlay(
@@ -271,28 +323,27 @@ struct ContentView: View {
                 // 1. Faixa compacta de 4 camadas (~100pt) dentro de UM único GlassEffectContainer
                 layerStripSection
 
-                // 2. Editor da camada selecionada (área principal >= 55% da altura, superfícies sólidas)
+                // 2. Editor da camada selecionada (painéis dimensionados ao conteúdo, alinhados ao topo; só rola na vertical)
                 layerEditorSection
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                // 3. Teclado virtual de 61 teclas recolhível (Cmd+K)
+                // 3. Teclado virtual de 61 teclas na base (~120pt), aberto por padrão (Cmd+K)
                 if vm.showVirtualKeyboard {
                     VirtualKeyboard61View(vm: vm)
-                        .frame(height: 92)
+                        .frame(height: 118)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, StudioTokens.grid2)
             .padding(.top, StudioTokens.grid2)
             .padding(.bottom, StudioTokens.grid1)
-            .frame(width: geo.size.width / scale, height: geo.size.height / scale)
+            .frame(width: geo.size.width / scale, height: geo.size.height / scale, alignment: .top)
             .scaleEffect(scale, anchor: .topLeading)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
-        .frame(minWidth: 1100, minHeight: 700)
+        .frame(minWidth: 1100, minHeight: 720)
         .background(StudioTokens.surfaceWindow)
         .preferredColorScheme(.dark)
-        .tint(StudioTokens.accent)
         .navigationTitle("Electro Pro")
         .navigationSubtitle("Programa \(vm.selectedMemorySlot) — \(currentPresetTitle)")
         .toolbar {
@@ -303,12 +354,12 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 1. Toolbar Nativa (.toolbar + ToolbarSpacer)
+    // MARK: - 1. Toolbar Nativa (5 Grupos Separados por ToolbarSpacer = 5 Cápsulas de Glass)
 
     @ToolbarContentBuilder
     private var workstationToolbar: some ToolbarContent {
-        // Grupo 1: Programas 1–8 (Picker segmented) · Nome do preset · Salvar
-        ToolbarItemGroup(placement: .principal) {
+        // Grupo 1: Programas 1–8 (Picker segmented, .fixedSize()) + Salvar (.glass, neutro)
+        ToolbarItemGroup(placement: .automatic) {
             Picker("Programa", selection: Binding(
                 get: { vm.selectedMemorySlot },
                 set: { slot in vm.recallMemory(slot: slot) }
@@ -318,70 +369,83 @@ struct ContentView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 220)
+            .labelsHidden()
+            .fixedSize()
             .help("Selecionar Programa de Memória (1 a 8)")
-
-            Text(currentPresetTitle)
-                .font(StudioTokens.fontBodyMedium)
-                .foregroundStyle(StudioTokens.textPrimary)
-                .lineLimit(1)
-                .frame(minWidth: 110, maxWidth: 180, alignment: .leading)
-                .help("Preset ativo: \(currentPresetTitle)")
 
             Button {
                 vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
             } label: {
                 Label(
                     vm.storeConfirmationActive ? "Salvo" : "Salvar",
-                    systemImage: vm.storeConfirmationActive ? "checkmark.circle.fill" : "square.and.arrow.down"
+                    systemImage: vm.storeConfirmationActive ? "checkmark" : "square.and.arrow.down"
                 )
+                .labelStyle(.titleAndIcon)
             }
-            .buttonStyle(.glassProminent)
-            .help("Salvar estado atual das 4 camadas no Programa \(vm.selectedMemorySlot) (⌘S)")
+            .buttonStyle(.glass)
+            .popover(isPresented: $vm.showRenameProgramPopover, arrowEdge: .bottom) {
+                renameProgramPopover
+            }
+            .help("Salvar estado atual no Programa \(vm.selectedMemorySlot) (⌘S). Para renomear: Arquivo > Renomear programa… (⇧⌘R)")
         }
 
         ToolbarSpacer(.fixed)
 
-        // Grupo 2: Transpose · Popover Afinação / Master
+        // Grupo 2: Transpose [−] valor [+] com sinal (ex.: +2 st) + botão de Afinação (A4/Fine em popover)
         ToolbarItemGroup(placement: .automatic) {
-            HStack(spacing: 6) {
-                Text("Transpose")
-                    .font(StudioTokens.fontLabel)
-                    .foregroundStyle(StudioTokens.textSecondary)
-
-                Stepper(
-                    value: Binding(
-                        get: { Int(vm.transposeSemitones.rounded()) },
-                        set: { vm.transposeSemitones = Double($0) }
-                    ),
-                    in: -12...12,
-                    step: 1
-                ) {
-                    let st = Int(vm.transposeSemitones.rounded())
-                    Text(st == 0 ? "0 st" : String(format: "%+d st", st))
-                        .font(StudioTokens.fontValue)
-                        .foregroundStyle(st == 0 ? StudioTokens.textPrimary : StudioTokens.accent)
-                        .frame(width: 42, alignment: .trailing)
+            HStack(spacing: 4) {
+                Button {
+                    let cur = Int(vm.transposeSemitones.rounded())
+                    vm.transposeSemitones = Double(max(-12, cur - 1))
+                } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
                 }
-                .help("Transposição global em semitons (-12 a +12 st)")
+                .buttonStyle(.plain)
+                .help("Diminuir transposição em 1 semitom")
+
+                let st = Int(vm.transposeSemitones.rounded())
+                Text(st == 0 ? "0 st" : String(format: "%+d st", st))
+                    .font(StudioTokens.fontValue)
+                    .foregroundStyle(StudioTokens.textPrimary)
+                    .fixedSize()
+                    .frame(minWidth: 40, alignment: .center)
+                    .onTapGesture(count: 2) {
+                        vm.transposeSemitones = 0.0
+                    }
+                    .help("Transposição global em semitons (duplo clique para 0 st)")
+
+                Button {
+                    let cur = Int(vm.transposeSemitones.rounded())
+                    vm.transposeSemitones = Double(min(12, cur + 1))
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Aumentar transposição em 1 semitom")
             }
 
             Button {
                 vm.showTuningPopover.toggle()
             } label: {
-                Label("Afinação / Master", systemImage: "tuningfork")
+                Image(systemName: "tuningfork")
             }
             .buttonStyle(.glass)
             .popover(isPresented: $vm.showTuningPopover, arrowEdge: .bottom) {
                 masterTuningPopover
             }
-            .help("Ajustes de Pan Master, Referência A4 e Afinação Fina")
+            .help("Afinação (Referência A4, Afinação Fina e Balanço Master)")
         }
 
-        ToolbarSpacer(.flexible)
+        ToolbarSpacer(.fixed)
 
-        // Grupo 3: Volume Master + Medidor L/R · Panic · Configurações
-        ToolbarItemGroup(placement: .primaryAction) {
+        // Grupo 3: Volume master: slider ~140pt + valor em dB + medidor L/R sem corte
+        ToolbarItemGroup(placement: .automatic) {
             HStack(spacing: 8) {
                 Image(systemName: "speaker.wave.2.fill")
                     .font(.system(size: 12))
@@ -395,20 +459,26 @@ struct ContentView: View {
                     Text("Volume Master")
                 }
                 .labelsHidden()
-                .frame(width: 88)
+                .frame(width: 136)
                 .help(String(format: "Volume Master: %+.1f dB (duplo clique no valor para 0 dB)", vm.masterGainDb))
 
                 Text(String(format: "%+.1f dB", vm.masterGainDb))
                     .font(StudioTokens.fontValue)
                     .foregroundStyle(StudioTokens.textPrimary)
-                    .frame(width: 54, alignment: .trailing)
+                    .fixedSize()
+                    .frame(minWidth: 52, alignment: .trailing)
                     .onTapGesture(count: 2) {
                         vm.masterGainDb = 0.0
                     }
 
-                StereoPeakMeter(peakL: vm.peakL, peakR: vm.peakR, segments: 12, barWidth: 64)
+                StereoPeakMeter(peakL: vm.peakL, peakR: vm.peakR, segments: 10, barWidth: 52)
             }
+        }
 
+        ToolbarSpacer(.flexible)
+
+        // Grupo 4 (separado): Panic
+        ToolbarItem(placement: .automatic) {
             Button(role: .destructive) {
                 vm.panic()
             } label: {
@@ -416,7 +486,12 @@ struct ContentView: View {
             }
             .buttonStyle(.glass)
             .help("Silenciar imediatamente todas as vozes ativas (⌘.)")
+        }
 
+        ToolbarSpacer(.fixed)
+
+        // Grupo 5 (separado, à direita): Configurações
+        ToolbarItem(placement: .automatic) {
             SettingsLink {
                 Label("Configurações", systemImage: "gearshape")
             }
@@ -425,7 +500,38 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Popover "Afinação / Master"
+    // MARK: - Popover "Renomear Programa…" (Arquivo > Renomear programa…)
+
+    private var renameProgramPopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Renomear Programa \(vm.selectedMemorySlot)")
+                .font(StudioTokens.fontSectionTitle)
+                .foregroundStyle(StudioTokens.textPrimary)
+
+            TextField("Nome do programa", text: $vm.renameProgramDraft)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit {
+                    vm.commitRenameCurrentProgram()
+                }
+
+            HStack {
+                Spacer()
+                Button("Cancelar") {
+                    vm.showRenameProgramPopover = false
+                }
+                .buttonStyle(.glass)
+
+                Button("Salvar") {
+                    vm.commitRenameCurrentProgram()
+                }
+                .buttonStyle(.glassProminent)
+            }
+        }
+        .padding(StudioTokens.grid2)
+        .frame(width: 260)
+    }
+
+    // MARK: - Popover "Afinação" (A4 / Fine / Pan Master)
 
     private var masterTuningPopover: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -445,43 +551,6 @@ struct ContentView: View {
             }
 
             Divider()
-
-            // Volume Master (neutralValue em 0.0 dB)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Volume Master")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                    Spacer()
-                    Text(String(format: "%+.1f dB", vm.masterGainDb))
-                        .font(StudioTokens.fontValue)
-                }
-                Slider(value: $vm.masterGainDb, in: -36.0...12.0, step: 0.5, neutralValue: 0.0) {
-                    Text("Volume Master")
-                }
-                .labelsHidden()
-            }
-
-            // Pan Master (centro em 0 com neutralValue)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Balanço (Pan)")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                    Spacer()
-                    let panInt = Int(vm.masterPan.rounded())
-                    Text(panInt == 0 ? "Centro" : (panInt < 0 ? "\(-panInt)% L" : "\(panInt)% R"))
-                        .font(StudioTokens.fontValue)
-                }
-                Slider(value: $vm.masterPan, in: -100.0...100.0, step: 5.0, neutralValue: 0.0) {
-                    Text("Balanço")
-                } minimumValueLabel: {
-                    Text("L").font(StudioTokens.fontLabel).foregroundStyle(StudioTokens.textSecondary)
-                } maximumValueLabel: {
-                    Text("R").font(StudioTokens.fontLabel).foregroundStyle(StudioTokens.textSecondary)
-                }
-                .labelsHidden()
-            }
 
             // Referência A4 (neutralValue em 440.0 Hz)
             VStack(alignment: .leading, spacing: 4) {
@@ -514,9 +583,26 @@ struct ContentView: View {
                 }
                 .labelsHidden()
             }
+
+            // Pan Master (centro em 0 com neutralValue)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Balanço (Pan)")
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Spacer()
+                    let panInt = Int(vm.masterPan.rounded())
+                    Text(panInt == 0 ? "Centro" : (panInt < 0 ? "\(-panInt)% L" : "\(panInt)% R"))
+                        .font(StudioTokens.fontValue)
+                }
+                Slider(value: $vm.masterPan, in: -100.0...100.0, step: 5.0, neutralValue: 0.0) {
+                    Text("Balanço")
+                }
+                .labelsHidden()
+            }
         }
         .padding(StudioTokens.grid2)
-        .frame(width: 290)
+        .frame(width: 280)
     }
 
     // MARK: - 2. Faixa de Camadas (~100pt) dentro de UM único GlassEffectContainer
@@ -529,7 +615,7 @@ struct ContentView: View {
                 }
             }
         }
-        .frame(height: 102)
+        .frame(height: 100)
     }
 
     private func layerCardView(_ layer: Int) -> some View {
@@ -537,117 +623,147 @@ struct ContentView: View {
         let slot = vm.layers[layer]
         let p = slot.params
         let isSelected = vm.selectedLayer == layer
-        let zoneColor = StudioTokens.layerZoneColors[layer]
 
-        return VStack(alignment: .leading, spacing: 8) {
-            // Linha 1: Switch On/Off + Letra + Vozes Ativas + Navegação Rápida (< >)
-            HStack(spacing: 8) {
-                Toggle(
-                    "Ativar Camada \(letter)",
-                    isOn: Binding(
-                        get: { p.enabled },
-                        set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
+        return VStack(alignment: .leading, spacing: 6) {
+            if p.enabled {
+                // Camada ligada: Switch + Ponto + Letra + Faixa de notas (11pt, >= 4.5:1) + Setas ‹ › (>= 28pt)
+                HStack(spacing: 6) {
+                    Toggle(
+                        "Ativar Camada \(letter)",
+                        isOn: Binding(
+                            get: { p.enabled },
+                            set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
+                        )
                     )
-                )
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .help("Ligar ou desligar a Camada \(letter)")
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help("Ligar ou desligar a Camada \(letter)")
 
-                HStack(spacing: 5) {
                     Circle()
-                        .fill(p.enabled ? zoneColor : StudioTokens.textDisabled)
-                        .frame(width: 8, height: 8)
+                        .fill(isSelected ? StudioTokens.accent : StudioTokens.textSecondary)
+                        .frame(width: 7, height: 7)
 
                     Text("Camada \(letter)")
                         .font(StudioTokens.fontValueSemibold)
-                        .foregroundStyle(p.enabled ? StudioTokens.textPrimary : StudioTokens.textSecondary)
-                }
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
-                if slot.activeVoices > 0 {
-                    Text("\(slot.activeVoices)v")
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(StudioTokens.meterGreen)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(StudioTokens.surfaceControl, in: .capsule)
-                }
+                    Text("\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh)))")
+                        .font(.system(size: 11, weight: .medium).monospacedDigit())
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
-                Spacer(minLength: 4)
+                    Spacer(minLength: 2)
 
-                HStack(spacing: 2) {
-                    Button {
-                        vm.stepLayerInstrument(layer: layer, delta: -1)
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 11, weight: .semibold))
-                            .frame(width: 22, height: 20)
+                    HStack(spacing: 0) {
+                        Button {
+                            vm.stepLayerInstrument(layer: layer, delta: -1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(StudioTokens.textPrimary)
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Timbre anterior na pasta")
+
+                        Button {
+                            vm.stepLayerInstrument(layer: layer, delta: 1)
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(StudioTokens.textPrimary)
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Próximo timbre na pasta")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(StudioTokens.textSecondary)
-                    .help("Timbre anterior na pasta")
-
-                    Button {
-                        vm.stepLayerInstrument(layer: layer, delta: 1)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .frame(width: 22, height: 20)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(StudioTokens.textSecondary)
-                    .help("Próximo timbre na pasta")
                 }
-            }
+                .frame(height: 24)
 
-            // Linha 2: Nome do timbre (1 linha) ou barra de carregamento
-            if slot.isLoading {
-                ProgressView(value: Double(slot.loadProgress), total: 1.0)
-                    .tint(StudioTokens.accent)
-                    .frame(height: 24)
-            } else {
-                TimbrePickerMenu(vm: vm, layer: layer)
-            }
+                // Linha 2: Seletor de timbre (1 linha) ou barra de carregamento
+                if slot.isLoading {
+                    ProgressView(value: Double(slot.loadProgress), total: 1.0)
+                        .frame(height: 24)
+                } else {
+                    TimbrePickerMenu(vm: vm, layer: layer)
+                }
 
-            // Linha 3: Volume da camada (somente visível quando a camada está ligada)
-            if p.enabled {
+                // Linha 3: Volume da camada
+                let volPercent = Double(p.volume) * 100.0
+                let volBinding = Binding<Double>(
+                    get: { Double(p.volume) * 100.0 },
+                    set: { v in vm.updateLayerParams(layer) { $0.volume = Float(v / 100.0) } }
+                )
                 HStack(spacing: 8) {
                     Image(systemName: "speaker.wave.1.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(StudioTokens.textSecondary)
 
                     Slider(
-                        value: Binding(
-                            get: { Double(p.volume) * 100.0 },
-                            set: { v in vm.updateLayerParams(layer) { $0.volume = Float(v / 100.0) } }
-                        ),
-                        in: 0.0...150.0
-                    )
+                        value: volBinding,
+                        in: 0.0...150.0,
+                        neutralValue: 100.0
+                    ) {
+                        Text("Volume")
+                    }
+                    .labelsHidden()
                     .controlSize(.small)
 
-                    Text(String(format: "%.0f%%", Double(p.volume) * 100.0))
+                    Text(String(format: "%.0f%%", volPercent))
                         .font(.system(size: 11, weight: .medium).monospacedDigit())
                         .foregroundStyle(StudioTokens.textPrimary)
-                        .frame(width: 38, alignment: .trailing)
+                        .fixedSize()
+                        .frame(minWidth: 36, alignment: .trailing)
                 }
                 .frame(height: 18)
             } else {
-                HStack {
-                    Text("Camada desligada")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textDisabled)
+                // Camada desligada: só switch + letra + nome do timbre (1 linha). Sem "Carregar timbre…", sem "Camada desligada", sem faixa de notas.
+                HStack(spacing: 8) {
+                    Toggle(
+                        "Ativar Camada \(letter)",
+                        isOn: Binding(
+                            get: { p.enabled },
+                            set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
+                        )
+                    )
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help("Ligar ou desligar a Camada \(letter)")
+
+                    if isSelected {
+                        Circle()
+                            .fill(StudioTokens.accent)
+                            .frame(width: 7, height: 7)
+                    }
+
+                    Text("Camada \(letter)")
+                        .font(StudioTokens.fontValueSemibold)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+
                     Spacer()
-                    Text("\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh)))")
-                        .font(.system(size: 11, weight: .regular).monospacedDigit())
-                        .foregroundStyle(StudioTokens.textDisabled)
                 }
-                .frame(height: 18)
+
+                Text(slot.loaded ? slot.name : "Nenhum timbre")
+                    .font(StudioTokens.fontBodyMedium)
+                    .foregroundStyle(StudioTokens.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.top, 2)
+
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .opacity(p.enabled ? 1.0 : 0.55)
         .contentShape(Rectangle())
         .onTapGesture {
             if reduceMotion {
@@ -658,27 +774,27 @@ struct ContentView: View {
                 }
             }
         }
-        // Regra de Ouro: .glassEffect() DEPOIS dos modificadores de layout, .interactive() em cards clicáveis, .tint só no selecionado
+        // Regra de Ouro: .glassEffect() DEPOIS dos modificadores de layout; sem preenchimento sólido vermelho; borda 1.5pt vermelha no selecionado
         .glassEffect(
-            isSelected
-                ? .regular.tint(StudioTokens.accent.opacity(0.32)).interactive()
-                : .regular.interactive(),
+            .regular.interactive(),
             in: .rect(corners: .concentric(minimum: 12))
         )
         .glassEffectID("layer_card_\(layer)", in: layerGlassNamespace)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    isSelected ? StudioTokens.accent.opacity(0.85) : (reduceTransparency ? StudioTokens.borderHairline : Color.clear),
+                    isSelected
+                        ? StudioTokens.accent
+                        : (reduceTransparency ? StudioTokens.borderHairline : Color.clear),
                     lineWidth: isSelected ? 1.5 : 1.0
                 )
         )
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Camada \(letter), \(slot.loaded ? slot.name : "Vazia"), \(p.enabled ? "Ligada" : "Desligada")")
+        .accessibilityLabel("Camada \(letter), \(slot.loaded ? slot.name : "Nenhum timbre"), \(p.enabled ? "Ligada" : "Desligada")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // MARK: - 3. Editor Principal da Camada Selecionada (Superfícies Sólidas, Sem Glass)
+    // MARK: - 3. Editor Principal da Camada Selecionada (Superfícies Sólidas, Altura do Conteúdo)
 
     private var layerEditorSection: some View {
         let layer = vm.selectedLayer
@@ -686,15 +802,15 @@ struct ContentView: View {
         let slot = vm.layers[layer]
         let p = slot.params
 
-        return VStack(spacing: 12) {
-            // Cabeçalho do Editor: "Camada A — nome do timbre" + Abas em Picker segmented
-            HStack(spacing: 16) {
-                HStack(spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
+            // Cabeçalho do Editor: "Camada A — nome do timbre" ("Nenhum timbre" quando vazio) + Abas em Picker segmented (.fixedSize())
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Circle()
-                        .fill(StudioTokens.layerZoneColors[layer])
-                        .frame(width: 10, height: 10)
+                        .fill(StudioTokens.accent)
+                        .frame(width: 8, height: 8)
 
-                    Text("Camada \(letter) — \(slot.loaded ? slot.name : "Slot Vazio")")
+                    Text("Camada \(letter) — \(slot.loaded ? slot.name : "Nenhum timbre")")
                         .font(StudioTokens.fontSectionTitle)
                         .foregroundStyle(StudioTokens.textPrimary)
                         .lineLimit(1)
@@ -703,6 +819,8 @@ struct ContentView: View {
                         Text("\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh))) • \(String(format: "%.0f MiB", Double(slot.decodedBytes) / 1048576.0))")
                             .font(StudioTokens.fontLabel.monospacedDigit())
                             .foregroundStyle(StudioTokens.textSecondary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                             .background(StudioTokens.surfacePanel, in: .capsule)
@@ -710,7 +828,7 @@ struct ContentView: View {
                     }
                 }
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 8)
 
                 Picker("Seção do Editor", selection: $vm.selectedTab) {
                     ForEach(WorkstationTab.allCases) { tab in
@@ -719,26 +837,29 @@ struct ContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 520)
+                .fixedSize()
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 2)
 
-            // Conteúdo da aba selecionada (superfícies sólidas #1C1C1F / #26262A)
-            Group {
-                switch vm.selectedTab {
-                case .timbre:
-                    timbreTabContent(layer: layer)
-                case .keyboard:
-                    keyboardTabContent(layer: layer)
-                case .midiCC:
-                    midiCCTabContent(layer: layer)
-                case .eqMod:
-                    eqModTabContent
-                case .delayReverb:
-                    delayReverbTabContent
+            // Só o editor rola, e só na vertical; painéis alinhados ao topo com altura do conteúdo
+            ScrollView(.vertical, showsIndicators: false) {
+                Group {
+                    switch vm.selectedTab {
+                    case .timbre:
+                        timbreTabContent(layer: layer)
+                    case .keyboard:
+                        keyboardTabContent(layer: layer)
+                    case .midiCC:
+                        midiCCTabContent(layer: layer)
+                    case .eqMod:
+                        eqModTabContent
+                    case .delayReverb:
+                        delayReverbTabContent
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -754,11 +875,51 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Aba 1: Timbre (Perfil & Filtro · Compressor · Envelope & Acústica)
+    // MARK: - Helper de Layout Responsivo: 3 Colunas quando couber, senão 2 + 1 abaixo
+
+    @ViewBuilder
+    private func responsiveThreePanelLayout<P1: View, P2: View, P3: View>(
+        p1Priority: Double = 1.2,
+        p2Priority: Double = 1.0,
+        p3Priority: Double = 1.0,
+        @ViewBuilder panel1: () -> P1,
+        @ViewBuilder panel2: () -> P2,
+        @ViewBuilder panel3: () -> P3
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                panel1()
+                    .frame(maxWidth: .infinity)
+                    .layoutPriority(p1Priority)
+                panel2()
+                    .frame(maxWidth: .infinity)
+                    .layoutPriority(p2Priority)
+                panel3()
+                    .frame(maxWidth: .infinity)
+                    .layoutPriority(p3Priority)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    panel1()
+                        .frame(maxWidth: .infinity)
+                    panel2()
+                        .frame(maxWidth: .infinity)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                panel3()
+                    .frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    // MARK: - Aba 1: Timbre (Perfil & Filtro · Compressor · Envelope)
 
     private func timbreTabContent(layer: Int) -> some View {
         let lp = vm.layers[layer].params
-        let letter = kLayerLetters[layer]
 
         // Estado combinado do compressor: 0 = Desligado, 1 = Normal, 2 = Rápido
         let compModeBinding = Binding<Int>(
@@ -782,250 +943,258 @@ struct ContentView: View {
             }
         )
 
-        return HStack(spacing: 12) {
-            // Grupo 1: Perfil, Filtro & Ambiência da Camada
-            SectionCard(title: "Perfil & Filtro", subtitle: "Camada \(letter)") {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Caráter tonal")
-                            .font(StudioTokens.fontLabel)
-                            .foregroundStyle(StudioTokens.textSecondary)
+        let timbreModes: [(tag: Int, title: String)] = [
+            (2, "Suave"),
+            (0, "Neutro"),
+            (1, "Brilhante"),
+            (3, "Dyno 1"),
+            (4, "Dyno 2")
+        ]
 
-                        Picker("Caráter tonal", selection: layerBinding(layer, { Int($0.timbreMode) }, { $0.timbreMode = Int32($1) })) {
-                            Text("Suave").tag(2)
-                            Text("Neutro").tag(0)
-                            Text("Brilhante").tag(1)
-                            Text("Dyno 1").tag(3)
-                            Text("Dyno 2").tag(4)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-
-                    HStack(spacing: 14) {
-                        Toggle(
-                            "Pedal Sustain",
-                            isOn: layerBinding(layer, { $0.sustainPedalOn }, { $0.sustainPedalOn = $1 })
-                        )
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .font(StudioTokens.fontBody)
-                        .help("Permitir que o pedal de sustain sustente as notas desta camada")
-
-                        Toggle(
-                            "Ressonância",
-                            isOn: layerBinding(layer, { $0.undampedOn }, { $0.undampedOn = $1 })
-                        )
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .font(StudioTokens.fontBody)
-                        .help("Ressonância simpatética das cordas agudas sem abafador")
-
-                        Spacer(minLength: 4)
-
-                        Stepper(
-                            value: layerBinding(layer, { Int($0.octaveShift) }, { $0.octaveShift = Int32($1) }),
-                            in: -3...3
-                        ) {
-                            let oct = Int(lp.octaveShift)
-                            Text("Oitava: \(oct == 0 ? "0" : String(format: "%+d", oct))")
-                                .font(StudioTokens.fontValue)
-                        }
-                        .help("Transposição de oitava da camada (-3 a +3)")
-                    }
-
-                    Divider().overlay(StudioTokens.borderHairline)
-
-                    // Filtro passa-baixas + Ambiência (antigo FXA AM) + Cauda (antigo FXA RT)
-                    HStack(spacing: 16) {
-                        ProKnob(
-                            idKey: "L\(layer)_flt",
-                            title: "Filtro",
-                            value: layerBinding(layer, { Double($0.filter) * 100.0 }, { $0.filter = Float($1 / 100.0) }),
-                            range: 0.0...100.0,
-                            defaultValue: 100.0,
-                            valueFormatter: { v in
-                                let fc = 140.0 * pow(142.857, v / 100.0)
-                                return fc >= 1000.0
-                                    ? String(format: "%.1f kHz", fc / 1000.0)
-                                    : String(format: "%.0f Hz", fc)
-                            },
-                            size: 48
-                        )
-
-                        ProKnob(
-                            idKey: "L\(layer)_fxam",
-                            title: "Ambiência",
-                            value: layerBinding(layer, { Double($0.fxaAmount) * 100.0 }, { $0.fxaAmount = Float($1 / 100.0) }),
-                            range: 0.0...100.0,
-                            defaultValue: 20.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48
-                        )
-
-                        ProKnob(
-                            idKey: "L\(layer)_fxrt",
-                            title: "Cauda",
-                            value: layerBinding(layer, { Double($0.fxaRelease) * 100.0 }, { $0.fxaRelease = Float($1 / 100.0) }),
-                            range: 0.0...100.0,
-                            defaultValue: 50.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: lp.fxaAmount > 0.005
-                        )
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(maxWidth: .infinity)
-
-            // Grupo 2: Compressor (Segmented Desligado / Normal / Rápido + Knob Amount)
-            SectionCard(title: "Compressor", subtitle: "Camada \(letter)") {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Modo de resposta")
-                            .font(StudioTokens.fontLabel)
-                            .foregroundStyle(StudioTokens.textSecondary)
-
-                        Picker("Modo do Compressor", selection: compModeBinding) {
-                            Text("Desligado").tag(0)
-                            Text("Normal").tag(1)
-                            Text("Rápido").tag(2)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-
-                    HStack {
-                        Spacer()
-                        ProKnob(
-                            idKey: "L\(layer)_comp",
-                            title: "Intensidade",
-                            value: layerBinding(layer, { Double($0.compAmount) * 100.0 }, { $0.compAmount = Float($1 / 100.0) }),
-                            range: 0.0...100.0,
-                            defaultValue: 45.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: lp.compOn
-                        )
-                        Spacer()
-                    }
-                    .padding(.top, 4)
-
-                    Text(lp.compOn
-                         ? (lp.compFast ? "Ataque rápido (15 ms) para controle imediato de picos." : "Compressão suave de estúdio com ganho automático.")
-                         : "Compressor em bypass nesta camada.")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(width: 240)
-
-            // Grupo 3: Envelope & Acústica
-            SectionCard(title: "Envelope & Acústica", subtitle: "Camada \(letter)") {
-                VStack(alignment: .leading, spacing: 18) {
-                    Toggle(
-                        "Usar envelope original do sample",
-                        isOn: layerBinding(layer, { $0.originalEnvelope }, { $0.originalEnvelope = $1 })
-                    )
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .font(StudioTokens.fontBodyMedium)
-
-                    HStack(spacing: 8) {
-                        ProKnob(
-                            idKey: "L\(layer)_att",
-                            title: "Ataque",
-                            value: layerBinding(layer, { Double($0.attackMs) }, { $0.attackMs = Float($1) }),
-                            range: 0.5...1500.0,
-                            defaultValue: 1.0,
-                            valueFormatter: { $0 < 10 ? String(format: "%.1f ms", $0) : String(format: "%.0f ms", $0) },
-                            size: 48,
-                            enabled: !lp.originalEnvelope
-                        )
-
-                        ProKnob(
-                            idKey: "L\(layer)_rel",
-                            title: "Soltura",
-                            value: layerBinding(layer, { Double($0.releaseMs) }, { $0.releaseMs = Float($1) }),
-                            range: 30.0...4000.0,
-                            defaultValue: 600.0,
-                            valueFormatter: { String(format: "%.0f ms", $0) },
-                            size: 48,
-                            enabled: !lp.originalEnvelope
-                        )
-
-                        ProKnob(
-                            idKey: "global_relnoise",
-                            title: "Ruído de soltura",
-                            value: $vm.releaseNoisePercent,
-                            range: 0.0...200.0,
-                            defaultValue: 100.0,
-                            valueFormatter: { $0 <= 0.5 ? "0%" : String(format: "%.0f%%", $0) },
-                            size: 48
-                        )
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Text(lp.originalEnvelope
-                         ? "Ataque e Soltura seguem a gravação natural do piano. Desative a chave acima para personalizar."
-                         : "Envelope ADSR personalizado ativo para a Camada \(letter).")
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(width: 350)
-        }
-    }
-
-    // MARK: - Aba 2: Teclado & Toque (Curva de Velocity · Zona sobre Mini-Teclado · Pitch Bend & Portamento)
-
-    private func keyboardTabContent(layer: Int) -> some View {
-        let lp = vm.layers[layer].params
-        let letter = kLayerLetters[layer]
-        let curveIdx = min(max(Int(lp.velocityCurve), 0), 5)
-        let globalIdx = Int(vm.globalVelocityCurve.rounded())
-
-        return HStack(spacing: 12) {
-            // Card 1: Sensibilidade do Toque & Curva de Velocity
-            SectionCard(title: "Curva de Velocidade", subtitle: "Camada \(letter)") {
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(spacing: 6) {
-                        VelocityCurveGraph(layerCurve: curveIdx, globalCurve: globalIdx)
-                            .frame(width: 136, height: 136)
-
-                        HStack {
-                            Text("Toque leve")
-                            Spacer()
-                            Text("Forte")
-                        }
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                        .frame(width: 136)
-                    }
-
+        return responsiveThreePanelLayout(
+            p1Priority: 1.25,
+            p2Priority: 0.85,
+            p3Priority: 1.10,
+            panel1: {
+                // Painel 1: Perfil & Filtro (Knobs centralizados em 56pt; sem "Camada A" repetido)
+                SectionCard(title: "Perfil & Filtro") {
                     VStack(alignment: .leading, spacing: 14) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Curva da camada")
+                        HStack(spacing: 10) {
+                            Text("Caráter tonal")
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
 
-                            Picker("Curva da camada", selection: layerBinding(layer, { Int($0.velocityCurve) }, { $0.velocityCurve = Int32($1) })) {
-                                Text("Suave").tag(1)
-                                Text("Log").tag(5)
-                                Text("Normal").tag(0)
-                                Text("Linear").tag(2)
-                                Text("Forte").tag(3)
-                                Text("Exp").tag(4)
+                            Spacer()
+
+                            // Como há 5 modos tonais (acima do limite de 4 para segmented), usamos pílulas compactas
+                            HStack(spacing: 4) {
+                                ForEach(timbreModes, id: \.tag) { mode in
+                                    let active = Int(lp.timbreMode) == mode.tag
+                                    Button {
+                                        vm.updateLayerParams(layer) { $0.timbreMode = Int32(mode.tag) }
+                                    } label: {
+                                        Text(mode.title)
+                                            .font(StudioTokens.fontLabel)
+                                            .foregroundStyle(active ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(
+                                                active ? StudioTokens.borderHairline : StudioTokens.surfaceControl,
+                                                in: .rect(cornerRadius: 5)
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 5)
+                                                    .stroke(active ? StudioTokens.textSecondary.opacity(0.6) : StudioTokens.borderHairline, lineWidth: 1)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: 14) {
+                            Toggle(
+                                "Pedal Sustain",
+                                isOn: layerBinding(layer, { $0.sustainPedalOn }, { $0.sustainPedalOn = $1 })
+                            )
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .font(StudioTokens.fontBody)
+                            .help("Permitir que o pedal de sustain sustente as notas desta camada")
+
+                            Toggle(
+                                "Ressonância",
+                                isOn: layerBinding(layer, { $0.undampedOn }, { $0.undampedOn = $1 })
+                            )
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .font(StudioTokens.fontBody)
+                            .help("Ressonância simpatética das cordas agudas sem abafador")
+
+                            Spacer(minLength: 4)
+
+                            Stepper(
+                                value: layerBinding(layer, { Int($0.octaveShift) }, { $0.octaveShift = Int32($1) }),
+                                in: -3...3
+                            ) {
+                                let oct = Int(lp.octaveShift)
+                                Text("Oitava: \(oct == 0 ? "0" : String(format: "%+d", oct))")
+                                    .font(StudioTokens.fontValue)
+                                    .fixedSize()
+                            }
+                            .help("Transposição de oitava da camada (-3 a +3)")
+                        }
+
+                        Divider().overlay(StudioTokens.borderHairline)
+
+                        // Knobs do painel Perfil: centralizados, 56pt
+                        HStack(spacing: 18) {
+                            Spacer(minLength: 0)
+
+                            ProKnob(
+                                idKey: "L\(layer)_flt",
+                                title: "Filtro",
+                                value: layerBinding(layer, { Double($0.filter) * 100.0 }, { $0.filter = Float($1 / 100.0) }),
+                                range: 0.0...100.0,
+                                defaultValue: 100.0,
+                                valueFormatter: { v in
+                                    let fc = 140.0 * pow(142.857, v / 100.0)
+                                    return fc >= 1000.0
+                                        ? String(format: "%.1f kHz", fc / 1000.0)
+                                        : String(format: "%.0f Hz", fc)
+                                },
+                                size: 56
+                            )
+
+                            ProKnob(
+                                idKey: "L\(layer)_fxam",
+                                title: "Ambiência",
+                                value: layerBinding(layer, { Double($0.fxaAmount) * 100.0 }, { $0.fxaAmount = Float($1 / 100.0) }),
+                                range: 0.0...100.0,
+                                defaultValue: 20.0,
+                                valueFormatter: { String(format: "%.0f%%", $0) },
+                                size: 56
+                            )
+
+                            ProKnob(
+                                idKey: "L\(layer)_fxrt",
+                                title: "Cauda",
+                                value: layerBinding(layer, { Double($0.fxaRelease) * 100.0 }, { $0.fxaRelease = Float($1 / 100.0) }),
+                                range: 0.0...100.0,
+                                defaultValue: 50.0,
+                                valueFormatter: { String(format: "%.0f%%", $0) },
+                                size: 56,
+                                enabled: lp.fxaAmount > 0.005
+                            )
+
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            },
+            panel2: {
+                // Painel 2: Compressor (Segmented Desligado/Normal/Rápido neutro + knob Intensidade)
+                SectionCard(title: "Compressor") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Modo de resposta")
+                                .font(StudioTokens.fontLabel)
+                                .foregroundStyle(StudioTokens.textSecondary)
+
+                            Picker("Modo do Compressor", selection: compModeBinding) {
+                                Text("Desligado").tag(0)
+                                Text("Normal").tag(1)
+                                Text("Rápido").tag(2)
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
                         }
 
+                        Divider().overlay(StudioTokens.borderHairline)
+
+                        HStack {
+                            Spacer()
+                            ProKnob(
+                                idKey: "L\(layer)_comp",
+                                title: "Intensidade",
+                                value: layerBinding(layer, { Double($0.compAmount) * 100.0 }, { $0.compAmount = Float($1 / 100.0) }),
+                                range: 0.0...100.0,
+                                defaultValue: 45.0,
+                                valueFormatter: { String(format: "%.0f%%", $0) },
+                                size: 48,
+                                enabled: lp.compOn
+                            )
+                            Spacer()
+                        }
+                    }
+                }
+            },
+            panel3: {
+                // Painel 3: Envelope (Ataque/Soltura desabilitados em cinza com envelope original ligado)
+                SectionCard(title: "Envelope") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Toggle(
+                            "Usar envelope original da amostra",
+                            isOn: layerBinding(layer, { $0.originalEnvelope }, { $0.originalEnvelope = $1 })
+                        )
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .font(StudioTokens.fontBodyMedium)
+
+                        Divider().overlay(StudioTokens.borderHairline)
+
+                        HStack(spacing: 12) {
+                            Spacer(minLength: 0)
+
+                            ProKnob(
+                                idKey: "L\(layer)_att",
+                                title: "Ataque",
+                                value: layerBinding(layer, { Double($0.attackMs) }, { $0.attackMs = Float($1) }),
+                                range: 0.5...1500.0,
+                                defaultValue: 1.0,
+                                valueFormatter: { $0 < 10 ? String(format: "%.1f ms", $0) : String(format: "%.0f ms", $0) },
+                                size: 48,
+                                enabled: !lp.originalEnvelope
+                            )
+
+                            ProKnob(
+                                idKey: "L\(layer)_rel",
+                                title: "Soltura",
+                                value: layerBinding(layer, { Double($0.releaseMs) }, { $0.releaseMs = Float($1) }),
+                                range: 30.0...4000.0,
+                                defaultValue: 600.0,
+                                valueFormatter: { String(format: "%.0f ms", $0) },
+                                size: 48,
+                                enabled: !lp.originalEnvelope
+                            )
+
+                            ProKnob(
+                                idKey: "global_relnoise",
+                                title: "Ruído soltura",
+                                value: $vm.releaseNoisePercent,
+                                range: 0.0...200.0,
+                                defaultValue: 100.0,
+                                valueFormatter: { $0 <= 0.5 ? "0%" : String(format: "%.0f%%", $0) },
+                                size: 48
+                            )
+
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        )
+    }
+
+    // MARK: - Aba 2: Teclado & Toque (Sensibilidade · Zona do teclado / Dinâmica · Articulação)
+
+    private func keyboardTabContent(layer: Int) -> some View {
+        let lp = vm.layers[layer].params
+        let globalIdx = Int(vm.globalVelocityCurve.rounded())
+
+        return responsiveThreePanelLayout(
+            p1Priority: 1.05,
+            p2Priority: 1.15,
+            p3Priority: 0.95,
+            panel1: {
+                // Painel 1: Sensibilidade (Grade 3x2 de miniaturas da curva + Segmented 3 itens de sensibilidade global)
+                SectionCard(title: "Sensibilidade") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Curva de velocidade")
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textSecondary)
+
+                        VelocityCurveThumbnailGrid(
+                            selectedCurve: layerBinding(layer, { Int($0.velocityCurve) }, { $0.velocityCurve = Int32($1) }),
+                            globalCurve: globalIdx
+                        )
+
+                        Divider().overlay(StudioTokens.borderHairline)
+
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Sensibilidade global do teclado")
+                            Text("Sensibilidade global")
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
 
@@ -1041,158 +1210,168 @@ struct ContentView: View {
                             .labelsHidden()
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            }
-            .frame(width: 390)
-
-            // Card 2: Zona do Teclado (Range Slider sobre Mini-Teclado) & Faixa de Velocity
-            SectionCard(
-                title: "Zona & Faixa Dinâmica",
-                subtitle: "Camada \(letter)",
-                headerTrailing: {
-                    Button("Restaurar Zona") {
-                        vm.updateLayerParams(layer) {
-                            $0.keyLow = 0
-                            $0.keyHigh = 127
-                            $0.velLow = 1
-                            $0.velHigh = 127
-                        }
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
-                }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    KeyZoneRangeControl(
-                        keyLow: layerBinding(layer, { Int($0.keyLow) }, { $0.keyLow = Int32($1) }),
-                        keyHigh: layerBinding(layer, { Int($0.keyHigh) }, { $0.keyHigh = Int32($1) }),
-                        layerIndex: layer
-                    )
-
-                    DualRangeSlider(
-                        title: "Faixa de velocity (dinâmica ativa)",
-                        lowValue: layerBinding(layer, { Int($0.velLow) }, { $0.velLow = Int32($1) }),
-                        highValue: layerBinding(layer, { Int($0.velHigh) }, { $0.velHigh = Int32($1) }),
-                        bounds: 1...127,
-                        valueFormatter: { "\($0)" }
-                    )
-
-                    HStack {
-                        Text("Canal MIDI da camada")
-                            .font(StudioTokens.fontLabel)
-                            .foregroundStyle(StudioTokens.textSecondary)
-                        Spacer()
-                        Picker("Canal MIDI", selection: layerBinding(layer, { Int($0.midiChannel) }, { $0.midiChannel = Int32($1) })) {
-                            Text("Global / Omni").tag(0)
-                            ForEach(1...16, id: \.self) { ch in
-                                Text("Canal \(ch)").tag(ch)
+            },
+            panel2: {
+                // Painel 2: Dividido em dois blocos ("Zona do teclado" e "Dinâmica") no mesmo painel + "Restaurar Zona" (.glass neutro)
+                SectionCard(
+                    title: "Zona do teclado",
+                    headerTrailing: {
+                        Button("Restaurar Zona") {
+                            vm.updateLayerParams(layer) {
+                                $0.keyLow = 0
+                                $0.keyHigh = 127
+                                $0.velLow = 1
+                                $0.velHigh = 127
                             }
                         }
-                        .labelsHidden()
-                        .frame(width: 150)
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
                     }
-                }
-            }
-            .frame(maxWidth: .infinity)
-
-            // Card 3: Pitch Bend, Portamento & Velocity Fixa
-            SectionCard(title: "Articulação & Pitch Bend", subtitle: "Camada \(letter)") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 8) {
-                        ProKnob(
-                            idKey: "L\(layer)_plo",
-                            title: "Bend ↓",
-                            value: layerBinding(layer, { Double($0.pitchBendDown) }, { $0.pitchBendDown = Int32($1.rounded()) }),
-                            range: -24.0...0.0,
-                            defaultValue: -2.0,
-                            step: 1.0,
-                            valueFormatter: { String(format: "%d st", Int($0.rounded())) },
-                            size: 36
+                ) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        // Bloco 1: Zona do teclado (range slider sobre mini-teclado)
+                        KeyZoneRangeControl(
+                            keyLow: layerBinding(layer, { Int($0.keyLow) }, { $0.keyLow = Int32($1) }),
+                            keyHigh: layerBinding(layer, { Int($0.keyHigh) }, { $0.keyHigh = Int32($1) }),
+                            layerIndex: layer
                         )
 
-                        ProKnob(
-                            idKey: "L\(layer)_phi",
-                            title: "Bend ↑",
-                            value: layerBinding(layer, { Double($0.pitchBendUp) }, { $0.pitchBendUp = Int32($1.rounded()) }),
-                            range: 0.0...24.0,
-                            defaultValue: 2.0,
-                            step: 1.0,
-                            valueFormatter: { String(format: "+%d st", Int($0.rounded())) },
-                            size: 36
-                        )
+                        Divider().overlay(StudioTokens.borderHairline)
 
-                        ProKnob(
-                            idKey: "L\(layer)_port",
-                            title: "Portamento",
-                            value: layerBinding(layer, { Double($0.portamentoTimeMs) }, { $0.portamentoTimeMs = Float($1) }),
-                            range: 5.0...1500.0,
-                            defaultValue: 120.0,
-                            valueFormatter: { String(format: "%.0f ms", $0) },
-                            size: 36,
-                            enabled: lp.portamentoOn || lp.legatoMono
-                        )
-                    }
-                    .frame(maxWidth: .infinity)
+                        // Bloco 2: Dinâmica (faixa de velocity + canal MIDI)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Dinâmica")
+                                .font(StudioTokens.fontSectionTitle)
+                                .foregroundStyle(StudioTokens.textPrimary)
 
-                    Divider().overlay(StudioTokens.borderHairline)
+                            DualRangeSlider(
+                                title: "Faixa de velocity",
+                                lowValue: layerBinding(layer, { Int($0.velLow) }, { $0.velLow = Int32($1) }),
+                                highValue: layerBinding(layer, { Int($0.velHigh) }, { $0.velHigh = Int32($1) }),
+                                bounds: 1...127,
+                                valueFormatter: { "\($0)" }
+                            )
 
-                    HStack(spacing: 16) {
-                        Toggle("Portamento", isOn: layerBinding(layer, { $0.portamentoOn }, { $0.portamentoOn = $1 }))
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .font(StudioTokens.fontBody)
-
-                        Toggle("Legato mono", isOn: layerBinding(layer, { $0.legatoMono }, { $0.legatoMono = $1 }))
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .font(StudioTokens.fontBody)
-                    }
-
-                    HStack(spacing: 12) {
-                        Toggle("Velocity fixa", isOn: layerBinding(layer, { $0.fixedVelocity }, { $0.fixedVelocity = $1 }))
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .font(StudioTokens.fontBody)
-
-                        Spacer()
-
-                        Stepper(
-                            value: layerBinding(layer, { Int($0.fixedVelocityValue) }, { $0.fixedVelocityValue = Int32($1) }),
-                            in: 1...127,
-                            step: 1
-                        ) {
-                            Text("Valor: \(lp.fixedVelocityValue)")
-                                .font(StudioTokens.fontValue)
-                                .foregroundStyle(lp.fixedVelocity ? StudioTokens.textPrimary : StudioTokens.textDisabled)
+                            HStack {
+                                Text("Canal MIDI")
+                                    .font(StudioTokens.fontLabel)
+                                    .foregroundStyle(StudioTokens.textSecondary)
+                                Spacer()
+                                Picker("Canal MIDI", selection: layerBinding(layer, { Int($0.midiChannel) }, { $0.midiChannel = Int32($1) })) {
+                                    Text("Global / Omni").tag(0)
+                                    ForEach(1...16, id: \.self) { ch in
+                                        Text("Canal \(ch)").tag(ch)
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 140)
+                            }
                         }
-                        .disabled(!lp.fixedVelocity)
+                    }
+                }
+            },
+            panel3: {
+                // Painel 3: Articulação
+                SectionCard(title: "Articulação") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 10) {
+                            Spacer(minLength: 0)
+
+                            ProKnob(
+                                idKey: "L\(layer)_plo",
+                                title: "Bend ↓",
+                                value: layerBinding(layer, { Double($0.pitchBendDown) }, { $0.pitchBendDown = Int32($1.rounded()) }),
+                                range: -24.0...0.0,
+                                defaultValue: -2.0,
+                                step: 1.0,
+                                valueFormatter: { String(format: "%d st", Int($0.rounded())) },
+                                size: 36
+                            )
+
+                            ProKnob(
+                                idKey: "L\(layer)_phi",
+                                title: "Bend ↑",
+                                value: layerBinding(layer, { Double($0.pitchBendUp) }, { $0.pitchBendUp = Int32($1.rounded()) }),
+                                range: 0.0...24.0,
+                                defaultValue: 2.0,
+                                step: 1.0,
+                                valueFormatter: { String(format: "+%d st", Int($0.rounded())) },
+                                size: 36
+                            )
+
+                            ProKnob(
+                                idKey: "L\(layer)_port",
+                                title: "Portamento",
+                                value: layerBinding(layer, { Double($0.portamentoTimeMs) }, { $0.portamentoTimeMs = Float($1) }),
+                                range: 5.0...1500.0,
+                                defaultValue: 120.0,
+                                valueFormatter: { String(format: "%.0f ms", $0) },
+                                size: 36,
+                                enabled: lp.portamentoOn || lp.legatoMono
+                            )
+
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider().overlay(StudioTokens.borderHairline)
+
+                        HStack(spacing: 16) {
+                            Toggle("Portamento", isOn: layerBinding(layer, { $0.portamentoOn }, { $0.portamentoOn = $1 }))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .font(StudioTokens.fontBody)
+
+                            Toggle("Legato mono", isOn: layerBinding(layer, { $0.legatoMono }, { $0.legatoMono = $1 }))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .font(StudioTokens.fontBody)
+                        }
+
+                        HStack(spacing: 10) {
+                            Toggle("Velocity fixa", isOn: layerBinding(layer, { $0.fixedVelocity }, { $0.fixedVelocity = $1 }))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .font(StudioTokens.fontBody)
+
+                            Spacer(minLength: 4)
+
+                            Stepper(
+                                value: layerBinding(layer, { Int($0.fixedVelocityValue) }, { $0.fixedVelocityValue = Int32($1) }),
+                                in: 1...127,
+                                step: 1
+                            ) {
+                                Text("Valor: \(lp.fixedVelocityValue)")
+                                    .font(StudioTokens.fontValue)
+                                    .foregroundStyle(lp.fixedVelocity ? StudioTokens.textPrimary : StudioTokens.textDisabled)
+                                    .fixedSize()
+                            }
+                            .disabled(!lp.fixedVelocity)
+                        }
                     }
                 }
             }
-            .frame(width: 340)
-        }
+        )
     }
 
-    // MARK: - Aba 3: MIDI CC (Tabela Parâmetro | CC | Learn + Mapeamentos Globais)
+    // MARK: - Aba 3: MIDI CC (Tabela Parâmetro | CC | Learn + Mapeamentos dos Knobs)
 
     private func midiCCTabContent(layer: Int) -> some View {
         let lp = vm.layers[layer].params
-        let letter = kLayerLetters[layer]
         let mappings = vm.knobMidiMappings.sorted { $0.key < $1.key }
 
-        return HStack(spacing: 12) {
-            // Coluna 1: Tabela de CC dos Controles da Camada (Parâmetro | CC | Learn)
-            SectionCard(title: "Controles MIDI da Camada", subtitle: "Camada \(letter)") {
+        return HStack(alignment: .top, spacing: 12) {
+            // Coluna 1: Tabela de CC da Camada (Parâmetro | CC | Learn)
+            SectionCard(title: "Controles MIDI da camada") {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Cabeçalho da Tabela
                     HStack {
                         Text("Parâmetro")
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Control Change (CC)")
-                            .frame(width: 140, alignment: .leading)
-                        Text("Aprender")
-                            .frame(width: 110, alignment: .trailing)
+                        Text("CC")
+                            .frame(width: 130, alignment: .leading)
+                        Text("Learn")
+                            .frame(width: 96, alignment: .trailing)
                     }
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
@@ -1203,7 +1382,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 0,
-                        parameterName: "Volume da Camada",
+                        parameterName: "Volume da camada",
                         ccValue: Int(lp.ccVolume)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccVolume = Int32(newCC) }
@@ -1212,7 +1391,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 1,
-                        parameterName: "Filtro Passa-Baixas",
+                        parameterName: "Filtro passa-baixas",
                         ccValue: Int(lp.ccFilter)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFilter = Int32(newCC) }
@@ -1221,7 +1400,7 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 2,
-                        parameterName: "Ambiência (Mix)",
+                        parameterName: "Ambiência",
                         ccValue: Int(lp.ccFxaAmount)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFxaAmount = Int32(newCC) }
@@ -1230,18 +1409,19 @@ struct ContentView: View {
                     layerCCRow(
                         layer: layer,
                         slot: 3,
-                        parameterName: "Cauda de Ambiência",
+                        parameterName: "Cauda de ambiência",
                         ccValue: Int(lp.ccFxaRelease)
                     ) { newCC in
                         vm.updateLayerParams(layer) { $0.ccFxaRelease = Int32(newCC) }
                     }
                 }
             }
-            .frame(width: 470)
+            .frame(maxWidth: .infinity)
+            .layoutPriority(1.0)
 
-            // Coluna 2: Tabela de Mapeamentos Universais dos Knobs
+            // Coluna 2: Tabela de Mapeamentos dos Knobs
             SectionCard(
-                title: "Mapeamentos MIDI dos Knobs",
+                title: "Mapeamentos MIDI dos knobs",
                 subtitle: "\(mappings.count) ativo(s)",
                 headerTrailing: {
                     if let activeKey = vm.activeMidiLearnKey {
@@ -1251,7 +1431,8 @@ struct ContentView: View {
                                 .frame(width: 8, height: 8)
                             Text("Aguardando CC para \(friendlyKnobName(activeKey))…")
                                 .font(StudioTokens.fontLabel)
-                                .foregroundStyle(StudioTokens.accent)
+                                .foregroundStyle(StudioTokens.textPrimary)
+                                .lineLimit(1)
                             Button("Cancelar") {
                                 vm.activeMidiLearnKey = nil
                             }
@@ -1262,77 +1443,81 @@ struct ContentView: View {
                 }
             ) {
                 if mappings.isEmpty {
-                    // Estado vazio claro com instrução curta
-                    VStack(spacing: 8) {
-                        Spacer()
+                    HStack(spacing: 12) {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 24))
+                            .font(.system(size: 20))
                             .foregroundStyle(StudioTokens.textSecondary)
-                        Text("Nenhum knob mapeado")
-                            .font(StudioTokens.fontBodyMedium)
-                            .foregroundStyle(StudioTokens.textPrimary)
-                        Text("Clique com o botão direito em qualquer knob e escolha \"Aprender MIDI CC\", depois mova um controle físico no seu teclado MIDI.")
-                            .font(StudioTokens.fontLabel)
-                            .foregroundStyle(StudioTokens.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 360)
-                        Spacer()
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Nenhum knob mapeado")
+                                .font(StudioTokens.fontBodyMedium)
+                                .foregroundStyle(StudioTokens.textPrimary)
+                            Text("Clique com o botão direito em qualquer knob e escolha \"Aprender MIDI CC\", depois mova um controle físico no seu teclado MIDI.")
+                                .font(StudioTokens.fontLabel)
+                                .foregroundStyle(StudioTokens.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(StudioTokens.surfaceControl.opacity(0.4), in: .rect(cornerRadius: 8))
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(StudioTokens.surfaceControl.opacity(0.45), in: .rect(cornerRadius: 8))
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("Parâmetro")
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text("CC")
-                                .frame(width: 80, alignment: .leading)
-                            Text("Ação")
-                                .frame(width: 70, alignment: .trailing)
+                                .frame(width: 72, alignment: .leading)
+                            Text("Remover")
+                                .frame(width: 64, alignment: .trailing)
                         }
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                         .padding(.horizontal, 10)
 
-                        ScrollView {
-                            LazyVStack(spacing: 4) {
-                                ForEach(mappings, id: \.key) { item in
-                                    HStack {
-                                        Text(friendlyKnobName(item.key))
-                                            .font(StudioTokens.fontBodyMedium)
-                                            .foregroundStyle(StudioTokens.textPrimary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Divider().overlay(StudioTokens.borderHairline)
 
-                                        Text("CC \(item.value)")
-                                            .font(StudioTokens.fontValue)
-                                            .foregroundStyle(StudioTokens.accent)
-                                            .frame(width: 80, alignment: .leading)
+                        VStack(spacing: 4) {
+                            ForEach(mappings, id: \.key) { item in
+                                HStack {
+                                    Text(friendlyKnobName(item.key))
+                                        .font(StudioTokens.fontBodyMedium)
+                                        .foregroundStyle(StudioTokens.textPrimary)
+                                        .lineLimit(1)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                                        Button(role: .destructive) {
-                                            vm.unassignKnobCC(idKey: item.key)
-                                        } label: {
-                                            Image(systemName: "trash")
-                                                .font(.system(size: 12))
-                                        }
-                                        .buttonStyle(.glass)
-                                        .controlSize(.small)
-                                        .frame(width: 70, alignment: .trailing)
-                                        .help("Remover mapeamento de \(friendlyKnobName(item.key))")
+                                    Text("CC \(item.value)")
+                                        .font(StudioTokens.fontValue)
+                                        .foregroundStyle(StudioTokens.textPrimary)
+                                        .frame(width: 72, alignment: .leading)
+
+                                    Button(role: .destructive) {
+                                        vm.unassignKnobCC(idKey: item.key)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 12))
                                     }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        StudioTokens.surfaceControl,
-                                        in: .rect(cornerRadius: StudioTokens.controlRadius)
-                                    )
+                                    .buttonStyle(.glass)
+                                    .controlSize(.small)
+                                    .frame(width: 64, alignment: .trailing)
+                                    .help("Remover mapeamento de \(friendlyKnobName(item.key))")
                                 }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    StudioTokens.surfaceControl,
+                                    in: .rect(cornerRadius: StudioTokens.controlRadius)
+                                )
                             }
                         }
                     }
                 }
             }
             .frame(maxWidth: .infinity)
+            .layoutPriority(1.0)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func layerCCRow(
@@ -1349,6 +1534,7 @@ struct ContentView: View {
             Text(parameterName)
                 .font(StudioTokens.fontBodyMedium)
                 .foregroundStyle(StudioTokens.textPrimary)
+                .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Picker("CC", selection: Binding(
@@ -1365,18 +1551,17 @@ struct ContentView: View {
                 }
             }
             .labelsHidden()
-            .frame(width: 140)
+            .frame(width: 130)
 
             Button {
                 vm.toggleMidiLearn(layer: layer, slot: slot)
             } label: {
                 Text(isLearning ? "Aguardando…" : "Learn")
-                    .frame(width: 86)
+                    .frame(width: 82)
             }
             .buttonStyle(.glass)
-            .tint(isLearning ? StudioTokens.accent : nil)
             .controlSize(.small)
-            .frame(width: 110, alignment: .trailing)
+            .frame(width: 96, alignment: .trailing)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -1389,108 +1574,115 @@ struct ContentView: View {
     // MARK: - Aba 4: EQ · Drive · Mod (EQ com Curva Visual + Mod 1 e Mod 2 Idênticos)
 
     private var eqModTabContent: some View {
-        HStack(spacing: 12) {
-            // Card 1: Equalizador 3 Bandas (com gráfico de resposta) + Drive
-            SectionCard(
-                title: "Equalizador & Drive",
-                subtitle: "Master",
-                headerTrailing: {
-                    Button("Flat (0 dB)") {
-                        vm.resetEq()
+        responsiveThreePanelLayout(
+            p1Priority: 1.35,
+            p2Priority: 0.9,
+            p3Priority: 0.9,
+            panel1: {
+                // Card 1: Equalizador 3 Bandas (com gráfico de resposta) + Drive
+                SectionCard(
+                    title: "Equalizador & Drive",
+                    headerTrailing: {
+                        Button("Flat (0 dB)") {
+                            vm.resetEq()
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
-                }
-            ) {
-                VStack(spacing: 14) {
-                    HStack(spacing: 16) {
-                        EQResponseGraph(
-                            bassDb: vm.eqBassDb,
-                            midDb: vm.eqMidDb,
-                            midFreqHz: vm.eqMidFreqHz,
-                            trebleDb: vm.eqTrebleDb
-                        )
-                        .frame(width: 160, height: 84)
+                ) {
+                    VStack(spacing: 14) {
+                        HStack(spacing: 14) {
+                            EQResponseGraph(
+                                bassDb: vm.eqBassDb,
+                                midDb: vm.eqMidDb,
+                                midFreqHz: vm.eqMidFreqHz,
+                                trebleDb: vm.eqTrebleDb
+                            )
+                            .frame(minWidth: 140, maxWidth: .infinity)
+                            .frame(height: 82)
 
-                        Divider().overlay(StudioTokens.borderHairline)
+                            Divider().overlay(StudioTokens.borderHairline)
 
-                        HStack(spacing: 12) {
-                            Toggle("Drive", isOn: $vm.driveEnabled)
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
-                                .font(StudioTokens.fontBodyMedium)
+                            HStack(spacing: 10) {
+                                Toggle("Drive", isOn: $vm.driveEnabled)
+                                    .toggleStyle(.switch)
+                                    .controlSize(.small)
+                                    .font(StudioTokens.fontBodyMedium)
+                                    .fixedSize()
+
+                                ProKnob(
+                                    idKey: "eq_drive",
+                                    title: "Saturação",
+                                    value: $vm.driveAmountPercent,
+                                    range: 0.0...100.0,
+                                    defaultValue: 25.0,
+                                    valueFormatter: { String(format: "%.0f%%", $0) },
+                                    size: 36,
+                                    enabled: vm.driveEnabled
+                                )
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            Spacer(minLength: 0)
 
                             ProKnob(
-                                idKey: "eq_drive",
-                                title: "Saturação",
-                                value: $vm.driveAmountPercent,
-                                range: 0.0...100.0,
-                                defaultValue: 25.0,
-                                valueFormatter: { String(format: "%.0f%%", $0) },
-                                size: 36,
-                                enabled: vm.driveEnabled
+                                idKey: "eq_bass",
+                                title: "Graves",
+                                value: $vm.eqBassDb,
+                                range: -15.0...15.0,
+                                defaultValue: 0.0,
+                                valueFormatter: { String(format: "%+.1f dB", $0) },
+                                size: 48
                             )
+
+                            ProKnob(
+                                idKey: "eq_mid",
+                                title: "Médios",
+                                value: $vm.eqMidDb,
+                                range: -15.0...15.0,
+                                defaultValue: 0.0,
+                                valueFormatter: { String(format: "%+.1f dB", $0) },
+                                size: 48
+                            )
+
+                            ProKnob(
+                                idKey: "eq_midf",
+                                title: "Freq. médios",
+                                value: $vm.eqMidFreqHz,
+                                range: 200.0...5000.0,
+                                defaultValue: 1000.0,
+                                valueFormatter: {
+                                    $0 >= 1000.0
+                                        ? String(format: "%.1f kHz", $0 / 1000.0)
+                                        : String(format: "%.0f Hz", $0)
+                                },
+                                size: 48
+                            )
+
+                            ProKnob(
+                                idKey: "eq_treb",
+                                title: "Agudos",
+                                value: $vm.eqTrebleDb,
+                                range: -15.0...15.0,
+                                defaultValue: 0.0,
+                                valueFormatter: { String(format: "%+.1f dB", $0) },
+                                size: 48
+                            )
+
+                            Spacer(minLength: 0)
                         }
+                        .frame(maxWidth: .infinity)
                     }
-
-                    HStack(spacing: 10) {
-                        ProKnob(
-                            idKey: "eq_bass",
-                            title: "Graves",
-                            value: $vm.eqBassDb,
-                            range: -15.0...15.0,
-                            defaultValue: 0.0,
-                            valueFormatter: { String(format: "%+.1f dB", $0) },
-                            size: 48
-                        )
-
-                        ProKnob(
-                            idKey: "eq_mid",
-                            title: "Médios",
-                            value: $vm.eqMidDb,
-                            range: -15.0...15.0,
-                            defaultValue: 0.0,
-                            valueFormatter: { String(format: "%+.1f dB", $0) },
-                            size: 48
-                        )
-
-                        ProKnob(
-                            idKey: "eq_midf",
-                            title: "Freq. Médios",
-                            value: $vm.eqMidFreqHz,
-                            range: 200.0...5000.0,
-                            defaultValue: 1000.0,
-                            valueFormatter: {
-                                $0 >= 1000.0
-                                    ? String(format: "%.1f kHz", $0 / 1000.0)
-                                    : String(format: "%.0f Hz", $0)
-                            },
-                            size: 48
-                        )
-
-                        ProKnob(
-                            idKey: "eq_treb",
-                            title: "Agudos",
-                            value: $vm.eqTrebleDb,
-                            range: -15.0...15.0,
-                            defaultValue: 0.0,
-                            valueFormatter: { String(format: "%+.1f dB", $0) },
-                            size: 48
-                        )
-                    }
-                    .frame(maxWidth: .infinity)
                 }
+            },
+            panel2: {
+                modulatorCard(title: "Mod 1", index: 1, mod: $vm.mod1)
+            },
+            panel3: {
+                modulatorCard(title: "Mod 2", index: 2, mod: $vm.mod2)
             }
-            .frame(maxWidth: .infinity)
-
-            // Card 2: Modulador 1
-            modulatorCard(title: "Modulador 1", index: 1, mod: $vm.mod1)
-                .frame(width: 285)
-
-            // Card 3: Modulador 2 (estrutura idêntica)
-            modulatorCard(title: "Modulador 2", index: 2, mod: $vm.mod2)
-                .frame(width: 285)
-        }
+        )
     }
 
     private func modulatorCard(title: String, index: Int, mod: Binding<NPNOModulatorParams>) -> some View {
@@ -1507,7 +1699,7 @@ struct ContentView: View {
                 .controlSize(.small)
             }
         ) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("Destino")
                         .font(StudioTokens.fontLabel)
@@ -1517,18 +1709,18 @@ struct ContentView: View {
                         get: { Int(mod.wrappedValue.target) },
                         set: { mod.wrappedValue.target = Int32($0) }
                     )) {
-                        Text("Tremolo (Volume)").tag(0)
+                        Text("Tremolo").tag(0)
                         Text("Wah (Filtro)").tag(1)
-                        Text("Vibrato (Pitch)").tag(2)
+                        Text("Vibrato").tag(2)
                         Text("Auto-Pan").tag(3)
                     }
                     .labelsHidden()
-                    .frame(width: 165)
+                    .frame(width: 145)
                     .disabled(!m.enabled)
                 }
 
                 HStack {
-                    Text("Forma de onda")
+                    Text("Onda")
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                     Spacer()
@@ -1538,18 +1730,20 @@ struct ContentView: View {
                     )) {
                         Text("Seno").tag(0)
                         Text("Triângulo").tag(1)
-                        Text("Dente de serra").tag(2)
+                        Text("Serra").tag(2)
                         Text("Quadrada").tag(3)
                         Text("Envelope").tag(4)
                     }
                     .labelsHidden()
-                    .frame(width: 165)
+                    .frame(width: 145)
                     .disabled(!m.enabled)
                 }
 
                 Divider().overlay(StudioTokens.borderHairline)
 
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
+                    Spacer(minLength: 0)
+
                     ProKnob(
                         idKey: "mod\(index)_rate",
                         title: "Velocidade",
@@ -1577,24 +1771,25 @@ struct ContentView: View {
                         size: 48,
                         enabled: m.enabled
                     )
+
+                    Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity)
             }
         }
     }
 
-    // MARK: - Aba 5: Delay · Reverb (Mesma Gramática Visual, Dimensionados ao Conteúdo)
+    // MARK: - Aba 5: Delay · Reverb (Mesma Gramática Visual, Painéis Dimensionados ao Conteúdo)
 
     private var delayReverbTabContent: some View {
         let divisions = ["1/4", "1/8", "1/8 Pont.", "1/8 Terc.", "1/16"]
 
-        return HStack(spacing: 12) {
+        return HStack(alignment: .top, spacing: 12) {
             // Card 1: Delay Estéreo
             SectionCard(
                 title: "Delay Estéreo",
-                subtitle: "Master",
                 headerTrailing: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Button {
                             vm.tapDelayTempo()
                         } label: {
@@ -1610,9 +1805,9 @@ struct ContentView: View {
                     }
                 }
             ) {
-                VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 24) {
-                        Toggle("Ping-Pong Estéreo", isOn: $vm.delay.pingPong)
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 20) {
+                        Toggle("Ping-Pong estéreo", isOn: $vm.delay.pingPong)
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .font(StudioTokens.fontBody)
@@ -1627,7 +1822,9 @@ struct ContentView: View {
 
                     Divider().overlay(StudioTokens.borderHairline)
 
-                    HStack(spacing: 18) {
+                    HStack(spacing: 14) {
+                        Spacer(minLength: 0)
+
                         ProKnob(
                             idKey: "dly_amt",
                             title: "Mix",
@@ -1701,16 +1898,18 @@ struct ContentView: View {
                                 enabled: vm.delay.enabled
                             )
                         }
+
+                        Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
             .frame(maxWidth: .infinity)
+            .layoutPriority(1.0)
 
             // Card 2: Reverb Estéreo
             SectionCard(
                 title: "Reverb Estéreo",
-                subtitle: "Master",
                 headerTrailing: {
                     Toggle("Ativar Reverb", isOn: $vm.reverb.enabled)
                         .labelsHidden()
@@ -1718,8 +1917,8 @@ struct ContentView: View {
                         .controlSize(.small)
                 }
             ) {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Reverberação algorítmica de estúdio com controle independente de sala, decaimento e absorção de agudos.")
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Reverberação algorítmica com controle de sala, decaimento e absorção de agudos.")
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
                         .lineLimit(1)
@@ -1727,6 +1926,8 @@ struct ContentView: View {
                     Divider().overlay(StudioTokens.borderHairline)
 
                     HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+
                         ProKnob(
                             idKey: "rev_amt",
                             title: "Mix",
@@ -1796,25 +1997,29 @@ struct ContentView: View {
                             size: 48,
                             enabled: vm.reverb.enabled
                         )
+
+                        Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
             .frame(maxWidth: .infinity)
+            .layoutPriority(1.15)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - 4. Barra de Status Inferior (safeAreaInset, Material Leve, Não Glass)
 
     private var statusBarSection: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             // Pedal Sustain
             Button {
                 vm.setSustain(!vm.sustainDown)
             } label: {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(vm.sustainDown ? StudioTokens.accent : StudioTokens.textDisabled)
+                        .fill(vm.sustainDown ? StudioTokens.meterGreen : StudioTokens.textDisabled)
                         .frame(width: 7, height: 7)
                     Text("Sustain")
                         .font(StudioTokens.fontLabel)
@@ -1824,8 +2029,7 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .help("Estado do pedal Sustain (Espaço para acionar)")
 
-            Divider()
-                .frame(height: 14)
+            Divider().frame(height: 14)
 
             // Dispositivo MIDI (truncado + tooltip completo)
             HStack(spacing: 6) {
@@ -1838,7 +2042,7 @@ struct ContentView: View {
                     .foregroundStyle(StudioTokens.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(maxWidth: 260, alignment: .leading)
+                    .frame(maxWidth: 240, alignment: .leading)
             }
             .help("Controladores MIDI: \(vm.midiSources)")
 
@@ -1850,7 +2054,7 @@ struct ContentView: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 10)
 
             // Sample Rate
             Text(String(format: "%.1f kHz", vm.sampleRate / 1000.0))
@@ -1900,7 +2104,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                     .font(StudioTokens.fontLabel)
-                    .foregroundStyle(StudioTokens.accent)
+                    .foregroundStyle(StudioTokens.textPrimary)
                     .help("Recarregar samples purgados na memória RAM")
                 } else {
                     Button("Purge") {
@@ -1921,7 +2125,7 @@ struct ContentView: View {
                 } label: {
                     Text("Zoom: \(Int((vm.uiScale * 100).rounded()))%")
                         .font(StudioTokens.fontLabel.monospacedDigit())
-                        .foregroundStyle(StudioTokens.accent)
+                        .foregroundStyle(StudioTokens.textPrimary)
                 }
                 .buttonStyle(.plain)
                 .help("Clique para restaurar o zoom em 100% (⌘0)")
@@ -1937,13 +2141,13 @@ struct ContentView: View {
             } label: {
                 Label("Teclado", systemImage: "pianokeys")
                     .font(StudioTokens.fontLabel)
-                    .foregroundStyle(vm.showVirtualKeyboard ? StudioTokens.accent : StudioTokens.textSecondary)
+                    .foregroundStyle(vm.showVirtualKeyboard ? StudioTokens.textPrimary : StudioTokens.textSecondary)
             }
             .buttonStyle(.plain)
             .help("Mostrar ou recolher teclado virtual de 61 teclas (⌘K)")
         }
         .padding(.horizontal, StudioTokens.grid2)
-        .frame(height: 30)
+        .frame(height: 28)
         .background(reduceTransparency ? AnyShapeStyle(StudioTokens.surfacePanel) : AnyShapeStyle(.ultraThinMaterial))
         .overlay(alignment: .top) {
             Rectangle()
@@ -1953,7 +2157,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Teclado Virtual de 61 Teclas Recolhível (C1 = 24 até C6 = 84) com Zonas das Camadas
+// MARK: - Teclado Virtual de 61 Teclas na Base (~120pt, C1 = 24 até C6 = 84) com Zonas das Camadas
 
 struct VirtualKeyboard61View: View {
     @ObservedObject var vm: PianoViewModel
@@ -1973,13 +2177,13 @@ struct VirtualKeyboard61View: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Faixas coloridas das zonas das camadas ligadas (A, B, C, D)
+            // Faixas de zonas das camadas ligadas (A, B, C, D)
             GeometryReader { geo in
                 let totalSpan = CGFloat(endNote - startNote + 1)
                 ZStack(alignment: .leading) {
                     ForEach(0..<4, id: \.self) { l in
                         let lp = vm.layers[l].params
-                        if lp.enabled && vm.layers[l].loaded {
+                        if lp.enabled {
                             let clampedLow = max(startNote, min(endNote, Int(lp.keyLow)))
                             let clampedHigh = max(startNote, min(endNote, Int(lp.keyHigh)))
                             if clampedHigh >= clampedLow {
@@ -1996,7 +2200,7 @@ struct VirtualKeyboard61View: View {
             }
             .frame(height: 14)
 
-            // Teclado de 61 teclas em Canvas + interação por mouse
+            // Teclado de 61 teclas em Canvas + interação por mouse e MIDI
             GeometryReader { geo in
                 let whites = whiteNotes
                 let whiteW = max(1.0, geo.size.width / CGFloat(whites.count))
@@ -2013,9 +2217,9 @@ struct VirtualKeyboard61View: View {
 
                         if note % 12 == 0 {
                             let label = Text(shortNoteName(note))
-                                .font(.system(size: 9, weight: .semibold).monospacedDigit())
-                                .foregroundColor(active ? .white : Color.black.opacity(0.65))
-                            context.draw(label, at: CGPoint(x: x + whiteW / 2, y: size.height - 9))
+                                .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                                .foregroundColor(active ? .white : Color.black.opacity(0.68))
+                            context.draw(label, at: CGPoint(x: x + whiteW / 2, y: size.height - 10))
                         }
                     }
 
@@ -2091,4 +2295,88 @@ struct VirtualKeyboard61View: View {
         let wIdx = min(max(Int(clampedX / whiteW), 0), whites.count - 1)
         return whites[wIdx]
     }
+}
+
+// MARK: - Previews das 5 Abas nas Larguras 1100, 1280 e 1440
+
+@MainActor
+private func makePreviewViewModel(tab: WorkstationTab) -> PianoViewModel {
+    let vm = PianoViewModel()
+    vm.selectedTab = tab
+    return vm
+}
+
+#Preview("Aba 1: Timbre — 1100pt") {
+    ContentView(vm: makePreviewViewModel(tab: .timbre))
+        .frame(width: 1100, height: 720)
+}
+
+#Preview("Aba 1: Timbre — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .timbre))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Aba 1: Timbre — 1440pt") {
+    ContentView(vm: makePreviewViewModel(tab: .timbre))
+        .frame(width: 1440, height: 820)
+}
+
+#Preview("Aba 2: Teclado & Toque — 1100pt") {
+    ContentView(vm: makePreviewViewModel(tab: .keyboard))
+        .frame(width: 1100, height: 720)
+}
+
+#Preview("Aba 2: Teclado & Toque — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .keyboard))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Aba 2: Teclado & Toque — 1440pt") {
+    ContentView(vm: makePreviewViewModel(tab: .keyboard))
+        .frame(width: 1440, height: 820)
+}
+
+#Preview("Aba 3: MIDI CC — 1100pt") {
+    ContentView(vm: makePreviewViewModel(tab: .midiCC))
+        .frame(width: 1100, height: 720)
+}
+
+#Preview("Aba 3: MIDI CC — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .midiCC))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Aba 3: MIDI CC — 1440pt") {
+    ContentView(vm: makePreviewViewModel(tab: .midiCC))
+        .frame(width: 1440, height: 820)
+}
+
+#Preview("Aba 4: EQ · Drive · Mod — 1100pt") {
+    ContentView(vm: makePreviewViewModel(tab: .eqMod))
+        .frame(width: 1100, height: 720)
+}
+
+#Preview("Aba 4: EQ · Drive · Mod — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .eqMod))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Aba 4: EQ · Drive · Mod — 1440pt") {
+    ContentView(vm: makePreviewViewModel(tab: .eqMod))
+        .frame(width: 1440, height: 820)
+}
+
+#Preview("Aba 5: Delay · Reverb — 1100pt") {
+    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
+        .frame(width: 1100, height: 720)
+}
+
+#Preview("Aba 5: Delay · Reverb — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Aba 5: Delay · Reverb — 1440pt") {
+    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
+        .frame(width: 1440, height: 820)
 }

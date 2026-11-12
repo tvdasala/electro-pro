@@ -1,8 +1,114 @@
 import AppKit
 import Foundation
 import NPNOBridge
+import os
 import SwiftUI
 import UniformTypeIdentifiers
+
+// MARK: - Ponte Thread-Safe para Fluxo Contínuo MIDI / Progresso C++ (Nonisolated, Zero Task por Evento)
+
+final class RealtimeMIDIBridge: @unchecked Sendable {
+    static let shared = RealtimeMIDIBridge()
+
+    private var lock = os_unfair_lock()
+    private var dirtyCCLow: UInt64 = 0
+    private var dirtyCCHigh: UInt64 = 0
+    private var ccValues: [UInt8] = Array(repeating: 0, count: 128)
+    private var latestLearnCC: Int32 = -1
+
+    private var dirtyLoadMask: UInt8 = 0
+    private var loadProgress: (Float, Float, Float, Float) = (0, 0, 0, 0)
+
+    private init() {}
+
+    nonisolated func recordMidiCC(cc: Int32, value: Int32) {
+        let clampedCC = Int(cc) & 0x7F
+        let clampedVal = UInt8(clamping: value)
+        os_unfair_lock_lock(&lock)
+        ccValues[clampedCC] = clampedVal
+        if clampedCC < 64 {
+            dirtyCCLow |= (UInt64(1) << UInt64(clampedCC))
+        } else {
+            dirtyCCHigh |= (UInt64(1) << UInt64(clampedCC - 64))
+        }
+        latestLearnCC = Int32(clampedCC)
+        os_unfair_lock_unlock(&lock)
+    }
+
+    nonisolated func recordLoadProgress(layer: Int, progress: Float) {
+        guard (0..<4).contains(layer) else { return }
+        os_unfair_lock_lock(&lock)
+        switch layer {
+        case 0: loadProgress.0 = progress
+        case 1: loadProgress.1 = progress
+        case 2: loadProgress.2 = progress
+        default: loadProgress.3 = progress
+        }
+        dirtyLoadMask |= (UInt8(1) << UInt8(layer))
+        os_unfair_lock_unlock(&lock)
+    }
+
+    struct Snapshot: Sendable {
+        var lowMask: UInt64
+        var highMask: UInt64
+        var values: [UInt8]
+        var latestLearnCC: Int32
+        var loadMask: UInt8
+        var loadProgress: (Float, Float, Float, Float)
+    }
+
+    nonisolated func drain() -> Snapshot? {
+        os_unfair_lock_lock(&lock)
+        if dirtyCCLow == 0 && dirtyCCHigh == 0 && dirtyLoadMask == 0 && latestLearnCC < 0 {
+            os_unfair_lock_unlock(&lock)
+            return nil
+        }
+        let snap = Snapshot(
+            lowMask: dirtyCCLow,
+            highMask: dirtyCCHigh,
+            values: ccValues,
+            latestLearnCC: latestLearnCC,
+            loadMask: dirtyLoadMask,
+            loadProgress: loadProgress
+        )
+        dirtyCCLow = 0
+        dirtyCCHigh = 0
+        latestLearnCC = -1
+        dirtyLoadMask = 0
+        os_unfair_lock_unlock(&lock)
+        return snap
+    }
+}
+
+// Callbacks C puras definidas fora de @MainActor para jamais injetar checagem de isolamento na thread CoreMIDI/Background
+private nonisolated let kMidiCCBridgeCallback: NPNOMidiCCCallback = { cc, val, _, _ in
+    RealtimeMIDIBridge.shared.recordMidiCC(cc: cc, value: val)
+}
+
+private nonisolated let kLoadProgressCallbackLayer0: @convention(c) (Float, UnsafeMutableRawPointer?) -> Void = { progress, _ in
+    RealtimeMIDIBridge.shared.recordLoadProgress(layer: 0, progress: progress)
+}
+
+private nonisolated let kLoadProgressCallbackLayer1: @convention(c) (Float, UnsafeMutableRawPointer?) -> Void = { progress, _ in
+    RealtimeMIDIBridge.shared.recordLoadProgress(layer: 1, progress: progress)
+}
+
+private nonisolated let kLoadProgressCallbackLayer2: @convention(c) (Float, UnsafeMutableRawPointer?) -> Void = { progress, _ in
+    RealtimeMIDIBridge.shared.recordLoadProgress(layer: 2, progress: progress)
+}
+
+private nonisolated let kLoadProgressCallbackLayer3: @convention(c) (Float, UnsafeMutableRawPointer?) -> Void = { progress, _ in
+    RealtimeMIDIBridge.shared.recordLoadProgress(layer: 3, progress: progress)
+}
+
+private nonisolated func loadProgressCallback(forLayer layer: Int) -> (@convention(c) (Float, UnsafeMutableRawPointer?) -> Void) {
+    switch layer {
+    case 0: return kLoadProgressCallbackLayer0
+    case 1: return kLoadProgressCallbackLayer1
+    case 2: return kLoadProgressCallbackLayer2
+    default: return kLoadProgressCallbackLayer3
+    }
+}
 
 // MARK: - Modelos Auxiliares de Áudio, MIDI e Camadas
 
@@ -32,7 +138,7 @@ struct LayerSlotState {
     var loaded: Bool = false
     var isLoading: Bool = false
     var loadProgress: Float = 0.0
-    var name: String = "Slot Vazio"
+    var name: String = "Nenhum timbre"
     var model: String = "Carregue um .npno"
     var path: String = ""
     var summary: String = ""
@@ -93,7 +199,7 @@ struct LayerMemoryPreset: Codable, Equatable {
 }
 
 struct ProgramMemoryPreset: Codable, Equatable {
-    var name: String = "Vazio"
+    var name: String = "Inicial"
     var hasData: Bool = false
     var layers: [LayerMemoryPreset] = [
         LayerMemoryPreset(enabled: true),
@@ -144,7 +250,7 @@ func midiNoteName(_ note: Int) -> String {
     return "\(name)\(oct) (\(clamped))"
 }
 
-func decodeNullTerminatedCString(_ buffer: [CChar]) -> String {
+nonisolated func decodeNullTerminatedCString(_ buffer: [CChar]) -> String {
     let prefix = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
     return String(decoding: prefix, as: UTF8.self)
 }
@@ -219,7 +325,10 @@ final class PianoViewModel: ObservableObject {
     @Published var selectedLayer: Int = 0
     @Published var activeLoadingLayer: Int = 0
     @Published var showTuningPopover: Bool = false
-    @Published var showVirtualKeyboard: Bool = false
+    @Published var showRenameProgramPopover: Bool = false
+    @Published var renameProgramDraft: String = ""
+    // Teclado virtual de 61 teclas na base aberto por padrão
+    @Published var showVirtualKeyboard: Bool = true
     @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
     @Published var errorMessage: String? = nil
 
@@ -254,9 +363,30 @@ final class PianoViewModel: ObservableObject {
         return memorySlots[slot - 1].hasData
     }
 
+    func beginRenameCurrentProgram() {
+        let idx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
+        let currentName = memorySlots[idx].name
+        renameProgramDraft = currentName.isEmpty ? "Programa \(selectedMemorySlot)" : currentName
+        showRenameProgramPopover = true
+    }
+
+    func commitRenameCurrentProgram() {
+        let trimmed = renameProgramDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, (1...8).contains(selectedMemorySlot) else {
+            showRenameProgramPopover = false
+            return
+        }
+        memorySlots[selectedMemorySlot - 1].name = trimmed
+        memorySlots[selectedMemorySlot - 1].hasData = true
+        persistMemories()
+        memoryStatusText = "M\(selectedMemorySlot): \(trimmed)"
+        showRenameProgramPopover = false
+    }
+
     func storeCurrentToMemory(slot: Int) {
         guard (1...8).contains(slot) else { return }
         selectedMemorySlot = slot
+        let existingName = memorySlots[slot - 1].hasData ? memorySlots[slot - 1].name : ""
         var p = ProgramMemoryPreset()
         p.hasData = true
 
@@ -277,13 +407,18 @@ final class PianoViewModel: ObservableObject {
             }
         }
 
-        p.name = names.isEmpty ? "Vazio" : names.joined(separator: " + ")
+        if !existingName.isEmpty && existingName != "Inicial" && existingName != "Vazio" {
+            p.name = existingName
+        } else {
+            p.name = names.isEmpty ? "Inicial" : names.joined(separator: " + ")
+        }
         memorySlots[slot - 1] = p
         persistMemories()
 
-        memoryStatusText = "M\(slot): \(p.name) (SALVO!)"
+        memoryStatusText = "M\(slot): \(p.name)"
         storeConfirmationActive = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
             self?.storeConfirmationActive = false
         }
     }
@@ -295,7 +430,7 @@ final class PianoViewModel: ObservableObject {
 
         let p = memorySlots[slot - 1]
         if !p.hasData {
-            memoryStatusText = "M\(slot): Vazio"
+            memoryStatusText = "M\(slot): Inicial"
             return
         }
 
@@ -338,7 +473,7 @@ final class PianoViewModel: ObservableObject {
         return arr
     }()
 
-    // Telemetria em tempo real (Seção 1)
+    // Telemetria em tempo real
     @Published var activeVoices: Int = 0
     @Published var maxVoices: Int = 256 {
         didSet {
@@ -353,7 +488,7 @@ final class PianoViewModel: ObservableObject {
     @Published var peakL: Float = 0.0
     @Published var peakR: Float = 0.0
     @Published var sampleRate: Double = 48000.0
-    @Published var midiSources: String = "Nenhum controlador MIDI conectado"
+    @Published var midiSources: String = "Nenhum controlador conectado"
     @Published var midiSourceCount: Int = 0
 
     // Dispositivos de Áudio e MIDI
@@ -373,7 +508,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // Seção 1 & Global: Controles Gerais
+    // Controles Gerais
     @Published var fineTuneCents: Double = 0.0 {
         didSet {
             if let h = host { npno_host_set_fine_tune_cents(h, Float(fineTuneCents)) }
@@ -420,7 +555,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // Seção 6: EQ | Drive + Mod 1 & Mod 2
+    // EQ | Drive + Mod 1 & Mod 2
     @Published var eqBassDb: Double = 0.0 {
         didSet { if let h = host { npno_host_set_eq_bass_db(h, Float(eqBassDb)) } }
     }
@@ -464,7 +599,7 @@ final class PianoViewModel: ObservableObject {
         didSet { pushModulator(1, mod2) }
     }
 
-    // Seção 7: Delay e Reverb
+    // Delay e Reverb
     @Published var delay: NPNODelayParams = {
         var d = NPNODelayParams()
         d.enabled = false
@@ -514,13 +649,8 @@ final class PianoViewModel: ObservableObject {
                 npno_host_get_layer_params(h, Int32(l), &lp)
                 layers[l].params = lp
             }
-            npno_host_set_midi_cc_callback(h, { cc, val, chan, ctx in
-                guard let ctx = ctx else { return }
-                let vm = Unmanaged<PianoViewModel>.fromOpaque(ctx).takeUnretainedValue()
-                DispatchQueue.main.async {
-                    vm.handleIncomingMidiCC(cc: Int(cc), value: Int(val))
-                }
-            }, Unmanaged.passUnretained(self).toOpaque())
+            // Registra callback C nonisolated que grava no RealtimeMIDIBridge sem checagem de @MainActor
+            npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
         }
         refreshAudioAndMidiDevices()
         startTelemetryTimer()
@@ -532,6 +662,7 @@ final class PianoViewModel: ObservableObject {
         if let down = keyMonitorDown { NSEvent.removeMonitor(down) }
         if let up = keyMonitorUp { NSEvent.removeMonitor(up) }
         if let h = host {
+            npno_host_set_midi_cc_callback(h, nil, nil)
             npno_host_destroy(h)
         }
     }
@@ -695,7 +826,6 @@ final class PianoViewModel: ObservableObject {
         }
         embeddedBanks = discovered
 
-        // Se houver uma memória gravada para o slot ativo, restaura-a automaticamente
         if memorySlots[selectedMemorySlot - 1].hasData {
             recallMemory(slot: selectedMemorySlot)
             return
@@ -741,39 +871,32 @@ final class PianoViewModel: ObservableObject {
         layers[layer].loadProgress = 0.0
         errorMessage = nil
 
-        let box = Unmanaged.passRetained(self)
         let hAddr = Int(bitPattern: h)
-        let boxAddr = Int(bitPattern: box.toOpaque())
-        let layerIdx = Int32(layer)
+        Self.performBackgroundLoad(viewModel: self, hostAddress: hAddr, layer: layer, path: path)
+    }
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let hostPtr = OpaquePointer(bitPattern: hAddr),
-                  let ctxPtr = UnsafeMutableRawPointer(bitPattern: boxAddr) else { return }
+    nonisolated private static func performBackgroundLoad(
+        viewModel: PianoViewModel,
+        hostAddress: Int,
+        layer: Int,
+        path: String
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak viewModel] in
+            guard let hostPtr = OpaquePointer(bitPattern: hostAddress) else { return }
             var errBuf = [CChar](repeating: 0, count: 512)
+            let progressCB = loadProgressCallback(forLayer: layer)
             let ok = npno_host_load_layer_instrument(
                 hostPtr,
-                layerIdx,
+                Int32(layer),
                 path,
-                { progress, ctx in
-                    guard let ctx = ctx else { return }
-                    let vm = Unmanaged<PianoViewModel>.fromOpaque(ctx).takeUnretainedValue()
-                    DispatchQueue.main.async {
-                        let l = vm.activeLoadingLayer
-                        if (0..<4).contains(l) {
-                            vm.layers[l].loadProgress = progress
-                        }
-                    }
-                },
-                ctxPtr,
+                progressCB,
+                nil,
                 &errBuf,
                 Int32(errBuf.count)
             )
             let errText = decodeNullTerminatedCString(errBuf)
-            DispatchQueue.main.async {
-                guard let raw = UnsafeMutableRawPointer(bitPattern: boxAddr) else { return }
-                let retained = Unmanaged<PianoViewModel>.fromOpaque(raw)
-                let vm = retained.takeUnretainedValue()
-                retained.release()
+            Task { @MainActor [weak viewModel] in
+                guard let vm = viewModel else { return }
                 vm.layers[layer].isLoading = false
                 if ok {
                     vm.refreshLayerInfo(layer)
@@ -799,39 +922,31 @@ final class PianoViewModel: ObservableObject {
         layers[layer].isLoading = true
         layers[layer].loadProgress = 0.0
 
-        let box = Unmanaged.passRetained(self)
         let hAddr = Int(bitPattern: h)
-        let boxAddr = Int(bitPattern: box.toOpaque())
-        let layerIdx = Int32(layer)
-        let stepDelta = Int32(delta)
+        Self.performBackgroundStep(viewModel: self, hostAddress: hAddr, layer: layer, delta: delta)
+    }
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let hostPtr = OpaquePointer(bitPattern: hAddr),
-                  let ctxPtr = UnsafeMutableRawPointer(bitPattern: boxAddr) else { return }
+    nonisolated private static func performBackgroundStep(
+        viewModel: PianoViewModel,
+        hostAddress: Int,
+        layer: Int,
+        delta: Int
+    ) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak viewModel] in
+            guard let hostPtr = OpaquePointer(bitPattern: hostAddress) else { return }
             var errBuf = [CChar](repeating: 0, count: 512)
+            let progressCB = loadProgressCallback(forLayer: layer)
             let ok = npno_host_step_layer_instrument(
                 hostPtr,
-                layerIdx,
-                stepDelta,
-                { progress, ctx in
-                    guard let ctx = ctx else { return }
-                    let vm = Unmanaged<PianoViewModel>.fromOpaque(ctx).takeUnretainedValue()
-                    DispatchQueue.main.async {
-                        let l = vm.activeLoadingLayer
-                        if (0..<4).contains(l) {
-                            vm.layers[l].loadProgress = progress
-                        }
-                    }
-                },
-                ctxPtr,
+                Int32(layer),
+                Int32(delta),
+                progressCB,
+                nil,
                 &errBuf,
                 Int32(errBuf.count)
             )
-            DispatchQueue.main.async {
-                guard let raw = UnsafeMutableRawPointer(bitPattern: boxAddr) else { return }
-                let retained = Unmanaged<PianoViewModel>.fromOpaque(raw)
-                let vm = retained.takeUnretainedValue()
-                retained.release()
+            Task { @MainActor [weak viewModel] in
+                guard let vm = viewModel else { return }
                 vm.layers[layer].isLoading = false
                 if ok {
                     vm.refreshLayerInfo(layer)
@@ -849,7 +964,10 @@ final class PianoViewModel: ObservableObject {
 
         layers[layer].params = lp
         layers[layer].loaded = info.loaded
-        guard info.loaded else { return }
+        guard info.loaded else {
+            layers[layer].name = "Nenhum timbre"
+            return
+        }
 
         let name = withUnsafePointer(to: &info.name) {
             $0.withMemoryRebound(to: CChar.self, capacity: 64) { String(cString: $0) }
@@ -875,60 +993,113 @@ final class PianoViewModel: ObservableObject {
         layers[layer].bankCount = Int(info.bankCount)
     }
 
+    // Timer de leitura da UI a ~60Hz no MainActor (drena CCs e telemetria sem criar Tasks por evento MIDI)
     private func startTelemetryTimer() {
-        telemetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.pollTelemetry()
+        telemetryTimer = Self.makeTelemetryTimer(for: self)
+    }
+
+    nonisolated private static func makeTelemetryTimer(for viewModel: PianoViewModel) -> Timer {
+        Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak viewModel] _ in
+            MainActor.assumeIsolated {
+                viewModel?.pollTelemetry()
             }
         }
     }
 
     private func pollTelemetry() {
         guard let h = host else { return }
-        var tel = NPNOTelemetry()
-        npno_host_get_telemetry(h, &tel)
-        activeVoices = Int(tel.activeVoices)
-        totalMemoryBytes = tel.totalMemoryBytes
-        totalUnpurgedBytes = tel.totalUnpurgedBytes
-        midiLearnLayer = Int(tel.midiLearnLayer)
-        midiLearnSlot = Int(tel.midiLearnSlot)
-        sustainDown = tel.sustainDown
-        peakL = tel.peakL
-        peakR = tel.peakR
-        sampleRate = tel.sampleRate
-        midiSourceCount = Int(tel.midiSourceCount)
-        midiSources = withUnsafePointer(to: &tel.midiSources) {
-            $0.withMemoryRebound(to: CChar.self, capacity: 256) { String(cString: $0) }
+
+        // 1. Drena fluxo contínuo de MIDI CC e progresso de carregamento da ponte lock-free/unfair_lock
+        if let snap = RealtimeMIDIBridge.shared.drain() {
+            if snap.loadMask != 0 {
+                let progresses = [snap.loadProgress.0, snap.loadProgress.1, snap.loadProgress.2, snap.loadProgress.3]
+                for l in 0..<4 where (snap.loadMask & (UInt8(1) << UInt8(l))) != 0 {
+                    if layers[l].isLoading {
+                        layers[l].loadProgress = progresses[l]
+                    }
+                }
+            }
+
+            if activeMidiLearnKey != nil, snap.latestLearnCC >= 0 {
+                handleIncomingMidiCC(cc: Int(snap.latestLearnCC), value: Int(snap.values[Int(snap.latestLearnCC)]))
+            } else {
+                if snap.lowMask != 0 {
+                    for cc in 0..<64 where (snap.lowMask & (UInt64(1) << UInt64(cc))) != 0 {
+                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]))
+                    }
+                }
+                if snap.highMask != 0 {
+                    for bit in 0..<64 where (snap.highMask & (UInt64(1) << UInt64(bit))) != 0 {
+                        let cc = bit + 64
+                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]))
+                    }
+                }
+            }
         }
 
-        let lv = (
+        // 2. Telemetria do motor C++ (medidor L/R, vozes, sustain, notas ativas)
+        var tel = NPNOTelemetry()
+        npno_host_get_telemetry(h, &tel)
+
+        let newActiveVoices = Int(tel.activeVoices)
+        if activeVoices != newActiveVoices { activeVoices = newActiveVoices }
+        if totalMemoryBytes != tel.totalMemoryBytes { totalMemoryBytes = tel.totalMemoryBytes }
+        if totalUnpurgedBytes != tel.totalUnpurgedBytes { totalUnpurgedBytes = tel.totalUnpurgedBytes }
+        let newLearnLayer = Int(tel.midiLearnLayer)
+        if midiLearnLayer != newLearnLayer { midiLearnLayer = newLearnLayer }
+        let newLearnSlot = Int(tel.midiLearnSlot)
+        if midiLearnSlot != newLearnSlot { midiLearnSlot = newLearnSlot }
+        if sustainDown != tel.sustainDown { sustainDown = tel.sustainDown }
+        if abs(peakL - tel.peakL) > 0.0005 || (tel.peakL == 0 && peakL != 0) { peakL = tel.peakL }
+        if abs(peakR - tel.peakR) > 0.0005 || (tel.peakR == 0 && peakR != 0) { peakR = tel.peakR }
+        if abs(sampleRate - tel.sampleRate) > 0.1 { sampleRate = tel.sampleRate }
+
+        let newMidiCount = Int(tel.midiSourceCount)
+        if midiSourceCount != newMidiCount { midiSourceCount = newMidiCount }
+        let rawSources = withUnsafePointer(to: &tel.midiSources) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 256) { String(cString: $0) }
+        }
+        let cleanSources = (newMidiCount == 0 || rawSources.contains("Nenhum"))
+            ? "Nenhum controlador conectado"
+            : rawSources
+        if midiSources != cleanSources { midiSources = cleanSources }
+
+        let counts = [
             Int(tel.layerActiveVoices.0),
             Int(tel.layerActiveVoices.1),
             Int(tel.layerActiveVoices.2),
             Int(tel.layerActiveVoices.3)
-        )
-        let counts = [lv.0, lv.1, lv.2, lv.3]
+        ]
         for l in 0..<4 {
-            layers[l].activeVoices = counts[l]
-            // Sincroniza de volta eventuais alterações feitas por CC MIDI ou MIDI Learn
+            if layers[l].activeVoices != counts[l] {
+                layers[l].activeVoices = counts[l]
+            }
             var lp = NPNOLayerParams()
             npno_host_get_layer_params(h, Int32(l), &lp)
-            layers[l].params = lp
+            let cur = layers[l].params
+            if cur.volume != lp.volume ||
+               cur.filter != lp.filter ||
+               cur.fxaAmount != lp.fxaAmount ||
+               cur.fxaRelease != lp.fxaRelease ||
+               cur.ccVolume != lp.ccVolume ||
+               cur.ccFilter != lp.ccFilter ||
+               cur.ccFxaAmount != lp.ccFxaAmount ||
+               cur.ccFxaRelease != lp.ccFxaRelease {
+                layers[l].params = lp
+            }
         }
 
-        if showVirtualKeyboard {
-            withUnsafePointer(to: &tel.keyVelocities) { ptr in
-                ptr.withMemoryRebound(to: UInt8.self, capacity: 128) { buf in
-                    var changed = false
-                    for i in 0..<128 where keyVelocities[i] != buf[i] {
-                        changed = true
-                        break
-                    }
-                    if changed {
-                        var copy = [UInt8](repeating: 0, count: 128)
-                        for i in 0..<128 { copy[i] = buf[i] }
-                        keyVelocities = copy
-                    }
+        withUnsafePointer(to: &tel.keyVelocities) { ptr in
+            ptr.withMemoryRebound(to: UInt8.self, capacity: 128) { buf in
+                var changed = false
+                for i in 0..<128 where keyVelocities[i] != buf[i] {
+                    changed = true
+                    break
+                }
+                if changed {
+                    var copy = [UInt8](repeating: 0, count: 128)
+                    for i in 0..<128 { copy[i] = buf[i] }
+                    keyVelocities = copy
                 }
             }
         }
@@ -1107,7 +1278,6 @@ struct ElectroProSettingsView: View {
         }
         .frame(width: 540, height: 380)
         .preferredColorScheme(.dark)
-        .tint(StudioTokens.accent)
         .onAppear {
             vm.refreshAudioAndMidiDevices()
         }
@@ -1235,7 +1405,7 @@ struct ElectroProSettingsView: View {
                 }
                 .pickerStyle(.radioGroup)
 
-                Text("A cor de acento destaca exclusivamente a camada em edição, estados ativos e arcos de valor dos controles.")
+                Text("A cor de acento destaca exclusivamente o arco de valor dos knobs, a camada selecionada e o pico do medidor.")
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
             }
@@ -1301,7 +1471,7 @@ struct ElectroPianoApp: App {
         WindowGroup("Electro Pro") {
             ContentView(vm: viewModel)
         }
-        .defaultSize(width: 1220, height: 760)
+        .defaultSize(width: 1200, height: 760)
         .windowResizability(.contentMinSize)
         .commands {
             // Menu Arquivo
@@ -1333,6 +1503,11 @@ struct ElectroPianoApp: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command])
 
+                Button("Renomear programa…") {
+                    viewModel.beginRenameCurrentProgram()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+
                 Divider()
 
                 Button("Liberar Samples Não Usados da RAM (Purge)") {
@@ -1350,6 +1525,13 @@ struct ElectroPianoApp: App {
                 Divider()
                 Button("Restaurar Equalizador (Flat 0 dB)") {
                     viewModel.resetEq()
+                }
+                if viewModel.activeMidiLearnKey != nil || viewModel.midiLearnLayer >= 0 {
+                    Button("Cancelar MIDI Learn") {
+                        viewModel.activeMidiLearnKey = nil
+                        viewModel.toggleMidiLearn(layer: viewModel.midiLearnLayer, slot: viewModel.midiLearnSlot)
+                    }
+                    .keyboardShortcut(.escape, modifiers: [])
                 }
                 Button("Panic — Silenciar Todas as Vozes") {
                     viewModel.panic()
