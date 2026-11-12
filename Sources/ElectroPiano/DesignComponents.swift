@@ -218,6 +218,7 @@ struct ProKnob: View {
 
     private func nudge(_ direction: Double, fine: Bool = false) {
         guard enabled else { return }
+        PianoViewModel.shared?.recordDiscreteUndoStep()
         let baseStep = step > 0 ? step : (span / (fine ? 400.0 : 100.0))
         value = clampAndSnap(value + direction * baseStep)
     }
@@ -228,6 +229,7 @@ struct ProKnob: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .filter { "0123456789.-+".contains($0) }
         if let parsed = Double(cleaned) {
+            PianoViewModel.shared?.recordDiscreteUndoStep()
             value = clampAndSnap(parsed)
         }
         isEditingText = false
@@ -274,6 +276,7 @@ struct ProKnob: View {
                             guard enabled else { return }
                             if dragStartValue == nil {
                                 dragStartValue = value
+                                PianoViewModel.shared?.beginParameterInteraction()
                             }
                             let origin = dragStartValue ?? value
                             let isFine = NSEvent.modifierFlags.contains(.shift)
@@ -283,10 +286,12 @@ struct ProKnob: View {
                         }
                         .onEnded { _ in
                             dragStartValue = nil
+                            PianoViewModel.shared?.endParameterInteraction()
                         }
                 )
                 .onTapGesture(count: 2) {
                     guard enabled else { return }
+                    PianoViewModel.shared?.recordDiscreteUndoStep()
                     value = defaultValue
                 }
                 .onKeyPress(.upArrow) {

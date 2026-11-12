@@ -308,19 +308,217 @@ struct LayerSlotState {
     }()
 }
 
-// MARK: - Memory Preset Models for the 4 Layers
+// MARK: - Full Program Serialization Models (.epprog JSON & 8 Memory Slots)
 
-struct LayerMemoryPreset: Codable, Equatable {
+struct LayerMemoryPreset: Codable, Equatable, Sendable {
     var path: String = ""
     var enabled: Bool = false
     var volume: Float = 1.0
     var filter: Float = 1.0
     var fxaAmount: Float = 0.20
     var fxaRelease: Float = 0.50
+    var ccVolume: Int32 = -1
+    var ccFilter: Int32 = -1
+    var ccFxaAmount: Int32 = -1
+    var ccFxaRelease: Int32 = -1
+    var keyLow: Int32 = 0
+    var keyHigh: Int32 = 127
+    var velLow: Int32 = 1
+    var velHigh: Int32 = 127
+    var midiChannel: Int32 = 0
+    var velocityCurve: Int32 = 0
+    var pitchBendDown: Int32 = -2
+    var pitchBendUp: Int32 = 2
+    var portamentoOn: Bool = false
+    var portamentoTimeMs: Float = 120.0
+    var fixedVelocity: Bool = false
+    var fixedVelocityValue: Int32 = 100
+    var legatoMono: Bool = false
+    var timbreMode: Int32 = 0
+    var sustainPedalOn: Bool = true
+    var undampedOn: Bool = true
+    var compOn: Bool = false
+    var compAmount: Float = 0.45
+    var compFast: Bool = false
+    var octaveShift: Int32 = 0
+    var originalEnvelope: Bool = true
+    var attackMs: Float = 1.0
+    var releaseMs: Float = 600.0
+
+    init(
+        path: String = "",
+        enabled: Bool = false,
+        volume: Float = 1.0,
+        filter: Float = 1.0,
+        fxaAmount: Float = 0.20,
+        fxaRelease: Float = 0.50
+    ) {
+        self.path = path
+        self.enabled = enabled
+        self.volume = volume
+        self.filter = filter
+        self.fxaAmount = fxaAmount
+        self.fxaRelease = fxaRelease
+    }
+
+    init(path: String, params p: NPNOLayerParams) {
+        self.path = path
+        self.enabled = p.enabled
+        self.volume = p.volume
+        self.filter = p.filter
+        self.fxaAmount = p.fxaAmount
+        self.fxaRelease = p.fxaRelease
+        self.ccVolume = p.ccVolume
+        self.ccFilter = p.ccFilter
+        self.ccFxaAmount = p.ccFxaAmount
+        self.ccFxaRelease = p.ccFxaRelease
+        self.keyLow = p.keyLow
+        self.keyHigh = p.keyHigh
+        self.velLow = p.velLow
+        self.velHigh = p.velHigh
+        self.midiChannel = p.midiChannel
+        self.velocityCurve = p.velocityCurve
+        self.pitchBendDown = p.pitchBendDown
+        self.pitchBendUp = p.pitchBendUp
+        self.portamentoOn = p.portamentoOn
+        self.portamentoTimeMs = p.portamentoTimeMs
+        self.fixedVelocity = p.fixedVelocity
+        self.fixedVelocityValue = p.fixedVelocityValue
+        self.legatoMono = p.legatoMono
+        self.timbreMode = p.timbreMode
+        self.sustainPedalOn = p.sustainPedalOn
+        self.undampedOn = p.undampedOn
+        self.compOn = p.compOn
+        self.compAmount = p.compAmount
+        self.compFast = p.compFast
+        self.octaveShift = p.octaveShift
+        self.originalEnvelope = p.originalEnvelope
+        self.attackMs = p.attackMs
+        self.releaseMs = p.releaseMs
+    }
+
+    func apply(to p: inout NPNOLayerParams) {
+        p.enabled = enabled
+        p.volume = volume
+        p.filter = filter
+        p.fxaAmount = fxaAmount
+        p.fxaRelease = fxaRelease
+        p.ccVolume = ccVolume
+        p.ccFilter = ccFilter
+        p.ccFxaAmount = ccFxaAmount
+        p.ccFxaRelease = ccFxaRelease
+        p.keyLow = keyLow
+        p.keyHigh = keyHigh
+        p.velLow = velLow
+        p.velHigh = velHigh
+        p.midiChannel = midiChannel
+        p.velocityCurve = velocityCurve
+        p.pitchBendDown = pitchBendDown
+        p.pitchBendUp = pitchBendUp
+        p.portamentoOn = portamentoOn
+        p.portamentoTimeMs = portamentoTimeMs
+        p.fixedVelocity = fixedVelocity
+        p.fixedVelocityValue = fixedVelocityValue
+        p.legatoMono = legatoMono
+        p.timbreMode = timbreMode
+        p.sustainPedalOn = sustainPedalOn
+        p.undampedOn = undampedOn
+        p.compOn = compOn
+        p.compAmount = compAmount
+        p.compFast = compFast
+        p.octaveShift = octaveShift
+        p.originalEnvelope = originalEnvelope
+        p.attackMs = attackMs
+        p.releaseMs = releaseMs
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        path = try c.decodeIfPresent(String.self, forKey: .path) ?? ""
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        volume = try c.decodeIfPresent(Float.self, forKey: .volume) ?? 1.0
+        filter = try c.decodeIfPresent(Float.self, forKey: .filter) ?? 1.0
+        fxaAmount = try c.decodeIfPresent(Float.self, forKey: .fxaAmount) ?? 0.20
+        fxaRelease = try c.decodeIfPresent(Float.self, forKey: .fxaRelease) ?? 0.50
+        ccVolume = try c.decodeIfPresent(Int32.self, forKey: .ccVolume) ?? -1
+        ccFilter = try c.decodeIfPresent(Int32.self, forKey: .ccFilter) ?? -1
+        ccFxaAmount = try c.decodeIfPresent(Int32.self, forKey: .ccFxaAmount) ?? -1
+        ccFxaRelease = try c.decodeIfPresent(Int32.self, forKey: .ccFxaRelease) ?? -1
+        keyLow = try c.decodeIfPresent(Int32.self, forKey: .keyLow) ?? 0
+        keyHigh = try c.decodeIfPresent(Int32.self, forKey: .keyHigh) ?? 127
+        velLow = try c.decodeIfPresent(Int32.self, forKey: .velLow) ?? 1
+        velHigh = try c.decodeIfPresent(Int32.self, forKey: .velHigh) ?? 127
+        midiChannel = try c.decodeIfPresent(Int32.self, forKey: .midiChannel) ?? 0
+        velocityCurve = try c.decodeIfPresent(Int32.self, forKey: .velocityCurve) ?? 0
+        pitchBendDown = try c.decodeIfPresent(Int32.self, forKey: .pitchBendDown) ?? -2
+        pitchBendUp = try c.decodeIfPresent(Int32.self, forKey: .pitchBendUp) ?? 2
+        portamentoOn = try c.decodeIfPresent(Bool.self, forKey: .portamentoOn) ?? false
+        portamentoTimeMs = try c.decodeIfPresent(Float.self, forKey: .portamentoTimeMs) ?? 120.0
+        fixedVelocity = try c.decodeIfPresent(Bool.self, forKey: .fixedVelocity) ?? false
+        fixedVelocityValue = try c.decodeIfPresent(Int32.self, forKey: .fixedVelocityValue) ?? 100
+        legatoMono = try c.decodeIfPresent(Bool.self, forKey: .legatoMono) ?? false
+        timbreMode = try c.decodeIfPresent(Int32.self, forKey: .timbreMode) ?? 0
+        sustainPedalOn = try c.decodeIfPresent(Bool.self, forKey: .sustainPedalOn) ?? true
+        undampedOn = try c.decodeIfPresent(Bool.self, forKey: .undampedOn) ?? true
+        compOn = try c.decodeIfPresent(Bool.self, forKey: .compOn) ?? false
+        compAmount = try c.decodeIfPresent(Float.self, forKey: .compAmount) ?? 0.45
+        compFast = try c.decodeIfPresent(Bool.self, forKey: .compFast) ?? false
+        octaveShift = try c.decodeIfPresent(Int32.self, forKey: .octaveShift) ?? 0
+        originalEnvelope = try c.decodeIfPresent(Bool.self, forKey: .originalEnvelope) ?? true
+        attackMs = try c.decodeIfPresent(Float.self, forKey: .attackMs) ?? 1.0
+        releaseMs = try c.decodeIfPresent(Float.self, forKey: .releaseMs) ?? 600.0
+    }
 }
 
-struct ProgramMemoryPreset: Codable, Equatable {
-    var name: String = L("Init")
+struct MasterMemoryPreset: Codable, Equatable, Sendable {
+    var masterGainDb: Double = 0.0
+    var masterPan: Double = 0.0
+    var baseTuningHz: Double = 440.0
+    var fineTuneCents: Double = 0.0
+    var transposeSemitones: Double = 0.0
+    var globalVelocityCurve: Double = 0.0
+    var releaseScalePercent: Double = 100.0
+    var releaseNoisePercent: Double = 100.0
+
+    var eqBassDb: Double = 0.0
+    var eqMidDb: Double = 0.0
+    var eqMidFreqHz: Double = 1000.0
+    var eqTrebleDb: Double = 0.0
+    var driveEnabled: Bool = false
+    var driveAmountPercent: Double = 25.0
+
+    var mod1Enabled: Bool = false
+    var mod1Target: Int32 = 0
+    var mod1Wave: Int32 = 0
+    var mod1RateHz: Float = 4.5
+    var mod1Depth: Float = 0.35
+
+    var mod2Enabled: Bool = false
+    var mod2Target: Int32 = 2
+    var mod2Wave: Int32 = 0
+    var mod2RateHz: Float = 5.5
+    var mod2Depth: Float = 0.20
+
+    var delayEnabled: Bool = false
+    var delayAmount: Float = 0.25
+    var delayFeedback: Float = 0.35
+    var delayTimeMs: Float = 360.0
+    var delaySyncToHost: Bool = false
+    var delayHostBpm: Float = 120.0
+    var delaySyncDivision: Int32 = 1
+    var delayPingPong: Bool = true
+
+    var reverbEnabled: Bool = true
+    var reverbAmount: Float = 0.22
+    var reverbSize: Float = 0.65
+    var reverbDecay: Float = 0.55
+    var reverbDamping: Float = 0.45
+    var reverbPreDelayMs: Float = 18.0
+}
+
+struct ProgramMemoryPreset: Codable, Equatable, Sendable {
+    var version: Int = 1
+    var name: String = "Init"
     var hasData: Bool = false
     var layers: [LayerMemoryPreset] = [
         LayerMemoryPreset(enabled: true),
@@ -328,6 +526,49 @@ struct ProgramMemoryPreset: Codable, Equatable {
         LayerMemoryPreset(enabled: false),
         LayerMemoryPreset(enabled: false)
     ]
+    var master: MasterMemoryPreset = MasterMemoryPreset()
+    var programMidiMappings: [String: Int] = [:]
+
+    init(
+        version: Int = 1,
+        name: String = "Init",
+        hasData: Bool = false,
+        layers: [LayerMemoryPreset] = [
+            LayerMemoryPreset(enabled: true),
+            LayerMemoryPreset(enabled: false),
+            LayerMemoryPreset(enabled: false),
+            LayerMemoryPreset(enabled: false)
+        ],
+        master: MasterMemoryPreset = MasterMemoryPreset(),
+        programMidiMappings: [String: Int] = [:]
+    ) {
+        self.version = version
+        self.name = name
+        self.hasData = hasData
+        self.layers = layers
+        self.master = master
+        self.programMidiMappings = programMidiMappings
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Init"
+        hasData = try c.decodeIfPresent(Bool.self, forKey: .hasData) ?? false
+        let decodedLayers = try c.decodeIfPresent([LayerMemoryPreset].self, forKey: .layers) ?? []
+        if decodedLayers.count == 4 {
+            layers = decodedLayers
+        } else {
+            layers = [
+                LayerMemoryPreset(enabled: true),
+                LayerMemoryPreset(enabled: false),
+                LayerMemoryPreset(enabled: false),
+                LayerMemoryPreset(enabled: false)
+            ]
+        }
+        master = try c.decodeIfPresent(MasterMemoryPreset.self, forKey: .master) ?? MasterMemoryPreset()
+        programMidiMappings = try c.decodeIfPresent([String: Int].self, forKey: .programMidiMappings) ?? [:]
+    }
 }
 
 enum WorkstationTab: Int, CaseIterable, Identifiable {
@@ -471,21 +712,41 @@ final class PianoViewModel: ObservableObject {
     }
 
     // Selected tab and layer for detailed editing (0=A, 1=B, 2=C, 3=D)
-    @Published var selectedTab: WorkstationTab = .timbre {
+    @Published var selectedTab: WorkstationTab = {
+        let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_SelectedTab")
+        return WorkstationTab(rawValue: saved) ?? .timbre
+    }() {
         didSet {
+            UserDefaults.standard.set(selectedTab.rawValue, forKey: "ElectroPiano_SelectedTab")
             if selectedTab.isPerLayer {
                 lastLayerTab = selectedTab
             }
         }
     }
     var lastLayerTab: WorkstationTab = .timbre
-    @Published var selectedLayer: Int = 0
+    @Published var selectedLayer: Int = {
+        let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_SelectedLayer")
+        return (0..<4).contains(saved) ? saved : 0
+    }() {
+        didSet {
+            UserDefaults.standard.set(selectedLayer, forKey: "ElectroPiano_SelectedLayer")
+        }
+    }
     @Published var activeLoadingLayer: Int = 0
     @Published var showTuningPopover: Bool = false
     @Published var showRenameProgramPopover: Bool = false
     @Published var renameProgramDraft: String = ""
     // 61-key virtual keyboard at the bottom, open by default
-    @Published var showVirtualKeyboard: Bool = true
+    @Published var showVirtualKeyboard: Bool = {
+        if UserDefaults.standard.object(forKey: "ElectroPiano_ShowVirtualKeyboard") == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "ElectroPiano_ShowVirtualKeyboard")
+    }() {
+        didSet {
+            UserDefaults.standard.set(showVirtualKeyboard, forKey: "ElectroPiano_ShowVirtualKeyboard")
+        }
+    }
     @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
     @Published var errorMessage: String? = nil
 
@@ -499,7 +760,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    // MARK: - 8 Program Slots for the 4 Layers
+    // MARK: - 8 Program Slots, Undo/Redo, Modified Indicator & Export/Import (.epprog)
     @Published var selectedMemorySlot: Int = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_ActiveMemorySlot")
         return (saved >= 1 && saved <= 8) ? saved : 1
@@ -519,6 +780,217 @@ final class PianoViewModel: ObservableObject {
     }()
     @Published var memoryStatusText: String = "M1: Init"
     @Published var storeConfirmationActive: Bool = false
+    @Published var isProgramEdited: Bool = false
+    @Published var undoStack: [ProgramMemoryPreset] = []
+    @Published var redoStack: [ProgramMemoryPreset] = []
+    private var dragUndoBaseline: ProgramMemoryPreset? = nil
+    private var isApplyingSnapshot: Bool = false
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
+    func beginParameterInteraction() {
+        if dragUndoBaseline == nil {
+            dragUndoBaseline = captureCurrentProgramSnapshot()
+        }
+    }
+
+    func endParameterInteraction() {
+        guard let baseline = dragUndoBaseline else { return }
+        dragUndoBaseline = nil
+        let current = captureCurrentProgramSnapshot()
+        if baseline != current {
+            undoStack.append(baseline)
+            if undoStack.count > 64 {
+                undoStack.removeFirst()
+            }
+            redoStack.removeAll()
+            markProgramEditedAndAutosave()
+        }
+    }
+
+    func recordDiscreteUndoStep() {
+        guard !isApplyingSnapshot && dragUndoBaseline == nil else { return }
+        let current = captureCurrentProgramSnapshot()
+        if undoStack.last != current {
+            undoStack.append(current)
+            if undoStack.count > 64 {
+                undoStack.removeFirst()
+            }
+            redoStack.removeAll()
+        }
+    }
+
+    func performUndo() {
+        guard let prev = undoStack.popLast() else { return }
+        let current = captureCurrentProgramSnapshot()
+        redoStack.append(current)
+        applyProgramSnapshot(prev, loadSounds: true)
+        markProgramEditedAndAutosave()
+    }
+
+    func performRedo() {
+        guard let next = redoStack.popLast() else { return }
+        let current = captureCurrentProgramSnapshot()
+        undoStack.append(current)
+        applyProgramSnapshot(next, loadSounds: true)
+        markProgramEditedAndAutosave()
+    }
+
+    func captureCurrentProgramSnapshot() -> ProgramMemoryPreset {
+        let slotIdx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
+        var p = ProgramMemoryPreset()
+        p.version = 1
+        p.hasData = true
+        p.name = memorySlots[slotIdx].name
+        for i in 0..<4 {
+            let s = layers[i]
+            let path = !s.path.isEmpty ? s.path : memorySlots[slotIdx].layers[i].path
+            p.layers[i] = LayerMemoryPreset(path: path, params: s.params)
+        }
+        p.master = MasterMemoryPreset(
+            masterGainDb: masterGainDb,
+            masterPan: masterPan,
+            baseTuningHz: baseTuningHz,
+            fineTuneCents: fineTuneCents,
+            transposeSemitones: transposeSemitones,
+            globalVelocityCurve: globalVelocityCurve,
+            releaseScalePercent: releaseScalePercent,
+            releaseNoisePercent: releaseNoisePercent,
+            eqBassDb: eqBassDb,
+            eqMidDb: eqMidDb,
+            eqMidFreqHz: eqMidFreqHz,
+            eqTrebleDb: eqTrebleDb,
+            driveEnabled: driveEnabled,
+            driveAmountPercent: driveAmountPercent,
+            mod1Enabled: mod1.enabled,
+            mod1Target: mod1.target,
+            mod1Wave: mod1.wave,
+            mod1RateHz: mod1.rateHz,
+            mod1Depth: mod1.depth,
+            mod2Enabled: mod2.enabled,
+            mod2Target: mod2.target,
+            mod2Wave: mod2.wave,
+            mod2RateHz: mod2.rateHz,
+            mod2Depth: mod2.depth,
+            delayEnabled: delay.enabled,
+            delayAmount: delay.amount,
+            delayFeedback: delay.feedback,
+            delayTimeMs: delay.timeMs,
+            delaySyncToHost: delay.syncToHost,
+            delayHostBpm: delay.hostBpm,
+            delaySyncDivision: delay.syncDivision,
+            delayPingPong: delay.pingPong,
+            reverbEnabled: reverb.enabled,
+            reverbAmount: reverb.amount,
+            reverbSize: reverb.size,
+            reverbDecay: reverb.decay,
+            reverbDamping: reverb.damping,
+            reverbPreDelayMs: reverb.preDelayMs
+        )
+        p.programMidiMappings = knobMidiMappings
+        return p
+    }
+
+    func applyProgramSnapshot(_ p: ProgramMemoryPreset, loadSounds: Bool) {
+        let wasApplying = isApplyingSnapshot
+        isApplyingSnapshot = true
+        defer { isApplyingSnapshot = wasApplying }
+
+        let m = p.master
+        masterGainDb = m.masterGainDb
+        masterPan = m.masterPan
+        baseTuningHz = m.baseTuningHz
+        fineTuneCents = m.fineTuneCents
+        transposeSemitones = m.transposeSemitones
+        globalVelocityCurve = m.globalVelocityCurve
+        releaseScalePercent = m.releaseScalePercent
+        releaseNoisePercent = m.releaseNoisePercent
+
+        eqBassDb = m.eqBassDb
+        eqMidDb = m.eqMidDb
+        eqMidFreqHz = m.eqMidFreqHz
+        eqTrebleDb = m.eqTrebleDb
+        driveEnabled = m.driveEnabled
+        driveAmountPercent = m.driveAmountPercent
+
+        var m1 = mod1
+        m1.enabled = m.mod1Enabled
+        m1.target = m.mod1Target
+        m1.wave = m.mod1Wave
+        m1.rateHz = m.mod1RateHz
+        m1.depth = m.mod1Depth
+        mod1 = m1
+
+        var m2 = mod2
+        m2.enabled = m.mod2Enabled
+        m2.target = m.mod2Target
+        m2.wave = m.mod2Wave
+        m2.rateHz = m.mod2RateHz
+        m2.depth = m.mod2Depth
+        mod2 = m2
+
+        var d = delay
+        d.enabled = m.delayEnabled
+        d.amount = m.delayAmount
+        d.feedback = m.delayFeedback
+        d.timeMs = m.delayTimeMs
+        d.syncToHost = m.delaySyncToHost
+        d.hostBpm = m.delayHostBpm
+        d.syncDivision = m.delaySyncDivision
+        d.pingPong = m.delayPingPong
+        delay = d
+
+        var r = reverb
+        r.enabled = m.reverbEnabled
+        r.amount = m.reverbAmount
+        r.size = m.reverbSize
+        r.decay = m.reverbDecay
+        r.damping = m.reverbDamping
+        r.preDelayMs = m.reverbPreDelayMs
+        reverb = r
+
+        if !p.programMidiMappings.isEmpty {
+            knobMidiMappings = p.programMidiMappings
+        }
+
+        for i in 0..<4 {
+            let lp = p.layers[i]
+            if loadSounds && !lp.path.isEmpty {
+                if layers[i].path != lp.path || !layers[i].loaded {
+                    loadLayerInstrument(layer: i, from: lp.path)
+                }
+            }
+            updateLayerParams(i) { params in
+                lp.apply(to: &params)
+            }
+        }
+    }
+
+    func markProgramEditedAndAutosave() {
+        guard !isApplyingSnapshot else { return }
+        let current = captureCurrentProgramSnapshot()
+        let saved = memorySlots[min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)]
+        if saved.hasData {
+            isProgramEdited = (current != saved)
+        } else {
+            isProgramEdited = true
+        }
+        autosaveWorkingState(snapshot: current)
+    }
+
+    private func autosaveWorkingState(snapshot: ProgramMemoryPreset) {
+        UserDefaults.standard.set(isProgramEdited, forKey: "ElectroPiano_IsProgramEdited")
+        if let data = try? JSONEncoder().encode(snapshot) {
+            UserDefaults.standard.set(data, forKey: "ElectroPiano_UnsavedWorkingProgram_JSON")
+        }
+    }
+
+    private func clearAutosavedWorkingState() {
+        isProgramEdited = false
+        UserDefaults.standard.set(false, forKey: "ElectroPiano_IsProgramEdited")
+        UserDefaults.standard.removeObject(forKey: "ElectroPiano_UnsavedWorkingProgram_JSON")
+    }
 
     func memoryHasData(slot: Int) -> Bool {
         guard (1...8).contains(slot) else { return false }
@@ -549,20 +1021,12 @@ final class PianoViewModel: ObservableObject {
         guard (1...8).contains(slot) else { return }
         selectedMemorySlot = slot
         let existingName = memorySlots[slot - 1].hasData ? memorySlots[slot - 1].name : ""
-        var p = ProgramMemoryPreset()
+        var p = captureCurrentProgramSnapshot()
         p.hasData = true
 
         var names: [String] = []
         for i in 0..<4 {
             let s = layers[i]
-            p.layers[i] = LayerMemoryPreset(
-                path: s.loaded ? s.path : "",
-                enabled: s.params.enabled,
-                volume: s.params.volume,
-                filter: s.params.filter,
-                fxaAmount: s.params.fxaAmount,
-                fxaRelease: s.params.fxaRelease
-            )
             if s.loaded && s.params.enabled {
                 let short = (s.name as NSString).lastPathComponent.components(separatedBy: ".").first ?? s.name
                 names.append(short)
@@ -576,6 +1040,7 @@ final class PianoViewModel: ObservableObject {
         }
         memorySlots[slot - 1] = p
         persistMemories()
+        clearAutosavedWorkingState()
 
         memoryStatusText = "M\(slot): \(p.name)"
         storeConfirmationActive = true
@@ -589,6 +1054,9 @@ final class PianoViewModel: ObservableObject {
         guard (1...8).contains(slot) else { return }
         selectedMemorySlot = slot
         UserDefaults.standard.set(slot, forKey: "ElectroPiano_ActiveMemorySlot")
+        undoStack.removeAll()
+        redoStack.removeAll()
+        clearAutosavedWorkingState()
 
         let p = memorySlots[slot - 1]
         if !p.hasData {
@@ -597,20 +1065,76 @@ final class PianoViewModel: ObservableObject {
         }
 
         memoryStatusText = "M\(slot): \(p.name)"
-        for i in 0..<4 {
-            let lp = p.layers[i]
-            if !lp.path.isEmpty {
-                if layers[i].path != lp.path || !layers[i].loaded {
-                    loadLayerInstrument(layer: i, from: lp.path)
-                }
+        applyProgramSnapshot(p, loadSounds: true)
+    }
+
+    func revertToSavedProgram() {
+        recallMemory(slot: selectedMemorySlot)
+    }
+
+    func copyCurrentProgram(toSlot targetSlot: Int) {
+        guard (1...8).contains(targetSlot) else { return }
+        var p = captureCurrentProgramSnapshot()
+        p.hasData = true
+        let curSlotIdx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
+        let curName = memorySlots[curSlotIdx].name
+        if !curName.isEmpty {
+            p.name = curName
+        }
+        memorySlots[targetSlot - 1] = p
+        persistMemories()
+    }
+
+    func exportCurrentProgram() {
+        let panel = NSSavePanel()
+        panel.title = L("Export Program…")
+        let slotIdx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
+        let rawName = memorySlots[slotIdx].name.isEmpty ? "Program \(selectedMemorySlot)" : memorySlots[slotIdx].name
+        let safeName = rawName.replacingOccurrences(of: "/", with: "-")
+        panel.nameFieldStringValue = "\(safeName).epprog"
+        if let ut = UTType(filenameExtension: "epprog") {
+            panel.allowedContentTypes = [ut, .json]
+        } else {
+            panel.allowedContentTypes = [.json]
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            var snapshot = captureCurrentProgramSnapshot()
+            snapshot.version = 1
+            snapshot.hasData = true
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            if let data = try? encoder.encode(snapshot) {
+                try? data.write(to: url, options: .atomic)
             }
-            updateLayerParams(i) {
-                $0.enabled = lp.enabled
-                $0.volume = lp.volume
-                $0.filter = lp.filter
-                $0.fxaAmount = lp.fxaAmount
-                $0.fxaRelease = lp.fxaRelease
+        }
+    }
+
+    func importProgram() {
+        let panel = NSOpenPanel()
+        panel.title = L("Import Program…")
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        if let ut = UTType(filenameExtension: "epprog") {
+            panel.allowedContentTypes = [ut, .json]
+        } else {
+            panel.allowedContentTypes = [.json]
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            guard let data = try? Data(contentsOf: url),
+                  var preset = try? JSONDecoder().decode(ProgramMemoryPreset.self, from: data) else {
+                errorMessage = L("Could not import .epprog file. The file may be corrupted or incompatible.")
+                return
             }
+            preset.hasData = true
+            if preset.name.isEmpty {
+                preset.name = (url.deletingPathExtension().lastPathComponent)
+            }
+            memorySlots[selectedMemorySlot - 1] = preset
+            persistMemories()
+            clearAutosavedWorkingState()
+            applyProgramSnapshot(preset, loadSounds: true)
+            memoryStatusText = "M\(selectedMemorySlot): \(preset.name)"
         }
     }
 
@@ -674,37 +1198,44 @@ final class PianoViewModel: ObservableObject {
     @Published var fineTuneCents: Double = 0.0 {
         didSet {
             if let h = host { npno_host_set_fine_tune_cents(h, Float(fineTuneCents)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var baseTuningHz: Double = 440.0 {
         didSet {
             if let h = host { npno_host_set_base_tuning_hz(h, Float(baseTuningHz)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var masterGainDb: Double = 0.0 {
         didSet {
             let lin = Float(pow(10.0, masterGainDb / 20.0))
             if let h = host { npno_host_set_master_gain(h, lin) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var masterPan: Double = 0.0 { // -100 .. +100
         didSet {
             if let h = host { npno_host_set_master_pan(h, Float(masterPan / 100.0)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var transposeSemitones: Double = 0.0 {
         didSet {
             if let h = host { npno_host_set_transpose(h, Int32(transposeSemitones.rounded())) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var globalVelocityCurve: Double = 0.0 { // -1 = Light, 0 = Normal, +1 = Heavy
         didSet {
             if let h = host { npno_host_set_velocity_curve(h, Int32(globalVelocityCurve.rounded())) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var releaseScalePercent: Double = 100.0 {
         didSet {
             if let h = host { npno_host_set_release_scale(h, Float(releaseScalePercent / 100.0)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
     @Published var releaseNoisePercent: Double = 100.0 {
@@ -714,27 +1245,46 @@ final class PianoViewModel: ObservableObject {
                 npno_host_set_release_sample_gain(h, gain)
                 npno_host_set_release_samples_enabled(h, gain > 0.005)
             }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
         }
     }
 
     // EQ | Drive + Mod 1 & Mod 2
     @Published var eqBassDb: Double = 0.0 {
-        didSet { if let h = host { npno_host_set_eq_bass_db(h, Float(eqBassDb)) } }
+        didSet {
+            if let h = host { npno_host_set_eq_bass_db(h, Float(eqBassDb)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
     @Published var eqMidDb: Double = 0.0 {
-        didSet { if let h = host { npno_host_set_eq_mid_db(h, Float(eqMidDb)) } }
+        didSet {
+            if let h = host { npno_host_set_eq_mid_db(h, Float(eqMidDb)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
     @Published var eqMidFreqHz: Double = 1000.0 {
-        didSet { if let h = host { npno_host_set_eq_mid_freq_hz(h, Float(eqMidFreqHz)) } }
+        didSet {
+            if let h = host { npno_host_set_eq_mid_freq_hz(h, Float(eqMidFreqHz)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
     @Published var eqTrebleDb: Double = 0.0 {
-        didSet { if let h = host { npno_host_set_eq_treble_db(h, Float(eqTrebleDb)) } }
+        didSet {
+            if let h = host { npno_host_set_eq_treble_db(h, Float(eqTrebleDb)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
     @Published var driveEnabled: Bool = false {
-        didSet { if let h = host { npno_host_set_drive_enabled(h, driveEnabled) } }
+        didSet {
+            if let h = host { npno_host_set_drive_enabled(h, driveEnabled) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
     @Published var driveAmountPercent: Double = 25.0 {
-        didSet { if let h = host { npno_host_set_drive_amount(h, Float(driveAmountPercent / 100.0)) } }
+        didSet {
+            if let h = host { npno_host_set_drive_amount(h, Float(driveAmountPercent / 100.0)) }
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
 
     @Published var mod1: NPNOModulatorParams = {
@@ -746,7 +1296,10 @@ final class PianoViewModel: ObservableObject {
         m.depth = 0.35
         return m
     }() {
-        didSet { pushModulator(0, mod1) }
+        didSet {
+            pushModulator(0, mod1)
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
 
     @Published var mod2: NPNOModulatorParams = {
@@ -758,7 +1311,10 @@ final class PianoViewModel: ObservableObject {
         m.depth = 0.20
         return m
     }() {
-        didSet { pushModulator(1, mod2) }
+        didSet {
+            pushModulator(1, mod2)
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
 
     // Delay & Reverb
@@ -774,7 +1330,10 @@ final class PianoViewModel: ObservableObject {
         d.pingPong = true
         return d
     }() {
-        didSet { pushDelay() }
+        didSet {
+            pushDelay()
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
 
     @Published var reverb: NPNOReverbParams = {
@@ -787,7 +1346,10 @@ final class PianoViewModel: ObservableObject {
         r.preDelayMs = 18.0
         return r
     }() {
-        didSet { pushReverb() }
+        didSet {
+            pushReverb()
+            if dragUndoBaseline == nil { markProgramEditedAndAutosave() }
+        }
     }
 
     // Mac Keyboard (QWERTY) & Demo
@@ -987,10 +1549,16 @@ final class PianoViewModel: ObservableObject {
 
     func updateLayerParams(_ layer: Int, _ mutate: (inout NPNOLayerParams) -> Void) {
         guard (0..<4).contains(layer), let h = host else { return }
+        if !isApplyingSnapshot && dragUndoBaseline == nil {
+            recordDiscreteUndoStep()
+        }
         var p = layers[layer].params
         mutate(&p)
         layers[layer].params = p
         npno_host_set_layer_params(h, Int32(layer), &p)
+        if !isApplyingSnapshot && dragUndoBaseline == nil {
+            markProgramEditedAndAutosave()
+        }
     }
 
     private func pushModulator(_ idx: Int, _ m: NPNOModulatorParams) {
@@ -1331,6 +1899,14 @@ final class PianoViewModel: ObservableObject {
     }
 
     private func performInitialSoundLoadIfNeeded() {
+        if UserDefaults.standard.bool(forKey: "ElectroPiano_IsProgramEdited"),
+           let data = UserDefaults.standard.data(forKey: "ElectroPiano_UnsavedWorkingProgram_JSON"),
+           let working = try? JSONDecoder().decode(ProgramMemoryPreset.self, from: data) {
+            applyProgramSnapshot(working, loadSounds: true)
+            isProgramEdited = true
+            return
+        }
+
         if memorySlots[selectedMemorySlot - 1].hasData {
             recallMemory(slot: selectedMemorySlot)
             return
@@ -2194,10 +2770,15 @@ struct ElectroPianoApp: App {
         .commands {
             // File Menu
             CommandGroup(replacing: .newItem) {
+                Button(L("Load Sound into Selected Layer…")) {
+                    viewModel.openFilePicker(forLayer: viewModel.selectedLayer)
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+
                 Button(L("Load Sound into Layer A…")) {
                     viewModel.openFilePicker(forLayer: 0)
                 }
-                .keyboardShortcut("o", modifiers: [.command])
+                .keyboardShortcut("a", modifiers: [.command, .shift])
 
                 Button(L("Load Sound into Layer B…")) {
                     viewModel.openFilePicker(forLayer: 1)
@@ -2221,10 +2802,37 @@ struct ElectroPianoApp: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command])
 
+                Button(L("Revert to Saved")) {
+                    viewModel.revertToSavedProgram()
+                }
+                .disabled(!viewModel.isProgramEdited)
+
                 Button(L("Rename Program…")) {
                     viewModel.beginRenameCurrentProgram()
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+
+                Menu(L("Copy Program To…")) {
+                    ForEach(1...8, id: \.self) { slot in
+                        let slotName = viewModel.memorySlots[slot - 1].name
+                        Button(String(localized: "Program \(slot) — \(slotName)", bundle: .module)) {
+                            viewModel.copyCurrentProgram(toSlot: slot)
+                        }
+                        .disabled(slot == viewModel.selectedMemorySlot)
+                    }
+                }
+
+                Divider()
+
+                Button(L("Export Program…")) {
+                    viewModel.exportCurrentProgram()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Button(L("Import Program…")) {
+                    viewModel.importProgram()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
 
                 Divider()
 
@@ -2238,7 +2846,21 @@ struct ElectroPianoApp: App {
                 }
             }
 
-            // Edit Menu
+            // Edit Menu (Undo / Redo + Reset + Panic)
+            CommandGroup(replacing: .undoRedo) {
+                Button(L("Undo")) {
+                    viewModel.performUndo()
+                }
+                .keyboardShortcut("z", modifiers: [.command])
+                .disabled(!viewModel.canUndo)
+
+                Button(L("Redo")) {
+                    viewModel.performRedo()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!viewModel.canRedo)
+            }
+
             CommandGroup(after: .pasteboard) {
                 Divider()
                 Button(L("Reset Equalizer (Flat 0 dB)")) {

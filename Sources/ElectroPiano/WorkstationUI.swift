@@ -867,12 +867,23 @@ struct ContentView: View {
         .background(StudioTokens.surfaceWindow)
         .preferredColorScheme(.dark)
         .navigationTitle(L("Electro Pro"))
-        .navigationSubtitle(String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle)", bundle: .module))
+        .navigationSubtitle(
+            vm.isProgramEdited
+                ? String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle) — Edited", bundle: .module)
+                : String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle)", bundle: .module)
+        )
         .toolbar {
             workstationToolbar
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             statusBarSection
+        }
+        .onAppear {
+            DispatchQueue.main.async {
+                if let win = NSApplication.shared.windows.first(where: { $0.canBecomeMain }) {
+                    _ = win.setFrameAutosaveName("ElectroProMainWindow")
+                }
+            }
         }
     }
 
@@ -887,7 +898,11 @@ struct ContentView: View {
                 set: { slot in vm.recallMemory(slot: slot) }
             )) {
                 ForEach(1...8, id: \.self) { slot in
-                    Text(verbatim: "\(slot)").tag(slot)
+                    if vm.isProgramEdited && slot == vm.selectedMemorySlot {
+                        Text(verbatim: "\(slot) •").tag(slot)
+                    } else {
+                        Text(verbatim: "\(slot)").tag(slot)
+                    }
                 }
             }
             .pickerStyle(.segmented)
