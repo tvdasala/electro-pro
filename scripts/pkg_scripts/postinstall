@@ -1,0 +1,24 @@
+#!/bin/bash
+# Script de pós-instalação do Nord Electro Piano
+
+# Se houver timbres em Application Support (Instalador Completo), replica para os bundles
+SOUNDS_DIR="/Library/Application Support/Nord Electro Piano/Sounds"
+if [ -d "$SOUNDS_DIR" ] && compgen -G "$SOUNDS_DIR/*.npno" > /dev/null; then
+    mkdir -p "/Applications/Electro Piano.app/Contents/Resources/Sounds"
+    mkdir -p "/Library/Audio/Plug-Ins/Components/Electro Piano.component/Contents/Resources/Sounds"
+    mkdir -p "/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3/Contents/Resources/Sounds"
+    cp -cf "$SOUNDS_DIR"/*.npno "/Applications/Electro Piano.app/Contents/Resources/Sounds/" 2>/dev/null || cp -f "$SOUNDS_DIR"/*.npno "/Applications/Electro Piano.app/Contents/Resources/Sounds/" 2>/dev/null || true
+    cp -cf "$SOUNDS_DIR"/*.npno "/Library/Audio/Plug-Ins/Components/Electro Piano.component/Contents/Resources/Sounds/" 2>/dev/null || cp -f "$SOUNDS_DIR"/*.npno "/Library/Audio/Plug-Ins/Components/Electro Piano.component/Contents/Resources/Sounds/" 2>/dev/null || true
+    cp -cf "$SOUNDS_DIR"/*.npno "/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3/Contents/Resources/Sounds/" 2>/dev/null || cp -f "$SOUNDS_DIR"/*.npno "/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3/Contents/Resources/Sounds/" 2>/dev/null || true
+fi
+
+# Força o macOS a recarregar todos os Audio Components (AU) no MainStage, Logic Pro e DAWs
+killall -9 AudioComponentRegistrar 2>/dev/null || true
+
+# Permissões adequadas
+chmod -R 755 "/Applications/Electro Piano.app" 2>/dev/null || true
+chmod -R 755 "/Library/Audio/Plug-Ins/Components/Electro Piano.component" 2>/dev/null || true
+chmod -R 755 "/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3" 2>/dev/null || true
+chmod -R 777 "/Library/Application Support/Nord Electro Piano" 2>/dev/null || true
+
+exit 0

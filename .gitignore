@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+.swiftpm/
+build_win/
+*.zip
+*.pkg
+Electro Piano.app/
+Mac (ARM)/
+Mac (Intel)/
+Windows/
+Linux/
