@@ -210,21 +210,32 @@ struct ProgramMemoryPreset: Codable, Equatable {
 }
 
 enum WorkstationTab: Int, CaseIterable, Identifiable {
+    // LAYER tabs
     case timbre = 0
     case keyboard = 1
+    // MASTER tabs
     case midiCC = 2
-    case eqMod = 3
-    case delayReverb = 4
+    case eq = 3
+    case drive = 4
+    case mod = 5
+    case delay = 6
+    case reverb = 7
 
     var id: Int { rawValue }
+
+    static let layerTabs: [WorkstationTab] = [.timbre, .keyboard]
+    static let masterTabs: [WorkstationTab] = [.midiCC, .eq, .drive, .mod, .delay, .reverb]
 
     var title: String {
         switch self {
         case .timbre: return L("Sound")
         case .keyboard: return L("Keyboard & Touch")
-        case .midiCC: return L("MIDI CC")
-        case .eqMod: return L("EQ · Drive · Mod")
-        case .delayReverb: return L("Delay · Reverb")
+        case .midiCC: return L("MIDI")
+        case .eq: return L("EQ")
+        case .drive: return L("Drive")
+        case .mod: return L("Mod")
+        case .delay: return L("Delay")
+        case .reverb: return L("Reverb")
         }
     }
 
@@ -233,13 +244,16 @@ enum WorkstationTab: Int, CaseIterable, Identifiable {
         case .timbre: return "waveform"
         case .keyboard: return "pianokeys"
         case .midiCC: return "slider.horizontal.3"
-        case .eqMod: return "slider.vertical.3"
-        case .delayReverb: return "wave.3.right"
+        case .eq: return "slider.vertical.3"
+        case .drive: return "bolt.horizontal.circle"
+        case .mod: return "waveform.path.ecg"
+        case .delay: return "repeat"
+        case .reverb: return "wave.3.right"
         }
     }
 
     /// Tabs that edit the selected layer (A/B/C/D).
-    var isPerLayer: Bool { self == .timbre || self == .keyboard || self == .midiCC }
+    var isPerLayer: Bool { self == .timbre || self == .keyboard }
 }
 
 func midiNoteName(_ note: Int) -> String {
@@ -336,7 +350,14 @@ final class PianoViewModel: ObservableObject {
     }
 
     // Selected tab and layer for detailed editing (0=A, 1=B, 2=C, 3=D)
-    @Published var selectedTab: WorkstationTab = .timbre
+    @Published var selectedTab: WorkstationTab = .timbre {
+        didSet {
+            if selectedTab.isPerLayer {
+                lastLayerTab = selectedTab
+            }
+        }
+    }
+    var lastLayerTab: WorkstationTab = .timbre
     @Published var selectedLayer: Int = 0
     @Published var activeLoadingLayer: Int = 0
     @Published var showTuningPopover: Bool = false
@@ -1588,6 +1609,9 @@ struct ElectroPianoApp: App {
                 ForEach(0..<4, id: \.self) { layer in
                     Button(String(localized: "Select Layer \(kLayerLetters[layer])", bundle: .module)) {
                         viewModel.selectedLayer = layer
+                        if !viewModel.selectedTab.isPerLayer {
+                            viewModel.selectedTab = viewModel.lastLayerTab
+                        }
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(layer + 1)")), modifiers: [.option])
                 }

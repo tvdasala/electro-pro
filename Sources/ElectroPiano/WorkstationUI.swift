@@ -614,7 +614,8 @@ struct ContentView: View {
     // MARK: - 2. Layer Strip (~100pt) inside a single GlassEffectContainer
 
     private var layerStripSection: some View {
-        GlassEffectContainer(spacing: 12) {
+        let isLayerMode = vm.selectedTab.isPerLayer
+        return GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
                 ForEach(0..<4, id: \.self) { layer in
                     layerCardView(layer)
@@ -622,13 +623,15 @@ struct ContentView: View {
             }
         }
         .frame(height: 100)
+        .opacity(isLayerMode ? 1.0 : 0.78)
     }
 
     private func layerCardView(_ layer: Int) -> some View {
         let letter = kLayerLetters[layer]
         let slot = vm.layers[layer]
         let p = slot.params
-        let isSelected = vm.selectedLayer == layer
+        let isLayerMode = vm.selectedTab.isPerLayer
+        let isSelected = (vm.selectedLayer == layer) && isLayerMode
 
         return VStack(alignment: .leading, spacing: 6) {
             if p.enabled {
@@ -772,8 +775,9 @@ struct ContentView: View {
         .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentShape(Rectangle())
         .onTapGesture {
-            if vm.selectedLayer != layer {
-                vm.selectedLayer = layer
+            vm.selectedLayer = layer
+            if !vm.selectedTab.isPerLayer {
+                vm.selectedTab = vm.lastLayerTab
             }
         }
         // Static .glassEffect(.regular) on container so dragging the internal volume slider never warps the card
@@ -798,47 +802,102 @@ struct ContentView: View {
 
     // MARK: - 3. Main Editor for Selected Layer / Master (Solid Surfaces, Content-Matched Height)
 
+    private func tabGroupPillBar(label: String, tabs: [WorkstationTab]) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(StudioTokens.fontSectionCaps)
+                .tracking(0.8)
+                .foregroundStyle(StudioTokens.textSecondary)
+                .fixedSize()
+
+            HStack(spacing: 2) {
+                ForEach(tabs) { tab in
+                    let isSelected = vm.selectedTab == tab
+                    Button {
+                        vm.selectedTab = tab
+                    } label: {
+                        Text(tab.title)
+                            .font(StudioTokens.fontBodyMedium)
+                            .foregroundStyle(isSelected ? StudioTokens.textPrimary : StudioTokens.textSecondary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                isSelected ? StudioTokens.surfaceControl : Color.clear,
+                                in: .rect(cornerRadius: 5)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(isSelected ? StudioTokens.textSecondary.opacity(0.45) : Color.clear, lineWidth: 1)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "\(tab.title) (⌘\(tab.rawValue + 1))", bundle: .module))
+                }
+            }
+            .padding(2)
+            .background(StudioTokens.surfacePanel, in: .rect(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+            )
+        }
+    }
+
     private func layerEditorSection(availableWidth: CGFloat) -> some View {
         let layer = vm.selectedLayer
         let letter = kLayerLetters[layer]
         let slot = vm.layers[layer]
         let p = slot.params
+        let isLayerMode = vm.selectedTab.isPerLayer
 
         return VStack(alignment: .leading, spacing: 12) {
-            // Editor Header: "Layer A — sound name" ("No Sound" when empty) + Segmented Tab Picker
+            // Editor Header:
+            // - In Layer tabs: "Layer A — <sound name>"
+            // - In Master tabs: "Master"
+            // Plus two side-by-side tab groups: LAYER (Sound · Keyboard & Touch) and MASTER (MIDI · EQ · Drive · Mod · Delay · Reverb)
             HStack(spacing: 12) {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(StudioTokens.accent)
+                        .fill(isLayerMode ? StudioTokens.accent : StudioTokens.textSecondary)
                         .frame(width: 8, height: 8)
 
-                    Text(String(localized: "Layer \(letter) — \(slot.loaded ? slot.name : L("No Sound"))", bundle: .module))
-                        .font(StudioTokens.fontSectionTitle)
-                        .foregroundStyle(StudioTokens.textPrimary)
-                        .lineLimit(1)
-
-                    if slot.loaded {
-                        Text(verbatim: "\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh))) • \(String(format: "%.0f MiB", Double(slot.decodedBytes) / 1048576.0))")
-                            .font(StudioTokens.fontLabel.monospacedDigit())
-                            .foregroundStyle(StudioTokens.textSecondary)
+                    if isLayerMode {
+                        Text(String(localized: "Layer \(letter) — \(slot.loaded ? slot.name : L("No Sound"))", bundle: .module))
+                            .font(StudioTokens.fontSectionTitle)
+                            .foregroundStyle(StudioTokens.textPrimary)
                             .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(StudioTokens.surfacePanel, in: .capsule)
-                            .overlay(Capsule().stroke(StudioTokens.borderHairline, lineWidth: 1))
+
+                        if slot.loaded {
+                            Text(verbatim: "\(shortNoteName(Int(p.keyLow)))–\(shortNoteName(Int(p.keyHigh))) • \(String(format: "%.0f MiB", Double(slot.decodedBytes) / 1048576.0))")
+                                .font(StudioTokens.fontLabel.monospacedDigit())
+                                .foregroundStyle(StudioTokens.textSecondary)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(StudioTokens.surfacePanel, in: .capsule)
+                                .overlay(Capsule().stroke(StudioTokens.borderHairline, lineWidth: 1))
+                        }
+                    } else {
+                        Text(L("Master"))
+                            .font(StudioTokens.fontSectionTitle)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                            .lineLimit(1)
                     }
                 }
 
                 Spacer(minLength: 8)
 
-                Picker(L("Editor Section"), selection: $vm.selectedTab) {
-                    ForEach(WorkstationTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
-                    }
+                HStack(spacing: 12) {
+                    tabGroupPillBar(label: L("LAYER"), tabs: WorkstationTab.layerTabs)
+                    Divider()
+                        .overlay(StudioTokens.borderHairline)
+                        .frame(height: 18)
+                    tabGroupPillBar(label: L("MASTER"), tabs: WorkstationTab.masterTabs)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
                 .fixedSize()
             }
             .padding(.horizontal, 2)
@@ -853,10 +912,16 @@ struct ContentView: View {
                         keyboardTabContent(layer: layer, availableWidth: availableWidth)
                     case .midiCC:
                         midiCCTabContent(layer: layer, availableWidth: availableWidth)
-                    case .eqMod:
-                        eqModTabContent(availableWidth: availableWidth)
-                    case .delayReverb:
-                        delayReverbTabContent(availableWidth: availableWidth)
+                    case .eq:
+                        eqTabContent(availableWidth: availableWidth)
+                    case .drive:
+                        driveTabContent(availableWidth: availableWidth)
+                    case .mod:
+                        modTabContent(availableWidth: availableWidth)
+                    case .delay:
+                        delayTabContent(availableWidth: availableWidth)
+                    case .reverb:
+                        reverbTabContent(availableWidth: availableWidth)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
@@ -1366,7 +1431,7 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Tab 3: MIDI CC (Table Parameter | CC | Learn + Knob Mappings)
+    // MARK: - Master Tab: MIDI (Layer MIDI Controls + Knob/Control Mappings)
 
     private func midiCCTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
@@ -1375,8 +1440,20 @@ struct ContentView: View {
         let colW = floor(max(300, availableWidth - spacing) / 2.0)
 
         return HStack(alignment: .top, spacing: spacing) {
-            // Column 1: Layer CC Table (Parameter | CC | Learn)
-            SectionCard(title: L("Layer MIDI Controls")) {
+            // Column 1: Layer CC Table (Parameter | CC | Learn) with Layer A/B/C/D selector
+            SectionCard(
+                title: L("Layer MIDI Controls"),
+                headerTrailing: {
+                    Picker(L("Layer"), selection: $vm.selectedLayer) {
+                        ForEach(0..<4, id: \.self) { idx in
+                            Text(String(localized: "Layer \(kLayerLetters[idx])", bundle: .module)).tag(idx)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            ) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(L("Parameter"))
@@ -1582,119 +1659,182 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Tab 4: EQ · Drive · Mod (EQ with Visual Curve + Identical Mod 1 and Mod 2)
+    // MARK: - Master Tab: EQ (3-Band Equalizer with Visual Response Curve)
 
-    private func eqModTabContent(availableWidth: CGFloat) -> some View {
-        responsiveThreePanelLayout(
-            availableWidth: availableWidth,
-            p1Priority: 1.30,
-            p2Priority: 0.85,
-            p3Priority: 0.85,
-            panel1: {
-                // Card 1: 3-Band Equalizer (with response graph) + Drive
-                SectionCard(
-                    title: L("3-Band Equalizer & Drive"),
-                    headerTrailing: {
-                        Button(L("Flat (0 dB)")) {
-                            vm.resetEq()
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
-                    }
-                ) {
-                    VStack(spacing: 14) {
-                        HStack(spacing: 14) {
-                            EQResponseGraph(
-                                bassDb: vm.eqBassDb,
-                                midDb: vm.eqMidDb,
-                                midFreqHz: vm.eqMidFreqHz,
-                                trebleDb: vm.eqTrebleDb
-                            )
-                            .frame(minWidth: 140, maxWidth: .infinity)
-                            .frame(height: 82)
-
-                            Divider().overlay(StudioTokens.borderHairline)
-
-                            HStack(spacing: 10) {
-                                Toggle(L("Drive"), isOn: $vm.driveEnabled)
-                                    .toggleStyle(.switch)
-                                    .controlSize(.small)
-                                    .font(StudioTokens.fontBodyMedium)
-                                    .fixedSize()
-
-                                ProKnob(
-                                    idKey: "eq_drive",
-                                    title: L("Amount"),
-                                    value: $vm.driveAmountPercent,
-                                    range: 0.0...100.0,
-                                    defaultValue: 25.0,
-                                    valueFormatter: { String(format: "%.0f%%", $0) },
-                                    size: 36,
-                                    enabled: vm.driveEnabled
-                                )
-                            }
-                        }
-
-                        HStack(spacing: 8) {
-                            Spacer(minLength: 0)
-
-                            ProKnob(
-                                idKey: "eq_bass",
-                                title: L("Bass"),
-                                value: $vm.eqBassDb,
-                                range: -15.0...15.0,
-                                defaultValue: 0.0,
-                                valueFormatter: { String(format: "%+.1f dB", $0) },
-                                size: 48
-                            )
-
-                            ProKnob(
-                                idKey: "eq_mid",
-                                title: L("Mid"),
-                                value: $vm.eqMidDb,
-                                range: -15.0...15.0,
-                                defaultValue: 0.0,
-                                valueFormatter: { String(format: "%+.1f dB", $0) },
-                                size: 48
-                            )
-
-                            ProKnob(
-                                idKey: "eq_midf",
-                                title: L("Mid Freq"),
-                                value: $vm.eqMidFreqHz,
-                                range: 200.0...5000.0,
-                                defaultValue: 1000.0,
-                                valueFormatter: {
-                                    $0 >= 1000.0
-                                        ? String(format: "%.1f kHz", $0 / 1000.0)
-                                        : String(format: "%.0f Hz", $0)
-                                },
-                                size: 48
-                            )
-
-                            ProKnob(
-                                idKey: "eq_treb",
-                                title: L("Treble"),
-                                value: $vm.eqTrebleDb,
-                                range: -15.0...15.0,
-                                defaultValue: 0.0,
-                                valueFormatter: { String(format: "%+.1f dB", $0) },
-                                size: 48
-                            )
-
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
+    private func eqTabContent(availableWidth: CGFloat) -> some View {
+        SectionCard(
+            title: L("3-Band Equalizer"),
+            headerTrailing: {
+                Button(L("Flat (0 dB)")) {
+                    vm.resetEq()
                 }
-            },
-            panel2: {
-                modulatorCard(title: L("Mod 1"), index: 1, mod: $vm.mod1)
-            },
-            panel3: {
-                modulatorCard(title: L("Mod 2"), index: 2, mod: $vm.mod2)
+                .buttonStyle(.glass)
+                .controlSize(.small)
             }
-        )
+        ) {
+            HStack(alignment: .center, spacing: 24) {
+                EQResponseGraph(
+                    bassDb: vm.eqBassDb,
+                    midDb: vm.eqMidDb,
+                    midFreqHz: vm.eqMidFreqHz,
+                    trebleDb: vm.eqTrebleDb
+                )
+                .frame(minWidth: 280, maxWidth: .infinity)
+                .frame(height: 112)
+
+                Divider()
+                    .overlay(StudioTokens.borderHairline)
+                    .frame(height: 100)
+
+                HStack(spacing: 18) {
+                    ProKnob(
+                        idKey: "eq_bass",
+                        title: L("Bass"),
+                        value: $vm.eqBassDb,
+                        range: -15.0...15.0,
+                        defaultValue: 0.0,
+                        valueFormatter: { String(format: "%+.1f dB", $0) },
+                        size: 56
+                    )
+
+                    ProKnob(
+                        idKey: "eq_mid",
+                        title: L("Mid"),
+                        value: $vm.eqMidDb,
+                        range: -15.0...15.0,
+                        defaultValue: 0.0,
+                        valueFormatter: { String(format: "%+.1f dB", $0) },
+                        size: 56
+                    )
+
+                    ProKnob(
+                        idKey: "eq_midf",
+                        title: L("Mid Freq"),
+                        value: $vm.eqMidFreqHz,
+                        range: 200.0...5000.0,
+                        defaultValue: 1000.0,
+                        valueFormatter: {
+                            $0 >= 1000.0
+                                ? String(format: "%.1f kHz", $0 / 1000.0)
+                                : String(format: "%.0f Hz", $0)
+                        },
+                        size: 56
+                    )
+
+                    ProKnob(
+                        idKey: "eq_treb",
+                        title: L("Treble"),
+                        value: $vm.eqTrebleDb,
+                        range: -15.0...15.0,
+                        defaultValue: 0.0,
+                        valueFormatter: { String(format: "%+.1f dB", $0) },
+                        size: 56
+                    )
+                }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Master Tab: Drive (Harmonic Saturation)
+
+    private func driveTabContent(availableWidth: CGFloat) -> some View {
+        SectionCard(
+            title: L("Drive"),
+            headerTrailing: {
+                Toggle(L("Enable Drive"), isOn: $vm.driveEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+        ) {
+            HStack(alignment: .center, spacing: 24) {
+                // Saturation transfer curve visualization
+                Canvas { context, size in
+                    let w = size.width
+                    let h = size.height
+                    let midX = w / 2.0
+                    let midY = h / 2.0
+
+                    let bgRect = CGRect(origin: .zero, size: size)
+                    context.fill(Path(roundedRect: bgRect, cornerRadius: 6), with: .color(StudioTokens.surfaceControl))
+
+                    var grid = Path()
+                    grid.move(to: CGPoint(x: 0, y: midY))
+                    grid.addLine(to: CGPoint(x: w, y: midY))
+                    grid.move(to: CGPoint(x: midX, y: 0))
+                    grid.addLine(to: CGPoint(x: midX, y: h))
+                    context.stroke(grid, with: .color(StudioTokens.borderHairline), lineWidth: 1.0)
+
+                    let driveNorm = vm.driveEnabled ? (vm.driveAmountPercent / 100.0) : 0.0
+                    let k = 1.0 + driveNorm * 4.5
+                    let normDenom = tanh(k)
+                    let steps = 80
+                    var curve = Path()
+                    for i in 0...steps {
+                        let t = Double(i) / Double(steps)
+                        let xIn = (t * 2.0) - 1.0
+                        let yOut = normDenom > 0.0001 ? (tanh(k * xIn) / normDenom) : xIn
+                        let pt = CGPoint(
+                            x: CGFloat(t) * w,
+                            y: midY - CGFloat(yOut) * (h * 0.42)
+                        )
+                        if i == 0 { curve.move(to: pt) } else { curve.addLine(to: pt) }
+                    }
+                    context.stroke(
+                        curve,
+                        with: .color(vm.driveEnabled ? StudioTokens.textPrimary : StudioTokens.textSecondary),
+                        style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round)
+                    )
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(StudioTokens.borderHairline, lineWidth: 1)
+                )
+                .frame(minWidth: 260, maxWidth: .infinity)
+                .frame(height: 112)
+
+                Divider()
+                    .overlay(StudioTokens.borderHairline)
+                    .frame(height: 100)
+
+                HStack(spacing: 24) {
+                    Toggle(L("Drive"), isOn: $vm.driveEnabled)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .font(StudioTokens.fontBodyMedium)
+                        .fixedSize()
+
+                    ProKnob(
+                        idKey: "eq_drive",
+                        title: L("Amount"),
+                        value: $vm.driveAmountPercent,
+                        range: 0.0...100.0,
+                        defaultValue: 25.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.driveEnabled
+                    )
+                }
+                .padding(.horizontal, 12)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Master Tab: Mod (Mod 1 & Mod 2 Side by Side)
+
+    private func modTabContent(availableWidth: CGFloat) -> some View {
+        let spacing: CGFloat = 12
+        let colW = floor(max(300, availableWidth - spacing) / 2.0)
+
+        return HStack(alignment: .top, spacing: spacing) {
+            modulatorCard(title: L("Mod 1"), index: 1, mod: $vm.mod1)
+                .frame(width: colW)
+            modulatorCard(title: L("Mod 2"), index: 2, mod: $vm.mod2)
+                .frame(width: max(100, availableWidth - spacing - colW))
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func modulatorCard(title: String, index: Int, mod: Binding<NPNOModulatorParams>) -> some View {
@@ -1753,7 +1893,7 @@ struct ContentView: View {
 
                 Divider().overlay(StudioTokens.borderHairline)
 
-                HStack(spacing: 14) {
+                HStack(spacing: 18) {
                     Spacer(minLength: 0)
 
                     ProKnob(
@@ -1766,7 +1906,7 @@ struct ContentView: View {
                         range: 0.1...20.0,
                         defaultValue: index == 1 ? 4.5 : 5.5,
                         valueFormatter: { String(format: "%.1f Hz", $0) },
-                        size: 48,
+                        size: 56,
                         enabled: m.enabled
                     )
 
@@ -1780,7 +1920,7 @@ struct ContentView: View {
                         range: 0.0...100.0,
                         defaultValue: index == 1 ? 35.0 : 20.0,
                         valueFormatter: { String(format: "%.0f%%", $0) },
-                        size: 48,
+                        size: 56,
                         enabled: m.enabled
                     )
 
@@ -1791,234 +1931,229 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Tab 5: Delay · Reverb (Same Visual Grammar, Content-Sized Panels)
+    // MARK: - Master Tab: Delay (Stereo Delay)
 
-    private func delayReverbTabContent(availableWidth: CGFloat) -> some View {
+    private func delayTabContent(availableWidth: CGFloat) -> some View {
         let divisions = [L("1/4"), L("1/8"), L("1/8 Dotted"), L("1/8 Triplet"), L("1/16")]
-        let spacing: CGFloat = 12
-        let usable = max(300, availableWidth - spacing)
-        let delayW = floor(usable * 0.46)
-        let reverbW = max(100, usable - delayW)
 
-        return HStack(alignment: .top, spacing: spacing) {
-            // Card 1: Stereo Delay
-            SectionCard(
-                title: L("Stereo Delay"),
-                headerTrailing: {
-                    HStack(spacing: 10) {
-                        Button {
-                            vm.tapDelayTempo()
-                        } label: {
-                            Label(L("Tap Tempo"), systemImage: "hand.tap")
-                        }
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
-
-                        Toggle(L("Enable Delay"), isOn: $vm.delay.enabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
+        return SectionCard(
+            title: L("Stereo Delay"),
+            headerTrailing: {
+                HStack(spacing: 10) {
+                    Button {
+                        vm.tapDelayTempo()
+                    } label: {
+                        Label(L("Tap Tempo"), systemImage: "hand.tap")
                     }
-                }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 20) {
-                        Toggle(L("Stereo Ping-Pong"), isOn: $vm.delay.pingPong)
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .font(StudioTokens.fontBody)
-                            .disabled(!vm.delay.enabled)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
 
-                        Toggle(L("Sync to BPM"), isOn: $vm.delay.syncToHost)
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .font(StudioTokens.fontBody)
-                            .disabled(!vm.delay.enabled)
-                    }
-
-                    Divider().overlay(StudioTokens.borderHairline)
-
-                    HStack(spacing: 14) {
-                        Spacer(minLength: 0)
-
-                        ProKnob(
-                            idKey: "dly_amt",
-                            title: L("Mix"),
-                            value: Binding(
-                                get: { Double(vm.delay.amount) * 100.0 },
-                                set: { vm.delay.amount = Float($0 / 100.0) }
-                            ),
-                            range: 0.0...100.0,
-                            defaultValue: 25.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.delay.enabled
-                        )
-
-                        ProKnob(
-                            idKey: "dly_fb",
-                            title: L("Feedback"),
-                            value: Binding(
-                                get: { Double(vm.delay.feedback) * 100.0 },
-                                set: { vm.delay.feedback = Float($0 / 100.0) }
-                            ),
-                            range: 0.0...92.0,
-                            defaultValue: 35.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.delay.enabled
-                        )
-
-                        if vm.delay.syncToHost {
-                            ProKnob(
-                                idKey: "dly_div",
-                                title: L("Division"),
-                                value: Binding(
-                                    get: { Double(vm.delay.syncDivision) },
-                                    set: { vm.delay.syncDivision = Int32($0.rounded()) }
-                                ),
-                                range: 0.0...4.0,
-                                defaultValue: 1.0,
-                                step: 1.0,
-                                valueFormatter: { divisions[min(max(Int($0.rounded()), 0), 4)] },
-                                size: 48,
-                                enabled: vm.delay.enabled
-                            )
-
-                            ProKnob(
-                                idKey: "dly_bpm",
-                                title: L("BPM"),
-                                value: Binding(
-                                    get: { Double(vm.delay.hostBpm) },
-                                    set: { vm.delay.hostBpm = Float($0.rounded()) }
-                                ),
-                                range: 40.0...240.0,
-                                defaultValue: 120.0,
-                                step: 1.0,
-                                valueFormatter: { String(format: "%.0f BPM", $0) },
-                                size: 48,
-                                enabled: vm.delay.enabled
-                            )
-                        } else {
-                            ProKnob(
-                                idKey: "dly_time",
-                                title: L("Time"),
-                                value: Binding(
-                                    get: { Double(vm.delay.timeMs) },
-                                    set: { vm.delay.timeMs = Float($0) }
-                                ),
-                                range: 20.0...2000.0,
-                                defaultValue: 360.0,
-                                valueFormatter: { String(format: "%.0f ms", $0) },
-                                size: 48,
-                                enabled: vm.delay.enabled
-                            )
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(width: delayW)
-
-            // Card 2: Stereo Reverb
-            SectionCard(
-                title: L("Stereo Reverb"),
-                headerTrailing: {
-                    Toggle(L("Enable Reverb"), isOn: $vm.reverb.enabled)
+                    Toggle(L("Enable Delay"), isOn: $vm.delay.enabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
                 }
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(L("Algorithmic stereo reverb with room size, decay, and high-frequency damping."))
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                        .lineLimit(1)
-
-                    Divider().overlay(StudioTokens.borderHairline)
-
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 0)
-
-                        ProKnob(
-                            idKey: "rev_amt",
-                            title: L("Mix"),
-                            value: Binding(
-                                get: { Double(vm.reverb.amount) * 100.0 },
-                                set: { vm.reverb.amount = Float($0 / 100.0) }
-                            ),
-                            range: 0.0...100.0,
-                            defaultValue: 22.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.reverb.enabled
-                        )
-
-                        ProKnob(
-                            idKey: "rev_size",
-                            title: L("Size"),
-                            value: Binding(
-                                get: { Double(vm.reverb.size) * 100.0 },
-                                set: { vm.reverb.size = Float($0 / 100.0) }
-                            ),
-                            range: 10.0...100.0,
-                            defaultValue: 65.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.reverb.enabled
-                        )
-
-                        ProKnob(
-                            idKey: "rev_dec",
-                            title: L("Decay"),
-                            value: Binding(
-                                get: { Double(vm.reverb.decay) * 100.0 },
-                                set: { vm.reverb.decay = Float($0 / 100.0) }
-                            ),
-                            range: 10.0...100.0,
-                            defaultValue: 55.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.reverb.enabled
-                        )
-
-                        ProKnob(
-                            idKey: "rev_damp",
-                            title: L("Damping"),
-                            value: Binding(
-                                get: { Double(vm.reverb.damping) * 100.0 },
-                                set: { vm.reverb.damping = Float($0 / 100.0) }
-                            ),
-                            range: 0.0...100.0,
-                            defaultValue: 45.0,
-                            valueFormatter: { String(format: "%.0f%%", $0) },
-                            size: 48,
-                            enabled: vm.reverb.enabled
-                        )
-
-                        ProKnob(
-                            idKey: "rev_predly",
-                            title: L("Pre-Delay"),
-                            value: Binding(
-                                get: { Double(vm.reverb.preDelayMs) },
-                                set: { vm.reverb.preDelayMs = Float($0) }
-                            ),
-                            range: 0.0...120.0,
-                            defaultValue: 18.0,
-                            valueFormatter: { String(format: "%.0f ms", $0) },
-                            size: 48,
-                            enabled: vm.reverb.enabled
-                        )
-
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
             }
-            .frame(width: reverbW)
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 20) {
+                    Toggle(L("Stereo Ping-Pong"), isOn: $vm.delay.pingPong)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .font(StudioTokens.fontBody)
+                        .disabled(!vm.delay.enabled)
+
+                    Toggle(L("Sync to BPM"), isOn: $vm.delay.syncToHost)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .font(StudioTokens.fontBody)
+                        .disabled(!vm.delay.enabled)
+                }
+
+                Divider().overlay(StudioTokens.borderHairline)
+
+                HStack(spacing: 24) {
+                    Spacer(minLength: 0)
+
+                    ProKnob(
+                        idKey: "dly_amt",
+                        title: L("Mix"),
+                        value: Binding(
+                            get: { Double(vm.delay.amount) * 100.0 },
+                            set: { vm.delay.amount = Float($0 / 100.0) }
+                        ),
+                        range: 0.0...100.0,
+                        defaultValue: 25.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.delay.enabled
+                    )
+
+                    ProKnob(
+                        idKey: "dly_fb",
+                        title: L("Feedback"),
+                        value: Binding(
+                            get: { Double(vm.delay.feedback) * 100.0 },
+                            set: { vm.delay.feedback = Float($0 / 100.0) }
+                        ),
+                        range: 0.0...92.0,
+                        defaultValue: 35.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.delay.enabled
+                    )
+
+                    if vm.delay.syncToHost {
+                        ProKnob(
+                            idKey: "dly_div",
+                            title: L("Division"),
+                            value: Binding(
+                                get: { Double(vm.delay.syncDivision) },
+                                set: { vm.delay.syncDivision = Int32($0.rounded()) }
+                            ),
+                            range: 0.0...4.0,
+                            defaultValue: 1.0,
+                            step: 1.0,
+                            valueFormatter: { divisions[min(max(Int($0.rounded()), 0), 4)] },
+                            size: 56,
+                            enabled: vm.delay.enabled
+                        )
+
+                        ProKnob(
+                            idKey: "dly_bpm",
+                            title: L("BPM"),
+                            value: Binding(
+                                get: { Double(vm.delay.hostBpm) },
+                                set: { vm.delay.hostBpm = Float($0.rounded()) }
+                            ),
+                            range: 40.0...240.0,
+                            defaultValue: 120.0,
+                            step: 1.0,
+                            valueFormatter: { String(format: "%.0f BPM", $0) },
+                            size: 56,
+                            enabled: vm.delay.enabled
+                        )
+                    } else {
+                        ProKnob(
+                            idKey: "dly_time",
+                            title: L("Time"),
+                            value: Binding(
+                                get: { Double(vm.delay.timeMs) },
+                                set: { vm.delay.timeMs = Float($0) }
+                            ),
+                            range: 20.0...2000.0,
+                            defaultValue: 360.0,
+                            valueFormatter: { String(format: "%.0f ms", $0) },
+                            size: 56,
+                            enabled: vm.delay.enabled
+                        )
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Master Tab: Reverb (Stereo Reverb)
+
+    private func reverbTabContent(availableWidth: CGFloat) -> some View {
+        SectionCard(
+            title: L("Stereo Reverb"),
+            headerTrailing: {
+                Toggle(L("Enable Reverb"), isOn: $vm.reverb.enabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(L("Algorithmic stereo reverb with room size, decay, and high-frequency damping."))
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(StudioTokens.textSecondary)
+                    .lineLimit(1)
+
+                Divider().overlay(StudioTokens.borderHairline)
+
+                HStack(spacing: 20) {
+                    Spacer(minLength: 0)
+
+                    ProKnob(
+                        idKey: "rev_amt",
+                        title: L("Mix"),
+                        value: Binding(
+                            get: { Double(vm.reverb.amount) * 100.0 },
+                            set: { vm.reverb.amount = Float($0 / 100.0) }
+                        ),
+                        range: 0.0...100.0,
+                        defaultValue: 22.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.reverb.enabled
+                    )
+
+                    ProKnob(
+                        idKey: "rev_size",
+                        title: L("Size"),
+                        value: Binding(
+                            get: { Double(vm.reverb.size) * 100.0 },
+                            set: { vm.reverb.size = Float($0 / 100.0) }
+                        ),
+                        range: 10.0...100.0,
+                        defaultValue: 65.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.reverb.enabled
+                    )
+
+                    ProKnob(
+                        idKey: "rev_dec",
+                        title: L("Decay"),
+                        value: Binding(
+                            get: { Double(vm.reverb.decay) * 100.0 },
+                            set: { vm.reverb.decay = Float($0 / 100.0) }
+                        ),
+                        range: 10.0...100.0,
+                        defaultValue: 55.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.reverb.enabled
+                    )
+
+                    ProKnob(
+                        idKey: "rev_damp",
+                        title: L("Damping"),
+                        value: Binding(
+                            get: { Double(vm.reverb.damping) * 100.0 },
+                            set: { vm.reverb.damping = Float($0 / 100.0) }
+                        ),
+                        range: 0.0...100.0,
+                        defaultValue: 45.0,
+                        valueFormatter: { String(format: "%.0f%%", $0) },
+                        size: 56,
+                        enabled: vm.reverb.enabled
+                    )
+
+                    ProKnob(
+                        idKey: "rev_predly",
+                        title: L("Pre-Delay"),
+                        value: Binding(
+                            get: { Double(vm.reverb.preDelayMs) },
+                            set: { vm.reverb.preDelayMs = Float($0) }
+                        ),
+                        range: 0.0...120.0,
+                        defaultValue: 18.0,
+                        valueFormatter: { String(format: "%.0f ms", $0) },
+                        size: 56,
+                        enabled: vm.reverb.enabled
+                    )
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -2379,47 +2514,32 @@ private func makePreviewViewModel(tab: WorkstationTab) -> PianoViewModel {
         .frame(width: 1440, height: 820)
 }
 
-#Preview("Tab 3: MIDI CC — 1100pt") {
-    ContentView(vm: makePreviewViewModel(tab: .midiCC))
-        .frame(width: 1100, height: 720)
-}
-
-#Preview("Tab 3: MIDI CC — 1280pt") {
+#Preview("Master: MIDI — 1280pt") {
     ContentView(vm: makePreviewViewModel(tab: .midiCC))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Tab 3: MIDI CC — 1440pt") {
-    ContentView(vm: makePreviewViewModel(tab: .midiCC))
-        .frame(width: 1440, height: 820)
-}
-
-#Preview("Tab 4: EQ · Drive · Mod — 1100pt") {
-    ContentView(vm: makePreviewViewModel(tab: .eqMod))
-        .frame(width: 1100, height: 720)
-}
-
-#Preview("Tab 4: EQ · Drive · Mod — 1280pt") {
-    ContentView(vm: makePreviewViewModel(tab: .eqMod))
+#Preview("Master: EQ — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .eq))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Tab 4: EQ · Drive · Mod — 1440pt") {
-    ContentView(vm: makePreviewViewModel(tab: .eqMod))
-        .frame(width: 1440, height: 820)
-}
-
-#Preview("Tab 5: Delay · Reverb — 1100pt") {
-    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
-        .frame(width: 1100, height: 720)
-}
-
-#Preview("Tab 5: Delay · Reverb — 1280pt") {
-    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
+#Preview("Master: Drive — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .drive))
         .frame(width: 1280, height: 760)
 }
 
-#Preview("Tab 5: Delay · Reverb — 1440pt") {
-    ContentView(vm: makePreviewViewModel(tab: .delayReverb))
-        .frame(width: 1440, height: 820)
+#Preview("Master: Mod — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .mod))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Master: Delay — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .delay))
+        .frame(width: 1280, height: 760)
+}
+
+#Preview("Master: Reverb — 1280pt") {
+    ContentView(vm: makePreviewViewModel(tab: .reverb))
+        .frame(width: 1280, height: 760)
 }
