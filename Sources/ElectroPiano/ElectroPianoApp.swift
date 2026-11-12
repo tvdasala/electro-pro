@@ -123,11 +123,77 @@ struct MidiInputDeviceItem: Identifiable, Hashable {
     var enabled: Bool
 }
 
-struct EmbeddedBankItem: Identifiable, Hashable {
+enum SoundCategory: String, CaseIterable, Identifiable, Codable, Sendable {
+    case grand = "Grand"
+    case upright = "Upright"
+    case electric = "Electric"
+    case clavHarpsi = "Clav/Harpsi"
+    case synthSample = "Synth/Sample"
+
+    var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .grand: return L("Grand")
+        case .upright: return L("Upright")
+        case .electric: return L("Electric")
+        case .clavHarpsi: return L("Clav/Harpsi")
+        case .synthSample: return L("Synth/Sample")
+        }
+    }
+
+    nonisolated static func infer(fileName: String, fullPath: String) -> SoundCategory {
+        let lowerName = fileName.lowercased()
+        let lowerPath = fullPath.lowercased()
+        if lowerName.hasSuffix(".nsmp4") {
+            return .synthSample
+        }
+        let combined = lowerName + " " + lowerPath
+        if combined.contains("clav") || combined.contains("harpsi") || combined.contains("cembalo") || combined.contains("lute") || combined.contains("virginal") {
+            return .clavHarpsi
+        }
+        if combined.contains("synth") || combined.contains("pad") || combined.contains("string") || combined.contains("brass") || combined.contains("choir") || combined.contains("mellotron") || combined.contains("chamberlin") || combined.contains("organ") || combined.contains("sample") {
+            return .synthSample
+        }
+        if combined.contains("ep") || combined.contains("electric") || combined.contains("rhodes") || combined.contains("wurli") || combined.contains("cp80") || combined.contains("cp-80") || combined.contains("dx") || combined.contains("tine") || combined.contains("reed") || combined.contains("mk i") || combined.contains("mk ii") || combined.contains("mk v") || combined.contains("sparkletop") || combined.contains("dyno") || combined.contains("suitcase") || combined.contains("pianet") {
+            return .electric
+        }
+        if combined.contains("upright") || combined.contains("bambino") || combined.contains("amber") || combined.contains("rain") || combined.contains("honky") || combined.contains("saloon") || combined.contains("spinet") || combined.contains("felt") || combined.contains("ostertag") || combined.contains("mellow upright") || combined.contains("black upright") || combined.contains("blue swede") || combined.contains("white grand") == false && combined.contains("queen") {
+            return .upright
+        }
+        return .grand
+    }
+}
+
+struct EmbeddedBankItem: Identifiable, Hashable, Sendable {
     var id: String { path }
     let index: Int
     let name: String
     let path: String
+    let formatExtension: String
+    let fileSizeBytes: UInt64
+    let category: SoundCategory
+
+    init(
+        index: Int,
+        name: String,
+        path: String,
+        formatExtension: String = ".npno",
+        fileSizeBytes: UInt64 = 0,
+        category: SoundCategory? = nil
+    ) {
+        self.index = index
+        self.name = name
+        self.path = path
+        self.formatExtension = formatExtension
+        self.fileSizeBytes = fileSizeBytes
+        self.category = category ?? SoundCategory.infer(fileName: (path as NSString).lastPathComponent, fullPath: path)
+    }
+
+    var sizeMB: Double {
+        Double(fileSizeBytes) / (1024.0 * 1024.0)
+    }
+
     var displayName: String {
         let pad = index < 10 ? "0\(index)" : "\(index)"
         return "\(pad). \(name)"
@@ -670,10 +736,103 @@ final class PianoViewModel: ObservableObject {
     }
 
     // Mac Keyboard (QWERTY) & Demo
-    @Published var computerBaseOctave: Int = 4
-    @Published var computerVelocity: Int = 96
+    @Published var computerKeyboardEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: "ElectroPiano_ComputerKeyboardEnabled") == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "ElectroPiano_ComputerKeyboardEnabled")
+    }() {
+        didSet {
+            UserDefaults.standard.set(computerKeyboardEnabled, forKey: "ElectroPiano_ComputerKeyboardEnabled")
+            if !computerKeyboardEnabled {
+                releaseAllComputerNotes()
+            }
+        }
+    }
+    @Published var computerBaseOctave: Int = {
+        let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_ComputerBaseOctave")
+        return (1...6).contains(saved) ? saved : 4
+    }() {
+        didSet {
+            UserDefaults.standard.set(computerBaseOctave, forKey: "ElectroPiano_ComputerBaseOctave")
+        }
+    }
+    @Published var computerVelocity: Int = {
+        let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_ComputerVelocity")
+        return (16...127).contains(saved) ? saved : 96
+    }() {
+        didSet {
+            UserDefaults.standard.set(computerVelocity, forKey: "ElectroPiano_ComputerVelocity")
+        }
+    }
     @Published var isPlayingDemo: Bool = false
     private var demoTask: Task<Void, Never>?
+
+    // Audio Buffer Size, Latency & CPU, and MIDI Program Change
+    @Published var bufferSize: Int = {
+        let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_BufferSize")
+        return [32, 64, 128, 256, 512].contains(saved) ? saved : 128
+    }() {
+        didSet {
+            UserDefaults.standard.set(bufferSize, forKey: "ElectroPiano_BufferSize")
+        }
+    }
+    @Published var callbackCpuPercent: Double = 0.0
+    var estimatedLatencyMs: Double {
+        let bufMs = (Double(bufferSize) / max(8000.0, sampleRate)) * 1000.0
+        return bufMs + 2.6
+    }
+    var activeAudioDeviceName: String {
+        if let match = audioOutputDevices.first(where: { $0.id == selectedAudioDeviceID }) {
+            return match.name
+        }
+        return L("System Default")
+    }
+    @Published var respondToProgramChange: Bool = {
+        if UserDefaults.standard.object(forKey: "ElectroPiano_RespondToProgramChange") == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "ElectroPiano_RespondToProgramChange")
+    }() {
+        didSet {
+            UserDefaults.standard.set(respondToProgramChange, forKey: "ElectroPiano_RespondToProgramChange")
+        }
+    }
+
+    // First-Run & Library Folder Management
+    @Published var firstRunCompleted: Bool = UserDefaults.standard.bool(forKey: "ElectroPiano_FirstRunCompleted") {
+        didSet {
+            UserDefaults.standard.set(firstRunCompleted, forKey: "ElectroPiano_FirstRunCompleted")
+        }
+    }
+    @Published var showFirstRunScreen: Bool = false
+    @Published var libraryFolderPath: String = UserDefaults.standard.string(forKey: "ElectroPiano_LibraryFolderPath") ?? "" {
+        didSet {
+            UserDefaults.standard.set(libraryFolderPath, forKey: "ElectroPiano_LibraryFolderPath")
+        }
+    }
+    @Published var libraryFolderMissing: Bool = false
+    @Published var isScanningLibrary: Bool = false
+    @Published var scannedFileCount: Int = 0
+    @Published var hasCompletedScanInFirstRun: Bool = false
+    @Published var purgeOnDemandEnabled: Bool = UserDefaults.standard.bool(forKey: "ElectroPiano_PurgeOnDemand") {
+        didSet {
+            UserDefaults.standard.set(purgeOnDemandEnabled, forKey: "ElectroPiano_PurgeOnDemand")
+            if purgeOnDemandEnabled {
+                purgeUnusedMemory()
+            }
+        }
+    }
+    private var scanTask: Task<Void, Never>?
+    private var securityScopedURL: URL?
+
+    var discoveredCategoryCount: Int {
+        Set(embeddedBanks.map(\.category)).count
+    }
+
+    var firstGrandBank: EmbeddedBankItem? {
+        embeddedBanks.first(where: { $0.category == .grand }) ?? embeddedBanks.first
+    }
 
     private static let keyCodeToSemitone: [UInt16: Int] = [
         0: 0, 13: 1, 1: 2, 14: 3, 2: 4, 3: 5, 17: 6, 5: 7, 16: 8,
@@ -691,6 +850,10 @@ final class PianoViewModel: ObservableObject {
                 layers[l].params = lp
             }
             npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
+        }
+        restoreSavedLibraryBookmarkIfNeeded()
+        if !firstRunCompleted && libraryFolderPath.isEmpty {
+            showFirstRunScreen = true
         }
         refreshAudioAndMidiDevices()
         startTelemetryTimer()
@@ -814,68 +977,258 @@ final class PianoViewModel: ObservableObject {
 
     @Published var embeddedBanks: [EmbeddedBankItem] = []
 
-    private func autoLoadDefaultBank() {
-        let fm = FileManager.default
-        let cwd = fm.currentDirectoryPath
-        let bundleParent = (Bundle.main.bundlePath as NSString).deletingLastPathComponent
-        let resPath = Bundle.main.resourcePath ?? ""
-        let homeLib = (NSHomeDirectory() as NSString).appendingPathComponent("Library/Application Support/Nord Electro Piano/Sounds")
+    var detectedCategoryCount: Int {
+        Set(embeddedBanks.map { $0.category }).count
+    }
 
-        let searchDirs = [
-            (resPath as NSString).appendingPathComponent("Sounds"),
-            resPath,
-            "/Library/Application Support/Nord Electro Piano/Sounds",
-            homeLib,
-            (bundleParent as NSString).appendingPathComponent("Sounds"),
-            (cwd as NSString).appendingPathComponent("Sounds"),
-            cwd,
-            bundleParent,
-            (cwd as NSString).deletingLastPathComponent
-        ]
+    var firstGrandSound: EmbeddedBankItem? {
+        embeddedBanks.first(where: { $0.category == .grand }) ?? embeddedBanks.first
+    }
 
-        var discovered: [EmbeddedBankItem] = []
-        var seenNames = Set<String>()
-        let addSampleFile = { (dirPath: String, fileName: String) in
-            let lower = fileName.lowercased()
-            guard lower.hasSuffix(".npno") || lower.hasSuffix(".nsmp4") else { return }
-            if !seenNames.contains(fileName) {
-                seenNames.insert(fileName)
-                let full = (dirPath as NSString).appendingPathComponent(fileName)
-                let display = (fileName as NSString).deletingPathExtension
-                let item = EmbeddedBankItem(index: discovered.count + 1, name: display, path: full)
-                discovered.append(item)
-            }
+    var totalLibraryDiskBytes: UInt64 {
+        embeddedBanks.reduce(0) { $0 + $1.fileSizeBytes }
+    }
+
+    func formatBytes(_ bytes: UInt64) -> String {
+        let mib = Double(bytes) / 1048576.0
+        if mib >= 1024.0 {
+            return String(format: "%.1f GB", mib / 1024.0)
         }
-        for dir in searchDirs {
-            guard !dir.isEmpty, let items = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-            for itemName in items.sorted() {
-                let fullPath = (dir as NSString).appendingPathComponent(itemName)
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: fullPath, isDirectory: &isDir) {
-                    if isDir.boolValue {
-                        if let subItems = try? fm.contentsOfDirectory(atPath: fullPath) {
-                            for sub in subItems.sorted() {
-                                addSampleFile(fullPath, sub)
-                            }
-                        }
-                    } else {
-                        addSampleFile(dir, itemName)
-                    }
+        return String(format: "%.0f MB", mib)
+    }
+
+    private func restoreSavedLibraryBookmarkIfNeeded() {
+        if let bookmarkData = UserDefaults.standard.data(forKey: "ElectroPiano_LibraryFolderBookmark") {
+            var isStale = false
+            if let resolvedURL = try? URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withoutUI],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ) {
+                libraryFolderPath = resolvedURL.path
+                UserDefaults.standard.set(resolvedURL.path, forKey: "ElectroPiano_LibraryFolderPath")
+                if isStale, let refreshed = try? resolvedURL.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                    UserDefaults.standard.set(refreshed, forKey: "ElectroPiano_LibraryFolderBookmark")
                 }
             }
         }
-        embeddedBanks = discovered
+        if !libraryFolderPath.isEmpty {
+            var isDir: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: libraryFolderPath, isDirectory: &isDir) && isDir.boolValue
+            libraryFolderMissing = !exists
+        } else {
+            libraryFolderMissing = false
+        }
+    }
 
+    func chooseLibraryFolder() {
+        let panel = NSOpenPanel()
+        panel.title = L("Choose Folder…")
+        panel.message = L("Choose the folder that contains your Nord sound libraries (.npno, .nsmp4).")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        if !libraryFolderPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: libraryFolderPath, isDirectory: true)
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            setLibraryFolder(url: url)
+        }
+    }
+
+    func setLibraryFolder(url: URL) {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return }
+        libraryFolderPath = url.path
+        libraryFolderMissing = false
+        UserDefaults.standard.set(url.path, forKey: "ElectroPiano_LibraryFolderPath")
+        if let bookmark = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+            UserDefaults.standard.set(bookmark, forKey: "ElectroPiano_LibraryFolderBookmark")
+        }
+        rescanLibraryFolder()
+    }
+
+    func cancelLibraryScan() {
+        scanTask?.cancel()
+        scanTask = nil
+        isScanningLibrary = false
+    }
+
+    func rescanLibraryFolder(autoLoadAfterScan: Bool = false) {
+        cancelLibraryScan()
+        if !libraryFolderPath.isEmpty {
+            var isDir: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: libraryFolderPath, isDirectory: &isDir) && isDir.boolValue
+            libraryFolderMissing = !exists
+            if !exists {
+                embeddedBanks = []
+                return
+            }
+        }
+        isScanningLibrary = true
+        scannedFileCount = 0
+        hasCompletedScanInFirstRun = false
+
+        let targetFolder = libraryFolderPath
+        scanTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let fm = FileManager.default
+            var searchRoots: [String] = []
+            if !targetFolder.isEmpty {
+                searchRoots = [targetFolder]
+            } else {
+                let cwd = fm.currentDirectoryPath
+                let bundleParent = (Bundle.main.bundlePath as NSString).deletingLastPathComponent
+                let resPath = Bundle.main.resourcePath ?? ""
+                let homeLib = (NSHomeDirectory() as NSString).appendingPathComponent("Library/Application Support/Nord Electro Piano/Sounds")
+                searchRoots = [
+                    (resPath as NSString).appendingPathComponent("Sounds"),
+                    resPath,
+                    "/Library/Application Support/Nord Electro Piano/Sounds",
+                    homeLib,
+                    (bundleParent as NSString).appendingPathComponent("Sounds"),
+                    (cwd as NSString).appendingPathComponent("Sounds"),
+                    cwd,
+                    bundleParent,
+                    (cwd as NSString).deletingLastPathComponent
+                ]
+            }
+
+            var discoveredPaths: [String] = []
+            var seenNames = Set<String>()
+            var count = 0
+
+            for root in searchRoots where !root.isEmpty {
+                if Task.isCancelled { return }
+                let rootURL = URL(fileURLWithPath: root, isDirectory: true)
+                if !targetFolder.isEmpty {
+                    // Recursive enumerator for configured library folder
+                    if let enumerator = fm.enumerator(
+                        at: rootURL,
+                        includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+                        options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                    ) {
+                        while let fileURL = enumerator.nextObject() as? URL {
+                            if Task.isCancelled { return }
+                            let fileName = fileURL.lastPathComponent
+                            let lower = fileName.lowercased()
+                            if lower.hasSuffix(".npno") || lower.hasSuffix(".nsmp4") {
+                                if !seenNames.contains(fileName) {
+                                    seenNames.insert(fileName)
+                                    discoveredPaths.append(fileURL.path)
+                                    count += 1
+                                    let currentCount = count
+                                    await MainActor.run { [weak self] in
+                                        self?.scannedFileCount = currentCount
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    guard let items = try? fm.contentsOfDirectory(atPath: root) else { continue }
+                    for itemName in items.sorted() {
+                        if Task.isCancelled { return }
+                        let fullPath = (root as NSString).appendingPathComponent(itemName)
+                        var isDir: ObjCBool = false
+                        if fm.fileExists(atPath: fullPath, isDirectory: &isDir) {
+                            if isDir.boolValue {
+                                if let subItems = try? fm.contentsOfDirectory(atPath: fullPath) {
+                                    for sub in subItems.sorted() {
+                                        let lower = sub.lowercased()
+                                        if (lower.hasSuffix(".npno") || lower.hasSuffix(".nsmp4")) && !seenNames.contains(sub) {
+                                            seenNames.insert(sub)
+                                            discoveredPaths.append((fullPath as NSString).appendingPathComponent(sub))
+                                            count += 1
+                                        }
+                                    }
+                                }
+                            } else {
+                                let lower = itemName.lowercased()
+                                if (lower.hasSuffix(".npno") || lower.hasSuffix(".nsmp4")) && !seenNames.contains(itemName) {
+                                    seenNames.insert(itemName)
+                                    discoveredPaths.append(fullPath)
+                                    count += 1
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if Task.isCancelled { return }
+            let sortedPaths = discoveredPaths.sorted {
+                (($0 as NSString).lastPathComponent).localizedStandardCompare(($1 as NSString).lastPathComponent) == .orderedAscending
+            }
+            var finalItems: [EmbeddedBankItem] = []
+            for (idx, fullPath) in sortedPaths.enumerated() {
+                let fileName = (fullPath as NSString).lastPathComponent
+                let display = (fileName as NSString).deletingPathExtension
+                let ext = ((fileName as NSString).pathExtension).lowercased()
+                let attrs = try? fm.attributesOfItem(atPath: fullPath)
+                let size = (attrs?[.size] as? NSNumber)?.uint64Value ?? 0
+                finalItems.append(
+                    EmbeddedBankItem(
+                        index: idx + 1,
+                        name: display,
+                        path: fullPath,
+                        formatExtension: ext.isEmpty ? ".npno" : ".\(ext)",
+                        fileSizeBytes: size,
+                        category: SoundCategory.infer(fileName: fileName, fullPath: fullPath)
+                    )
+                )
+            }
+
+            let itemsToPublish = finalItems
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.embeddedBanks = itemsToPublish
+                self.scannedFileCount = itemsToPublish.count
+                self.isScanningLibrary = false
+                self.hasCompletedScanInFirstRun = true
+
+                if autoLoadAfterScan && !self.showFirstRunScreen {
+                    self.performInitialSoundLoadIfNeeded()
+                }
+            }
+        }
+    }
+
+    func skipFirstRun() {
+        cancelLibraryScan()
+        firstRunCompleted = true
+        showFirstRunScreen = false
+    }
+
+    func finishFirstRun(loadFirstGrand: Bool) {
+        firstRunCompleted = true
+        showFirstRunScreen = false
+        if loadFirstGrand, let sound = firstGrandSound {
+            loadLayerInstrument(layer: 0, from: sound.path)
+        }
+    }
+
+    func showLibraryInFinder() {
+        guard !libraryFolderPath.isEmpty else { return }
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: libraryFolderPath)
+    }
+
+    private func autoLoadDefaultBank() {
+        rescanLibraryFolder(autoLoadAfterScan: true)
+    }
+
+    private func performInitialSoundLoadIfNeeded() {
         if memorySlots[selectedMemorySlot - 1].hasData {
             recallMemory(slot: selectedMemorySlot)
             return
         }
+        if layers[0].loaded || layers[0].isLoading { return }
 
-        if let astoria = discovered.first(where: { $0.name.lowercased().contains("astoria") }) {
+        if let astoria = embeddedBanks.first(where: { $0.name.lowercased().contains("astoria") }) {
             loadLayerInstrument(layer: 0, from: astoria.path)
             return
         }
-        if let first = discovered.first {
+        if let first = firstGrandSound {
             loadLayerInstrument(layer: 0, from: first.path)
             return
         }
@@ -1241,6 +1594,7 @@ final class PianoViewModel: ObservableObject {
     }
 
     private func handleKeyDown(_ event: NSEvent) -> Bool {
+        guard computerKeyboardEnabled else { return false }
         let code = event.keyCode
         if code == 49 {
             if !event.isARepeat { setSustain(true) }
@@ -1275,6 +1629,7 @@ final class PianoViewModel: ObservableObject {
     }
 
     private func handleKeyUp(_ event: NSEvent) -> Bool {
+        guard computerKeyboardEnabled else { return false }
         let code = event.keyCode
         if code == 49 {
             setSustain(false)
@@ -1317,15 +1672,19 @@ struct ElectroProSettingsView: View {
                 midiSettingsTab
             }
 
-            Tab(L("Appearance"), systemImage: "paintpalette.fill") {
-                appearanceSettingsTab
-            }
-
             Tab(L("Keyboard"), systemImage: "keyboard") {
                 keyboardSettingsTab
             }
+
+            Tab(L("Library"), systemImage: "folder.fill") {
+                librarySettingsTab
+            }
+
+            Tab(L("Appearance"), systemImage: "paintpalette.fill") {
+                appearanceSettingsTab
+            }
         }
-        .frame(width: 540, height: 380)
+        .frame(width: 580, height: 420)
         .preferredColorScheme(.dark)
         .onAppear {
             vm.refreshAudioAndMidiDevices()
@@ -1348,11 +1707,31 @@ struct ElectroProSettingsView: View {
                         .foregroundStyle(StudioTokens.textSecondary)
                 }
 
+                Picker(L("Buffer Size"), selection: $vm.bufferSize) {
+                    Text(verbatim: "64 samples").tag(64)
+                    Text(verbatim: "128 samples").tag(128)
+                    Text(verbatim: "256 samples").tag(256)
+                    Text(verbatim: "512 samples").tag(512)
+                    Text(verbatim: "1024 samples").tag(1024)
+                }
+
+                LabeledContent(L("Estimated Latency")) {
+                    Text(verbatim: String(format: "%.1f ms", vm.estimatedLatencyMs))
+                        .font(StudioTokens.fontValue)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                }
+
                 Picker(L("Maximum Polyphony"), selection: $vm.maxVoices) {
                     Text(L("64 Voices")).tag(64)
                     Text(L("128 Voices")).tag(128)
                     Text(L("256 Voices (Default)")).tag(256)
                     Text(L("512 Voices")).tag(512)
+                }
+
+                LabeledContent(L("Callback CPU")) {
+                    Text(verbatim: String(format: "%.1f%%", vm.callbackCpuPercent))
+                        .font(StudioTokens.fontValue)
+                        .foregroundStyle(StudioTokens.textSecondary)
                 }
 
                 HStack {
@@ -1386,6 +1765,8 @@ struct ElectroProSettingsView: View {
                         Text(String(localized: "Channel \(ch)", bundle: .module)).tag(ch)
                     }
                 }
+
+                Toggle(L("Respond to Program Change"), isOn: $vm.respondToProgramChange)
             }
 
             Section {
@@ -1437,40 +1818,18 @@ struct ElectroProSettingsView: View {
         .formStyle(.grouped)
     }
 
-    // Tab 3: Appearance
-    private var appearanceSettingsTab: some View {
-        Form {
-            Section(L("Accent Color")) {
-                Picker(L("Interface Accent Color"), selection: $vm.accentOption) {
-                    ForEach(AccentOption.allCases) { option in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(option.color)
-                                .frame(width: 10, height: 10)
-                            Text(option.title)
-                        }
-                        .tag(option)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-
-                Text(L("The accent color highlights only knob value arcs, the selected layer, and the meter peak."))
-                    .font(StudioTokens.fontLabel)
-                    .foregroundStyle(StudioTokens.textSecondary)
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // Tab 4: Keyboard (QWERTY)
+    // Tab 3: Keyboard (QWERTY)
     private var keyboardSettingsTab: some View {
         Form {
             Section(L("Mac Keyboard (QWERTY)")) {
+                Toggle(L("Enable Mac Keyboard Input"), isOn: $vm.computerKeyboardEnabled)
+
                 Stepper(
                     String(localized: "Base Octave: C\(vm.computerBaseOctave)", bundle: .module),
                     value: $vm.computerBaseOctave,
                     in: 1...6
                 )
+                .disabled(!vm.computerKeyboardEnabled)
 
                 Stepper(
                     String(localized: "Velocity: \(vm.computerVelocity)", bundle: .module),
@@ -1478,6 +1837,7 @@ struct ElectroProSettingsView: View {
                     in: 16...127,
                     step: 8
                 )
+                .disabled(!vm.computerKeyboardEnabled)
 
                 Toggle(L("Show 61-Key On-Screen Keyboard (⌘K)"), isOn: $vm.showVirtualKeyboard)
             }
@@ -1499,6 +1859,109 @@ struct ElectroProSettingsView: View {
                     Text(L("Spacebar"))
                         .font(StudioTokens.fontValue)
                 }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // Tab 4: Library
+    private var librarySettingsTab: some View {
+        Form {
+            Section(L("Library")) {
+                LabeledContent(L("Library Folder")) {
+                    Text(verbatim: vm.libraryFolderPath.isEmpty ? L("Default Bundle / Application Support") : vm.libraryFolderPath)
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(vm.libraryFolderMissing ? StudioTokens.meterRed : StudioTokens.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                if vm.libraryFolderMissing {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(StudioTokens.meterRed)
+                        Text(L("Library folder not found"))
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.meterRed)
+                        Spacer()
+                        Button(L("Locate…")) {
+                            vm.chooseLibraryFolder()
+                        }
+                    }
+                }
+
+                LabeledContent(L("Sounds Found")) {
+                    if vm.isScanningLibrary {
+                        Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: .module))
+                            .font(StudioTokens.fontValue)
+                            .foregroundStyle(StudioTokens.textSecondary)
+                    } else {
+                        Text(String(localized: "\(vm.embeddedBanks.count) sounds • \(vm.formatBytes(vm.totalLibraryDiskBytes))", bundle: .module))
+                            .font(StudioTokens.fontValue)
+                            .foregroundStyle(StudioTokens.textSecondary)
+                    }
+                }
+
+                Toggle(L("Purge on Demand"), isOn: $vm.purgeOnDemandEnabled)
+
+                HStack(spacing: 10) {
+                    Button {
+                        vm.chooseLibraryFolder()
+                    } label: {
+                        Label(L("Choose Folder…"), systemImage: "folder.badge.gearshape")
+                    }
+
+                    Button {
+                        vm.rescanLibraryFolder()
+                    } label: {
+                        Label(L("Rescan"), systemImage: "arrow.clockwise")
+                    }
+                    .disabled(vm.isScanningLibrary)
+
+                    Spacer()
+
+                    Button {
+                        vm.showLibraryInFinder()
+                    } label: {
+                        Label(L("Show in Finder"), systemImage: "finder")
+                    }
+                    .disabled(vm.libraryFolderPath.isEmpty || vm.libraryFolderMissing)
+                }
+
+                HStack {
+                    Button {
+                        vm.firstRunCompleted = false
+                        vm.showFirstRunScreen = true
+                    } label: {
+                        Text(L("Show Welcome Setup Screen…"))
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // Tab 5: Appearance
+    private var appearanceSettingsTab: some View {
+        Form {
+            Section(L("Accent Color")) {
+                Picker(L("Interface Accent Color"), selection: $vm.accentOption) {
+                    ForEach(AccentOption.allCases) { option in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(option.color)
+                                .frame(width: 10, height: 10)
+                            Text(option.title)
+                        }
+                        .tag(option)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+
+                Text(L("The accent color highlights only knob value arcs, the selected layer, and the meter peak."))
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(StudioTokens.textSecondary)
             }
         }
         .formStyle(.grouped)

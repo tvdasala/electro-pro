@@ -1,6 +1,7 @@
 import AppKit
 import NPNOBridge
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Note Utilities & Parameter Friendly Names
 
@@ -270,11 +271,25 @@ struct TimbrePickerMenu: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(StudioTokens.textSecondary)
 
-                Text(slot.loaded ? slot.name : L("Load Sound…"))
-                    .font(StudioTokens.fontBodyMedium)
-                    .foregroundStyle(StudioTokens.textPrimary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                if slot.loaded {
+                    Text(slot.name)
+                        .font(StudioTokens.fontBodyMedium)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    Text(L("No Sound"))
+                        .font(StudioTokens.fontBodyMedium)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                    Text(verbatim: "·")
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(L("Load Sound…"))
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .lineLimit(1)
+                }
 
                 Spacer(minLength: 4)
 
@@ -295,6 +310,300 @@ struct TimbrePickerMenu: View {
         }
         .menuStyle(.borderlessButton)
         .help(slot.loaded ? "\(slot.name) — \(slot.model)" : String(localized: "Choose a .npno or .nsmp4 file for Layer \(kLayerLetters[layer])", bundle: .module))
+    }
+}
+
+// MARK: - First Run & Empty State Views
+
+struct FirstRunWelcomeView: View {
+    @ObservedObject var vm: PianoViewModel
+    @State private var loadFirstGrandIntoLayerA: Bool = true
+    @State private var isDropTargeted: Bool = false
+
+    private var activeAudioDeviceName: String {
+        if let dev = vm.audioOutputDevices.first(where: { $0.id == vm.selectedAudioDeviceID }) {
+            return dev.name.replacingOccurrences(of: " (Default)", with: "")
+        }
+        return L("Built-in Output")
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer(minLength: 12)
+
+            VStack(spacing: 18) {
+                Image(systemName: "pianokeys.inverse")
+                    .font(.system(size: 38, weight: .medium))
+                    .foregroundStyle(StudioTokens.textPrimary)
+
+                VStack(spacing: 6) {
+                    Text(L("Welcome to Electro Pro"))
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(StudioTokens.textPrimary)
+
+                    Text(L("Choose the folder that contains your Nord sound libraries (.npno, .nsmp4)."))
+                        .font(StudioTokens.fontBody)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                // Drag-and-drop & scan status area
+                VStack(spacing: 12) {
+                    if vm.isScanningLibrary {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: .module))
+                                .font(StudioTokens.fontValue)
+                                .foregroundStyle(StudioTokens.textPrimary)
+                            Spacer()
+                            Button(L("Cancel")) {
+                                vm.cancelLibraryScan()
+                            }
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+                        }
+                        .padding(14)
+                        .background(StudioTokens.surfaceControl, in: .rect(cornerRadius: StudioTokens.controlRadius))
+                    } else if vm.hasCompletedScanInFirstRun && !vm.libraryFolderPath.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: vm.embeddedBanks.isEmpty ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                                    .foregroundStyle(vm.embeddedBanks.isEmpty ? StudioTokens.meterYellow : StudioTokens.meterGreen)
+                                Text(String(localized: "Found \(vm.embeddedBanks.count) sounds in \(vm.detectedCategoryCount) categories.", bundle: .module))
+                                    .font(StudioTokens.fontBodyMedium)
+                                    .foregroundStyle(StudioTokens.textPrimary)
+                                Spacer()
+                                Button(L("Choose Folder…")) {
+                                    vm.chooseLibraryFolder()
+                                }
+                                .buttonStyle(.glass)
+                                .controlSize(.small)
+                            }
+
+                            if let grand = vm.firstGrandSound {
+                                Toggle(
+                                    String(localized: "Load \(grand.name) into Layer A", bundle: .module),
+                                    isOn: $loadFirstGrandIntoLayerA
+                                )
+                                .toggleStyle(.checkbox)
+                                .font(StudioTokens.fontBody)
+                                .foregroundStyle(StudioTokens.textPrimary)
+                            }
+                        }
+                        .padding(14)
+                        .background(StudioTokens.surfaceControl, in: .rect(cornerRadius: StudioTokens.controlRadius))
+                    } else {
+                        HStack(spacing: 10) {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 16))
+                                .foregroundStyle(StudioTokens.textSecondary)
+                            Text(L("Drag and drop your Nord sound library folder here, or click Choose Folder…"))
+                                .font(StudioTokens.fontLabel)
+                                .foregroundStyle(StudioTokens.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 14)
+                        .background(
+                            StudioTokens.surfaceControl.opacity(isDropTargeted ? 1.0 : 0.65),
+                            in: .rect(cornerRadius: StudioTokens.controlRadius)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioTokens.controlRadius)
+                                .strokeBorder(
+                                    isDropTargeted ? StudioTokens.textPrimary : StudioTokens.borderHairline,
+                                    style: StrokeStyle(lineWidth: 1, dash: [5, 4])
+                                )
+                        )
+                    }
+                }
+
+                Divider().overlay(StudioTokens.borderHairline)
+
+                // 3-line status checklist: Library, Audio, MIDI
+                VStack(alignment: .leading, spacing: 10) {
+                    // 1. Library
+                    HStack(spacing: 10) {
+                        Image(systemName: vm.embeddedBanks.isEmpty ? "folder" : "checkmark.circle.fill")
+                            .foregroundStyle(vm.embeddedBanks.isEmpty ? StudioTokens.textSecondary : StudioTokens.meterGreen)
+                            .frame(width: 16)
+                        Text(L("Library"))
+                            .font(StudioTokens.fontBodyMedium)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                            .frame(width: 68, alignment: .leading)
+                        Text(
+                            vm.libraryFolderPath.isEmpty
+                                ? String(localized: "Default folder · \(vm.embeddedBanks.count) sounds", bundle: .module)
+                                : String(localized: "\((vm.libraryFolderPath as NSString).lastPathComponent) · \(vm.embeddedBanks.count) sounds", bundle: .module)
+                        )
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        Spacer()
+                    }
+
+                    // 2. Audio
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(StudioTokens.meterGreen)
+                            .frame(width: 16)
+                        Text(L("Audio"))
+                            .font(StudioTokens.fontBodyMedium)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                            .frame(width: 68, alignment: .leading)
+                        Text(verbatim: "\(activeAudioDeviceName) · \(Int((vm.sampleRate / 1000.0).rounded())) kHz")
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textSecondary)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+
+                    // 3. MIDI
+                    HStack(spacing: 10) {
+                        Image(systemName: vm.midiSourceCount > 0 ? "checkmark.circle.fill" : "pianokeys")
+                            .foregroundStyle(vm.midiSourceCount > 0 ? StudioTokens.meterGreen : StudioTokens.textSecondary)
+                            .frame(width: 16)
+                        Text(L("MIDI"))
+                            .font(StudioTokens.fontBodyMedium)
+                            .foregroundStyle(StudioTokens.textPrimary)
+                            .frame(width: 68, alignment: .leading)
+                        Text(
+                            vm.midiSourceCount > 0
+                                ? vm.midiSources
+                                : L("No MIDI controller connected — you can play with the Mac keyboard or on-screen keys")
+                        )
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        Spacer()
+                        Button(L("Rescan")) {
+                            vm.refreshAudioAndMidiDevices()
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(.vertical, 4)
+
+                Divider().overlay(StudioTokens.borderHairline)
+
+                // Action buttons
+                HStack(spacing: 12) {
+                    Button(L("Skip for Now")) {
+                        vm.skipFirstRun()
+                    }
+                    .buttonStyle(.glass)
+
+                    Spacer()
+
+                    if vm.hasCompletedScanInFirstRun && !vm.libraryFolderPath.isEmpty {
+                        Button(L("Start Playing")) {
+                            vm.finishFirstRun(loadFirstGrand: loadFirstGrandIntoLayerA)
+                        }
+                        .buttonStyle(.glassProminent)
+                    } else {
+                        Button(L("Choose Folder…")) {
+                            vm.chooseLibraryFolder()
+                        }
+                        .buttonStyle(.glassProminent)
+                        .disabled(vm.isScanningLibrary)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 640)
+            .background(StudioTokens.surfacePanel, in: .rect(cornerRadius: StudioTokens.panelRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioTokens.panelRadius)
+                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+            )
+            .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+                guard let first = providers.first else { return false }
+                _ = first.loadObject(ofClass: URL.self) { url, _ in
+                    if let folderURL = url {
+                        Task { @MainActor in
+                            vm.setLibraryFolder(url: folderURL)
+                        }
+                    }
+                }
+                return true
+            }
+
+            Spacer(minLength: 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct LibraryEmptyStateBanner: View {
+    @ObservedObject var vm: PianoViewModel
+
+    var body: some View {
+        if vm.libraryFolderMissing {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StudioTokens.meterRed)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Library folder not found"))
+                        .font(StudioTokens.fontBodyMedium)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                    Text(verbatim: vm.libraryFolderPath)
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer()
+                Button(L("Locate…")) {
+                    vm.chooseLibraryFolder()
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+
+                Button(L("Choose Folder…")) {
+                    vm.chooseLibraryFolder()
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(StudioTokens.surfacePanel, in: .rect(cornerRadius: StudioTokens.panelRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioTokens.panelRadius)
+                    .stroke(StudioTokens.meterRed.opacity(0.65), lineWidth: 1)
+            )
+        } else if vm.embeddedBanks.isEmpty && !vm.isScanningLibrary && !vm.layers.contains(where: { $0.loaded }) {
+            HStack(spacing: 12) {
+                Image(systemName: "folder.badge.questionmark")
+                    .foregroundStyle(StudioTokens.textSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("No Nord sound libraries found in the selected folder"))
+                        .font(StudioTokens.fontBodyMedium)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                    Text(L("Download official .npno or .nsmp4 sound banks from the Nord Piano & Sample Library and choose their folder."))
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button(L("Choose Folder…")) {
+                    vm.chooseLibraryFolder()
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(StudioTokens.surfacePanel, in: .rect(cornerRadius: StudioTokens.panelRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioTokens.panelRadius)
+                    .stroke(StudioTokens.borderHairline, lineWidth: 1)
+            )
+        }
     }
 }
 
@@ -327,12 +636,21 @@ struct ContentView: View {
             let contentH = isScaled ? (geo.size.height / scale) : geo.size.height
 
             VStack(spacing: StudioTokens.grid2) {
-                // 1. Compact 4-layer strip (~100pt) inside a single GlassEffectContainer
-                layerStripSection
+                if vm.showFirstRunScreen {
+                    FirstRunWelcomeView(vm: vm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    if vm.libraryFolderMissing || (vm.embeddedBanks.isEmpty && !vm.isScanningLibrary && !vm.layers.contains(where: { $0.loaded })) {
+                        LibraryEmptyStateBanner(vm: vm)
+                    }
 
-                // 2. Selected layer/master editor (content-sized panels aligned to top; vertical scroll only)
-                layerEditorSection(availableWidth: max(800, contentW - StudioTokens.grid2 * 2))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    // 1. Compact 4-layer strip (~100pt) inside a single GlassEffectContainer
+                    layerStripSection
+
+                    // 2. Selected layer/master editor (content-sized panels aligned to top; vertical scroll only)
+                    layerEditorSection(availableWidth: max(800, contentW - StudioTokens.grid2 * 2))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
 
                 // 3. 61-key virtual keyboard at the bottom (~120pt), open by default (Cmd+K)
                 if vm.showVirtualKeyboard {
@@ -880,6 +1198,12 @@ struct ContentView: View {
                                 .padding(.vertical, 2)
                                 .background(StudioTokens.surfacePanel, in: .capsule)
                                 .overlay(Capsule().stroke(StudioTokens.borderHairline, lineWidth: 1))
+                        } else {
+                            Button(L("Load Sound…")) {
+                                vm.openFilePicker(forLayer: layer)
+                            }
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
                         }
                     } else {
                         Text(L("Master"))
