@@ -130,6 +130,24 @@ typedef struct NPNOTelemetry {
 NPNOHost* npno_host_create(void);
 void npno_host_destroy(NPNOHost* host);
 
+/// Callbacks for hosting the SwiftUI Workstation inside an AudioUnit / VST3 plugin instance.
+typedef struct NPNOPluginCallbacks {
+    void* pluginCtx;
+    void* enginePtr; // npno::Engine* owned by the plugin core
+    bool (*loadLayerInstrument)(void* ctx, int32_t layer, const char* path, char* err_buf, int32_t err_buf_len);
+    bool (*stepLayerInstrument)(void* ctx, int32_t layer, int32_t delta);
+    void (*getLayerInstrumentInfo)(void* ctx, int32_t layer, NPNOInstrumentInfo* out_info);
+    uint64_t (*purgeUnused)(void* ctx);
+    bool (*reloadPurged)(void* ctx);
+    double (*getSampleRate)(void* ctx);
+    uint64_t (*getTotalMemoryBytes)(void* ctx);
+    uint64_t (*getTotalUnpurgedBytes)(void* ctx);
+    void (*notifyStateChanged)(void* ctx);
+} NPNOPluginCallbacks;
+
+NPNOHost* npno_host_create_plugin(const NPNOPluginCallbacks* callbacks);
+bool npno_host_is_plugin(NPNOHost* host);
+
 bool npno_host_start_audio(NPNOHost* host);
 void npno_host_stop_audio(NPNOHost* host);
 

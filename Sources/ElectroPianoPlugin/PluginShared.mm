@@ -1,4 +1,5 @@
 #include "PluginShared.hpp"
+#include "NPNOBridge.h"
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
@@ -2318,7 +2319,85 @@ static NSString* const kPluginUIScaleDefaultsKey = @"ElectroPiano_PluginUIScale_
 
 @end
 
+extern "C" {
+void* ElectroProCreatePluginView(const NPNOPluginCallbacks* callbacks, double width, double height);
+}
+
+static bool epnoPluginLoadLayerInstrument(void* ctx, int32_t layer, const char* path, char* err_buf, int32_t err_buf_len) {
+    if (!ctx) return false;
+    auto* core = static_cast<epno::ElectroPianoCore*>(ctx);
+    if (!path || path[0] == '\0') {
+        core->clearLayerBank(layer);
+        return true;
+    }
+    core->loadLayerBankAsync(layer, std::string(path), false);
+    if (err_buf && err_buf_len > 0) err_buf[0] = '\0';
+    return true;
+}
+
+static bool epnoPluginStepLayerInstrument(void* ctx, int32_t layer, int32_t delta) {
+    if (!ctx) return false;
+    static_cast<epno::ElectroPianoCore*>(ctx)->stepLayerBankAsync(layer, delta);
+    return true;
+}
+
+static void epnoPluginGetLayerInstrumentInfo(void* ctx, int32_t layer, NPNOInstrumentInfo* out_info) {
+    if (!ctx || !out_info) return;
+    std::memset(out_info, 0, sizeof(*out_info));
+    auto s = static_cast<epno::ElectroPianoCore*>(ctx)->getLayerSummary(layer);
+    out_info->loaded = s.loaded;
+    std::snprintf(out_info->name, sizeof(out_info->name), "%s", s.title.c_str());
+    std::snprintf(out_info->model, sizeof(out_info->model), "%s", s.version.c_str());
+    std::snprintf(out_info->path, sizeof(out_info->path), "%s", s.path.c_str());
+    std::snprintf(out_info->summary, sizeof(out_info->summary), "%s", s.subtitle.c_str());
+    out_info->normalSampleCount = s.normalSamples;
+    out_info->releaseSampleCount = s.releaseSamples;
+    out_info->damperBoundary = s.damperBoundary;
+    uint64_t bytes = static_cast<uint64_t>(std::max(0.0, s.memoryMB) * 1024.0 * 1024.0);
+    out_info->decodedBytes = bytes;
+    out_info->totalDecodedBytes = bytes;
+}
+
+static uint64_t epnoPluginPurgeUnused(void* ctx) {
+    return ctx ? static_cast<epno::ElectroPianoCore*>(ctx)->purgeUnusedSamples() : 0;
+}
+
+static bool epnoPluginReloadPurged(void* ctx) {
+    return ctx ? static_cast<epno::ElectroPianoCore*>(ctx)->reloadPurgedSamples() : false;
+}
+
+static double epnoPluginGetSampleRate(void* ctx) {
+    return ctx ? static_cast<epno::ElectroPianoCore*>(ctx)->sampleRate() : 44100.0;
+}
+
+static uint64_t epnoPluginGetTotalMemoryBytes(void* ctx) {
+    return ctx ? static_cast<epno::ElectroPianoCore*>(ctx)->totalMemoryBytes() : 0;
+}
+
+static uint64_t epnoPluginGetTotalUnpurgedBytes(void* ctx) {
+    return ctx ? static_cast<epno::ElectroPianoCore*>(ctx)->totalUnpurgedBytes() : 0;
+}
+
+static void epnoPluginNotifyStateChanged(void* ctx) {
+    if (ctx) static_cast<epno::ElectroPianoCore*>(ctx)->notifyStateChanged();
+}
+
 NSView* CreateElectroPianoPluginView(epno::ElectroPianoCore* core, NSSize preferredSize) {
-    (void)preferredSize;
-    return [[ElectroPianoPluginMainView alloc] initWithFrame:NSMakeRect(0, 0, kPluginBaseWidth, kPluginBaseHeight) core:core];
+    if (!core) return nil;
+    NPNOPluginCallbacks cb{};
+    cb.pluginCtx = core;
+    cb.enginePtr = &core->engine();
+    cb.loadLayerInstrument = &epnoPluginLoadLayerInstrument;
+    cb.stepLayerInstrument = &epnoPluginStepLayerInstrument;
+    cb.getLayerInstrumentInfo = &epnoPluginGetLayerInstrumentInfo;
+    cb.purgeUnused = &epnoPluginPurgeUnused;
+    cb.reloadPurged = &epnoPluginReloadPurged;
+    cb.getSampleRate = &epnoPluginGetSampleRate;
+    cb.getTotalMemoryBytes = &epnoPluginGetTotalMemoryBytes;
+    cb.getTotalUnpurgedBytes = &epnoPluginGetTotalUnpurgedBytes;
+    cb.notifyStateChanged = &epnoPluginNotifyStateChanged;
+    double w = preferredSize.width > 100.0 ? preferredSize.width : 1180.0;
+    double h = preferredSize.height > 100.0 ? preferredSize.height : 760.0;
+    void* rawView = ElectroProCreatePluginView(&cb, w, h);
+    return (__bridge_transfer NSView*)rawView;
 }

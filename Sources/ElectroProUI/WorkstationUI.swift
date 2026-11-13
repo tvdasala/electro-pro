@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 // MARK: - Note Utilities & Parameter Friendly Names
 
-let kLayerLetters = ["A", "B", "C", "D"]
+public let kLayerLetters = ["A", "B", "C", "D"]
 
 func shortNoteName(_ note: Int) -> String {
     let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -85,7 +85,7 @@ func friendlyKnobName(_ key: String) -> String {
             "port": L("Portamento Time")
         ]
         let paramTitle = names[suffix] ?? suffix
-        return String(localized: "Layer \(kLayerLetters[idx]) · \(paramTitle)", bundle: .module)
+        return String(localized: "Layer \(kLayerLetters[idx]) · \(paramTitle)", bundle: epBundle)
     }
     return key
 }
@@ -103,19 +103,19 @@ extension PianoViewModel {
         return 1.0
     }
 
-    func zoomIn() {
+    public func zoomIn() {
         if let next = PanelLayout.scales.first(where: { $0 > uiScale + 0.001 }) {
             uiScale = next
         }
     }
 
-    func zoomOut() {
+    public func zoomOut() {
         if let prev = PanelLayout.scales.last(where: { $0 < uiScale - 0.001 }) {
             uiScale = prev
         }
     }
 
-    func zoomToFitScreen() {
+    public func zoomToFitScreen() {
         uiScale = 1.0
     }
 }
@@ -167,7 +167,7 @@ struct VelocityCurveThumbnailGrid: View {
         ]
     }
 
-    var body: some View {
+    public var body: some View {
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
             ForEach(0..<rows.count, id: \.self) { rowIdx in
                 GridRow {
@@ -238,7 +238,7 @@ struct VelocityCurveThumbnailGrid: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(String(localized: "Velocity curve \(item.title)", bundle: .module))
+        .accessibilityLabel(String(localized: "Velocity curve \(item.title)", bundle: epBundle))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -252,7 +252,7 @@ struct TimbrePickerMenu: View {
 
     private var slot: LayerSlotState { vm.layers[layer] }
 
-    var body: some View {
+    public var body: some View {
         Button {
             isBrowserPresented.toggle()
         } label: {
@@ -302,7 +302,7 @@ struct TimbrePickerMenu: View {
         .popover(isPresented: $isBrowserPresented, arrowEdge: .bottom) {
             SoundBrowserPopoverView(vm: vm, layer: layer, isPresented: $isBrowserPresented)
         }
-        .help(slot.loaded ? "\(slot.name) — \(slot.model)" : String(localized: "Choose a .npno or .nsmp4 file for Layer \(kLayerLetters[layer])", bundle: .module))
+        .help(slot.loaded ? "\(slot.name) — \(slot.model)" : String(localized: "Choose a .npno or .nsmp4 file for Layer \(kLayerLetters[layer])", bundle: epBundle))
     }
 }
 
@@ -319,7 +319,7 @@ struct SoundBrowserPopoverView: View {
         return list
     }
 
-    var body: some View {
+    public var body: some View {
         let items = vm.filteredBrowserBanks()
         let slot = vm.layers[layer]
 
@@ -489,7 +489,7 @@ struct SoundBrowserPopoverView: View {
 
             // Footer: Load loose file (Cmd+O) + Choose Folder
             HStack(spacing: 8) {
-                Text(String(localized: "\(items.count) sounds", bundle: .module))
+                Text(String(localized: "\(items.count) sounds", bundle: epBundle))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
 
@@ -534,7 +534,7 @@ struct FirstRunWelcomeView: View {
         return L("Built-in Output")
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 20) {
             Spacer(minLength: 12)
 
@@ -560,7 +560,7 @@ struct FirstRunWelcomeView: View {
                         HStack(spacing: 12) {
                             ProgressView()
                                 .controlSize(.small)
-                            Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: .module))
+                            Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: epBundle))
                                 .font(StudioTokens.fontValue)
                                 .foregroundStyle(StudioTokens.textPrimary)
                             Spacer()
@@ -577,7 +577,7 @@ struct FirstRunWelcomeView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: vm.embeddedBanks.isEmpty ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
                                     .foregroundStyle(vm.embeddedBanks.isEmpty ? StudioTokens.meterYellow : StudioTokens.meterGreen)
-                                Text(String(localized: "Found \(vm.embeddedBanks.count) sounds in \(vm.detectedCategoryCount) categories.", bundle: .module))
+                                Text(String(localized: "Found \(vm.embeddedBanks.count) sounds in \(vm.detectedCategoryCount) categories.", bundle: epBundle))
                                     .font(StudioTokens.fontBodyMedium)
                                     .foregroundStyle(StudioTokens.textPrimary)
                                 Spacer()
@@ -590,7 +590,7 @@ struct FirstRunWelcomeView: View {
 
                             if let grand = vm.firstGrandSound {
                                 Toggle(
-                                    String(localized: "Load \(grand.name) into Layer A", bundle: .module),
+                                    String(localized: "Load \(grand.name) into Layer A", bundle: epBundle),
                                     isOn: $loadFirstGrandIntoLayerA
                                 )
                                 .toggleStyle(.checkbox)
@@ -641,8 +641,8 @@ struct FirstRunWelcomeView: View {
                             .frame(width: 68, alignment: .leading)
                         Text(
                             vm.libraryFolderPath.isEmpty
-                                ? String(localized: "Default folder · \(vm.embeddedBanks.count) sounds", bundle: .module)
-                                : String(localized: "\((vm.libraryFolderPath as NSString).lastPathComponent) · \(vm.embeddedBanks.count) sounds", bundle: .module)
+                                ? String(localized: "Default folder · \(vm.embeddedBanks.count) sounds", bundle: epBundle)
+                                : String(localized: "\((vm.libraryFolderPath as NSString).lastPathComponent) · \(vm.embeddedBanks.count) sounds", bundle: epBundle)
                         )
                         .font(StudioTokens.fontLabel)
                         .foregroundStyle(StudioTokens.textSecondary)
@@ -748,7 +748,7 @@ struct FirstRunWelcomeView: View {
 struct LibraryEmptyStateBanner: View {
     @ObservedObject var vm: PianoViewModel
 
-    var body: some View {
+    public var body: some View {
         if vm.libraryFolderMissing {
             HStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -816,8 +816,9 @@ struct LibraryEmptyStateBanner: View {
 
 // MARK: - Main Window (ContentView)
 
-struct ContentView: View {
+public struct ContentView: View {
     @ObservedObject var vm: PianoViewModel
+    public init(vm: PianoViewModel) { self.vm = vm }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -835,7 +836,7 @@ struct ContentView: View {
         return activeNames.isEmpty ? L("Init") : activeNames.joined(separator: " + ")
     }
 
-    var body: some View {
+    public var body: some View {
         GeometryReader { geo in
             let scale = CGFloat(vm.uiScale)
             let isScaled = abs(scale - 1.0) > 0.001
@@ -878,8 +879,8 @@ struct ContentView: View {
         .navigationTitle(L("Electro Pro"))
         .navigationSubtitle(
             vm.isProgramEdited
-                ? String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle) — Edited", bundle: .module)
-                : String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle)", bundle: .module)
+                ? String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle) — Edited", bundle: epBundle)
+                : String(localized: "Program \(vm.selectedMemorySlot) — \(currentPresetTitle)", bundle: epBundle)
         )
         .toolbar {
             workstationToolbar
@@ -915,8 +916,8 @@ struct ContentView: View {
         } label: {
             Label(
                 isLearning
-                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: .module)
-                    : String(localized: "Learn MIDI CC for \(label)", bundle: .module),
+                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: epBundle)
+                    : String(localized: "Learn MIDI CC for \(label)", bundle: epBundle),
                 systemImage: isLearning ? "xmark.circle" : "antenna.radiowaves.left.and.right"
             )
         }
@@ -925,7 +926,7 @@ struct ContentView: View {
             Button(role: .destructive) {
                 vm.unassignKnobCC(idKey: idKey)
             } label: {
-                Label(String(localized: "Remove MIDI CC \(cc)", bundle: .module), systemImage: "trash")
+                Label(String(localized: "Remove MIDI CC \(cc)", bundle: epBundle), systemImage: "trash")
             }
         }
     }
@@ -976,7 +977,7 @@ struct ContentView: View {
 
     private var renameProgramPopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Rename Program \(vm.selectedMemorySlot)", bundle: .module))
+            Text(String(localized: "Rename Program \(vm.selectedMemorySlot)", bundle: epBundle))
                 .font(StudioTokens.fontSectionTitle)
                 .foregroundStyle(StudioTokens.textPrimary)
 
@@ -1104,7 +1105,7 @@ struct ContentView: View {
                 // Enabled layer: Switch + Dot + Letter + Note range (11pt, >= 4.5:1) + Arrows ‹ › (>= 28pt)
                 HStack(spacing: 6) {
                     Toggle(
-                        String(localized: "Enable Layer \(letter)", bundle: .module),
+                        String(localized: "Enable Layer \(letter)", bundle: epBundle),
                         isOn: Binding(
                             get: { p.enabled },
                             set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
@@ -1116,16 +1117,16 @@ struct ContentView: View {
                     .contextMenu {
                         nonKnobMidiLearnContextMenu(
                             idKey: "switch_L\(layer)",
-                            label: String(localized: "Layer \(letter) Switch", bundle: .module)
+                            label: String(localized: "Layer \(letter) Switch", bundle: epBundle)
                         )
                     }
-                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: .module))
+                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: epBundle))
 
                     Circle()
                         .fill(isSelected ? StudioTokens.accent : StudioTokens.textSecondary)
                         .frame(width: 7, height: 7)
 
-                    Text(String(localized: "Layer \(letter)", bundle: .module))
+                    Text(String(localized: "Layer \(letter)", bundle: epBundle))
                         .font(StudioTokens.fontValueSemibold)
                         .foregroundStyle(StudioTokens.textPrimary)
                         .lineLimit(1)
@@ -1261,7 +1262,7 @@ struct ContentView: View {
                 // Disabled layer: only switch + letter + sound name (1 line).
                 HStack(spacing: 8) {
                     Toggle(
-                        String(localized: "Enable Layer \(letter)", bundle: .module),
+                        String(localized: "Enable Layer \(letter)", bundle: epBundle),
                         isOn: Binding(
                             get: { p.enabled },
                             set: { newVal in vm.updateLayerParams(layer) { $0.enabled = newVal } }
@@ -1273,10 +1274,10 @@ struct ContentView: View {
                     .contextMenu {
                         nonKnobMidiLearnContextMenu(
                             idKey: "switch_L\(layer)",
-                            label: String(localized: "Layer \(letter) Switch", bundle: .module)
+                            label: String(localized: "Layer \(letter) Switch", bundle: epBundle)
                         )
                     }
-                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: .module))
+                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: epBundle))
 
                     if isSelected {
                         Circle()
@@ -1284,7 +1285,7 @@ struct ContentView: View {
                             .frame(width: 7, height: 7)
                     }
 
-                    Text(String(localized: "Layer \(letter)", bundle: .module))
+                    Text(String(localized: "Layer \(letter)", bundle: epBundle))
                         .font(StudioTokens.fontValueSemibold)
                         .foregroundStyle(StudioTokens.textSecondary)
                         .lineLimit(1)
@@ -1328,7 +1329,7 @@ struct ContentView: View {
                 )
         )
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(String(localized: "Layer \(letter), \(slot.loaded ? slot.name : L("No Sound")), \(p.enabled ? L("On") : L("Off"))", bundle: .module))
+        .accessibilityLabel(String(localized: "Layer \(letter), \(slot.loaded ? slot.name : L("No Sound")), \(p.enabled ? L("On") : L("Off"))", bundle: epBundle))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -1366,7 +1367,7 @@ struct ContentView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "\(tab.title) (⌘\(tab.rawValue + 1))", bundle: .module))
+                    .help(String(localized: "\(tab.title) (⌘\(tab.rawValue + 1))", bundle: epBundle))
                 }
             }
             .padding(2)
@@ -1397,7 +1398,7 @@ struct ContentView: View {
                         .frame(width: 8, height: 8)
 
                     if isLayerMode {
-                        Text(String(localized: "Layer \(letter) — \(slot.loaded ? slot.name : L("No Sound"))", bundle: .module))
+                        Text(String(localized: "Layer \(letter) — \(slot.loaded ? slot.name : L("No Sound"))", bundle: epBundle))
                             .font(StudioTokens.fontSectionTitle)
                             .foregroundStyle(StudioTokens.textPrimary)
                             .lineLimit(1)
@@ -1669,7 +1670,7 @@ struct ContentView: View {
                                 in: -3...3
                             ) {
                                 let oct = Int(lp.octaveShift)
-                                Text(String(localized: "Octave: \(oct == 0 ? "0" : String(format: "%+d", oct))", bundle: .module))
+                                Text(String(localized: "Octave: \(oct == 0 ? "0" : String(format: "%+d", oct))", bundle: epBundle))
                                     .font(StudioTokens.fontValue)
                                     .fixedSize()
                             }
@@ -1913,7 +1914,7 @@ struct ContentView: View {
                                 Picker(L("MIDI Channel"), selection: layerBinding(layer, { Int($0.midiChannel) }, { $0.midiChannel = Int32($1) })) {
                                     Text(L("Global / Omni")).tag(0)
                                     ForEach(1...16, id: \.self) { ch in
-                                        Text(String(localized: "Channel \(ch)", bundle: .module)).tag(ch)
+                                        Text(String(localized: "Channel \(ch)", bundle: epBundle)).tag(ch)
                                     }
                                 }
                                 .labelsHidden()
@@ -1994,7 +1995,7 @@ struct ContentView: View {
                                 in: 1...127,
                                 step: 1
                             ) {
-                                Text(String(localized: "Value: \(lp.fixedVelocityValue)", bundle: .module))
+                                Text(String(localized: "Value: \(lp.fixedVelocityValue)", bundle: epBundle))
                                     .font(StudioTokens.fontValue)
                                     .foregroundStyle(lp.fixedVelocity ? StudioTokens.textPrimary : StudioTokens.textDisabled)
                                     .fixedSize()
@@ -2032,7 +2033,7 @@ struct ContentView: View {
             // Left Column: Mapping Manager (Parameter | CC | Channel | Scope | Remove + Clear All + Layer CCs)
             SectionCard(
                 title: L("MIDI Mappings"),
-                subtitle: String(localized: "\(mappings.count) active", bundle: .module),
+                subtitle: String(localized: "\(mappings.count) active", bundle: epBundle),
                 headerTrailing: {
                     HStack(spacing: 8) {
                         if let activeKey = vm.activeMidiLearnKey {
@@ -2040,7 +2041,7 @@ struct ContentView: View {
                                 Circle()
                                     .fill(StudioTokens.accent)
                                     .frame(width: 7, height: 7)
-                                Text(String(localized: "Waiting for CC for \(friendlyKnobName(activeKey))…", bundle: .module))
+                                Text(String(localized: "Waiting for CC for \(friendlyKnobName(activeKey))…", bundle: epBundle))
                                     .font(StudioTokens.fontLabel)
                                     .foregroundStyle(StudioTokens.textPrimary)
                                     .lineLimit(1)
@@ -2058,7 +2059,7 @@ struct ContentView: View {
                                     vm.startKnobMidiLearn(idKey: item.idKey)
                                 } label: {
                                     if let cc = vm.knobMidiMappings[item.idKey] {
-                                        Text(String(localized: "\(item.title) (CC \(cc))", bundle: .module))
+                                        Text(String(localized: "\(item.title) (CC \(cc))", bundle: epBundle))
                                     } else {
                                         Text(item.title)
                                     }
@@ -2138,7 +2139,7 @@ struct ContentView: View {
                                             .lineLimit(1)
                                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                                        Text(String(localized: "CC \(item.value)", bundle: .module))
+                                        Text(String(localized: "CC \(item.value)", bundle: epBundle))
                                             .font(StudioTokens.fontValue)
                                             .foregroundStyle(StudioTokens.textPrimary)
                                             .frame(width: 58, alignment: .leading)
@@ -2152,7 +2153,7 @@ struct ContentView: View {
                                         ) {
                                             Text(L("Omni")).tag(0)
                                             ForEach(1...16, id: \.self) { ch in
-                                                Text(String(localized: "Ch \(ch)", bundle: .module)).tag(ch)
+                                                Text(String(localized: "Ch \(ch)", bundle: epBundle)).tag(ch)
                                             }
                                         }
                                         .labelsHidden()
@@ -2182,7 +2183,7 @@ struct ContentView: View {
                                         .buttonStyle(.glass)
                                         .controlSize(.small)
                                         .frame(width: 52, alignment: .trailing)
-                                        .help(String(localized: "Remove mapping for \(friendlyKnobName(item.key))", bundle: .module))
+                                        .help(String(localized: "Remove mapping for \(friendlyKnobName(item.key))", bundle: epBundle))
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
@@ -2205,7 +2206,7 @@ struct ContentView: View {
                         Spacer()
                         Picker(L("Layer"), selection: $vm.selectedLayer) {
                             ForEach(0..<4, id: \.self) { idx in
-                                Text(String(localized: "Layer \(kLayerLetters[idx])", bundle: .module)).tag(idx)
+                                Text(String(localized: "Layer \(kLayerLetters[idx])", bundle: epBundle)).tag(idx)
                             }
                         }
                         .pickerStyle(.segmented)
@@ -2258,7 +2259,7 @@ struct ContentView: View {
             // Right Column: Live 30 Hz MIDI Monitor (last 100 messages: time, type, channel, data)
             SectionCard(
                 title: L("MIDI Monitor"),
-                subtitle: String(localized: "\(vm.midiMonitorMessages.count) / 100 events", bundle: .module),
+                subtitle: String(localized: "\(vm.midiMonitorMessages.count) / 100 events", bundle: epBundle),
                 headerTrailing: {
                     HStack(spacing: 8) {
                         Button {
@@ -2366,7 +2367,7 @@ struct ContentView: View {
 
             Picker(L("CC Number"), selection: $vm.debugManualCCNumber) {
                 ForEach(0..<128, id: \.self) { cc in
-                    Text(String(localized: "CC \(cc)", bundle: .module)).tag(cc)
+                    Text(String(localized: "CC \(cc)", bundle: epBundle)).tag(cc)
                 }
             }
 
@@ -2435,10 +2436,10 @@ struct ContentView: View {
                 Text(L("Off")).tag(-1)
                 Divider()
                 ForEach(commonCCs, id: \.self) { c in
-                    Text(String(localized: "CC \(c)", bundle: .module)).tag(c)
+                    Text(String(localized: "CC \(c)", bundle: epBundle)).tag(c)
                 }
                 if ccValue >= 0 && !commonCCs.contains(ccValue) {
-                    Text(String(localized: "CC \(ccValue)", bundle: .module)).tag(ccValue)
+                    Text(String(localized: "CC \(ccValue)", bundle: epBundle)).tag(ccValue)
                 }
             }
             .labelsHidden()
@@ -2645,7 +2646,7 @@ struct ContentView: View {
         return SectionCard(
             title: title,
             headerTrailing: {
-                Toggle(String(localized: "Enable \(title)", bundle: .module), isOn: Binding(
+                Toggle(String(localized: "Enable \(title)", bundle: epBundle), isOn: Binding(
                     get: { mod.wrappedValue.enabled },
                     set: { mod.wrappedValue.enabled = $0 }
                 ))
@@ -2976,14 +2977,14 @@ struct ContentView: View {
                     .fill(vm.midiSourceCount > 0 ? StudioTokens.meterGreen : StudioTokens.textDisabled)
                     .frame(width: 7, height: 7)
 
-                Text(String(localized: "MIDI: \(vm.midiSources)", bundle: .module))
+                Text(String(localized: "MIDI: \(vm.midiSources)", bundle: epBundle))
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: 240, alignment: .leading)
             }
-            .help(String(localized: "MIDI Controllers: \(vm.midiSources)", bundle: .module))
+            .help(String(localized: "MIDI Controllers: \(vm.midiSources)", bundle: epBundle))
 
             if let err = vm.errorMessage {
                 Divider().frame(height: 14)
@@ -3069,7 +3070,7 @@ struct ContentView: View {
                 Button {
                     vm.uiScale = 1.0
                 } label: {
-                    Text(String(localized: "Zoom: \(Int((vm.uiScale * 100).rounded()))%", bundle: .module))
+                    Text(String(localized: "Zoom: \(Int((vm.uiScale * 100).rounded()))%", bundle: epBundle))
                         .font(StudioTokens.fontLabel.monospacedDigit())
                         .foregroundStyle(StudioTokens.textPrimary)
                 }
@@ -3108,7 +3109,7 @@ private struct ToolbarMidiLearnMenu: View {
     let idKey: String
     let label: String
 
-    var body: some View {
+    public var body: some View {
         let isLearning = (vm.activeMidiLearnKey == idKey)
         let mappedCC = vm.knobMidiMappings[idKey]
 
@@ -3117,8 +3118,8 @@ private struct ToolbarMidiLearnMenu: View {
         } label: {
             Label(
                 isLearning
-                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: .module)
-                    : String(localized: "Learn MIDI CC for \(label)", bundle: .module),
+                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: epBundle)
+                    : String(localized: "Learn MIDI CC for \(label)", bundle: epBundle),
                 systemImage: isLearning ? "xmark.circle" : "antenna.radiowaves.left.and.right"
             )
         }
@@ -3127,7 +3128,7 @@ private struct ToolbarMidiLearnMenu: View {
             Button(role: .destructive) {
                 vm.unassignKnobCC(idKey: idKey)
             } label: {
-                Label(String(localized: "Remove MIDI CC \(cc)", bundle: .module), systemImage: "trash")
+                Label(String(localized: "Remove MIDI CC \(cc)", bundle: epBundle), systemImage: "trash")
             }
         }
     }
@@ -3137,7 +3138,7 @@ private struct ToolbarProgramGroup: View {
     @ObservedObject var vm: PianoViewModel
     let renamePopover: () -> AnyView
 
-    var body: some View {
+    public var body: some View {
         Picker(L("Program"), selection: Binding(
             get: { min(max(vm.selectedMemorySlot, 1), 4) },
             set: { slot in vm.recallMemory(slot: slot) }
@@ -3186,7 +3187,7 @@ private struct ToolbarTransposeGroup: View {
     @ObservedObject var vm: PianoViewModel
     let tuningPopover: () -> AnyView
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 4) {
             Button {
                 let cur = Int(vm.transposeSemitones.rounded())
@@ -3246,7 +3247,7 @@ private struct ToolbarTransposeGroup: View {
 private struct ToolbarMasterGroup: View {
     @ObservedObject var vm: PianoViewModel
 
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "speaker.wave.2.fill")
                 .font(.system(size: 12))
@@ -3280,7 +3281,7 @@ private struct ToolbarMasterGroup: View {
 private struct ToolbarPanicButton: View {
     @ObservedObject var vm: PianoViewModel
 
-    var body: some View {
+    public var body: some View {
         Button(role: .destructive) {
             vm.panic()
         } label: {
@@ -3300,7 +3301,7 @@ private struct ToolbarPeakMeterView: View {
     @ObservedObject var telemetry: AudioTelemetryModel
     var onResetClip: () -> Void
 
-    var body: some View {
+    public var body: some View {
         StereoPeakMeter(
             peakL: telemetry.peakL,
             peakR: telemetry.peakR,
@@ -3339,7 +3340,7 @@ private struct KeyboardShortcutsSheetView: View {
         ]),
     ]
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(L("Keyboard Shortcuts"))
@@ -3399,7 +3400,7 @@ private struct AboutElectroProSheetView: View {
         return "\(ver) (\(build))"
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 14) {
             Image(systemName: "pianokeys.inverse")
                 .font(.system(size: 44, weight: .regular))
@@ -3409,7 +3410,7 @@ private struct AboutElectroProSheetView: View {
                 .font(.title2.weight(.bold))
                 .foregroundStyle(StudioTokens.textPrimary)
 
-            Text(String(localized: "Version \(appVersion)", bundle: .module))
+            Text(String(localized: "Version \(appVersion)", bundle: epBundle))
                 .font(StudioTokens.fontLabel)
                 .foregroundStyle(StudioTokens.textSecondary)
 
@@ -3432,7 +3433,7 @@ private struct AboutElectroProSheetView: View {
                 GridRow {
                     Text(L("Polyphony Limit"))
                         .foregroundStyle(StudioTokens.textSecondary)
-                    Text(String(localized: "\(vm.maxVoices) voices (512 max)", bundle: .module))
+                    Text(String(localized: "\(vm.maxVoices) voices (512 max)", bundle: epBundle))
                         .foregroundStyle(StudioTokens.textPrimary)
                         .monospacedDigit()
                 }
@@ -3454,7 +3455,7 @@ private struct AboutElectroProSheetView: View {
 private struct AudioHealthPopoverView: View {
     @ObservedObject var vm: PianoViewModel
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L("Audio Engine"))
                 .font(.headline)
@@ -3524,7 +3525,7 @@ private struct StatusBarSustainButton: View {
     let vm: PianoViewModel
     @ObservedObject var telemetry: AudioTelemetryModel
 
-    var body: some View {
+    public var body: some View {
         Button {
             vm.setSustain(!telemetry.sustainDown)
         } label: {
@@ -3546,21 +3547,21 @@ private struct StatusBarVoicesMenu: View {
     @ObservedObject var vm: PianoViewModel
     @ObservedObject var telemetry: AudioTelemetryModel
 
-    var body: some View {
+    public var body: some View {
         Menu {
             ForEach([64, 128, 256, 512], id: \.self) { limit in
                 Button {
                     vm.maxVoices = limit
                 } label: {
                     if vm.maxVoices == limit {
-                        Label(String(localized: "Max Polyphony: \(limit) voices", bundle: .module), systemImage: "checkmark")
+                        Label(String(localized: "Max Polyphony: \(limit) voices", bundle: epBundle), systemImage: "checkmark")
                     } else {
-                        Text(String(localized: "Max Polyphony: \(limit) voices", bundle: .module))
+                        Text(String(localized: "Max Polyphony: \(limit) voices", bundle: epBundle))
                     }
                 }
             }
         } label: {
-            Text(String(localized: "Voices: \(String(format: "%3d", telemetry.activeVoices))/\(vm.maxVoices)", bundle: .module))
+            Text(String(localized: "Voices: \(String(format: "%3d", telemetry.activeVoices))/\(vm.maxVoices)", bundle: epBundle))
                 .font(StudioTokens.fontLabel.monospacedDigit())
                 .foregroundStyle(telemetry.activeVoices > 0 ? StudioTokens.textPrimary : StudioTokens.textSecondary)
                 .frame(width: 96, alignment: .trailing)
@@ -3590,7 +3591,7 @@ struct VirtualKeyboard61View: View {
         (startNote...endNote).filter { !isBlackKey($0) }
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 4) {
             // Zone strips for enabled layers (A, B, C, D)
             GeometryReader { geo in

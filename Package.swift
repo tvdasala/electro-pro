@@ -6,6 +6,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [.macOS(.v26)],
     products: [
+        .library(name: "ElectroProUI", type: .static, targets: ["ElectroProUI"]),
         .executable(name: "ElectroPiano", targets: ["ElectroPiano"]),
         .executable(name: "npno-cli", targets: ["npno-cli"]),
     ],
@@ -36,14 +37,20 @@ let package = Package(
             path: "Sources/npno-cli",
             cxxSettings: [.unsafeFlags(["-O3"])]
         ),
-        // Aplicativo SwiftUI (macOS 26.0 Tahoe).
-        .executableTarget(
-            name: "ElectroPiano",
+        // UI compartilhada (Standalone + AU + VST3) em SwiftUI (macOS 26.0 Tahoe).
+        .target(
+            name: "ElectroProUI",
             dependencies: ["NPNOBridge"],
-            path: "Sources/ElectroPiano",
+            path: "Sources/ElectroProUI",
             resources: [
                 .process("Resources")
             ]
+        ),
+        // Aplicativo Standalone SwiftUI (macOS 26.0 Tahoe).
+        .executableTarget(
+            name: "ElectroPiano",
+            dependencies: ["ElectroProUI"],
+            path: "Sources/ElectroPianoApp"
         ),
         .testTarget(
             name: "ElectroPianoTests",

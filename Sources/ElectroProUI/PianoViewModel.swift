@@ -325,16 +325,16 @@ enum LayerLoadError: Equatable {
     var message: String {
         switch self {
         case .corrupted(let fileName):
-            return String(localized: "Could not load \(fileName). The file may be corrupted or incomplete.", bundle: .module)
+            return String(localized: "Could not load \(fileName). The file may be corrupted or incomplete.", bundle: epBundle)
         case .unsupportedFormat:
             return L("Unsupported file format. Electro Pro supports .npno and .nsmp4 files.")
         case .insufficientRAM(let fileName, let neededMB, let availableMB):
             return String(
                 localized: "Not enough memory to load \(fileName) (\(neededMB) MB required, \(availableMB) MB available). Try enabling Purge on Demand in Settings > Library.",
-                bundle: .module
+                bundle: epBundle
             )
         case .missingFile(let fileName, _):
-            return String(localized: "Sound not found: \(fileName)", bundle: .module)
+            return String(localized: "Sound not found: \(fileName)", bundle: epBundle)
         }
     }
 }
@@ -345,7 +345,7 @@ struct LayerSlotState {
     var loadProgress: Float = 0.0
     var loadGeneration: Int = 0
     var loadError: LayerLoadError? = nil
-    var name: String = L("No Sound")
+    public var name: String = L("No Sound")
     var model: String = L("Load a .npno or .nsmp4 file")
     var path: String = ""
     var summary: String = ""
@@ -518,7 +518,7 @@ struct LayerMemoryPreset: Codable, Equatable, Sendable {
         p.releaseMs = releaseMs
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         path = try c.decodeIfPresent(String.self, forKey: .path) ?? ""
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
@@ -615,9 +615,9 @@ struct MidiMonitorMessage: Identifiable, Equatable, Sendable {
     let dataString: String
 }
 
-struct ProgramMemoryPreset: Codable, Equatable, Sendable {
+public struct ProgramMemoryPreset: Codable, Equatable, Sendable {
     var version: Int = 1
-    var name: String = "Init"
+    public var name: String = "Init"
     var hasData: Bool = false
     var layers: [LayerMemoryPreset] = [
         LayerMemoryPreset(enabled: true),
@@ -652,7 +652,7 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
         self.programMidiMappingMeta = programMidiMappingMeta
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Init"
@@ -674,7 +674,7 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
     }
 }
 
-enum WorkstationTab: Int, CaseIterable, Identifiable {
+public enum WorkstationTab: Int, CaseIterable, Identifiable, Sendable {
     // LAYER tabs
     case timbre = 0
     case keyboard = 1
@@ -686,12 +686,12 @@ enum WorkstationTab: Int, CaseIterable, Identifiable {
     case delay = 6
     case reverb = 7
 
-    var id: Int { rawValue }
+    public var id: Int { rawValue }
 
-    static let layerTabs: [WorkstationTab] = [.timbre, .keyboard]
-    static let masterTabs: [WorkstationTab] = [.midiCC, .eq, .drive, .mod, .delay, .reverb]
+    public static let layerTabs: [WorkstationTab] = [.timbre, .keyboard]
+    public static let masterTabs: [WorkstationTab] = [.midiCC, .eq, .drive, .mod, .delay, .reverb]
 
-    var title: String {
+    public var title: String {
         switch self {
         case .timbre: return L("Sound")
         case .keyboard: return L("Keyboard & Touch")
@@ -718,7 +718,7 @@ enum WorkstationTab: Int, CaseIterable, Identifiable {
     }
 
     /// Tabs that edit the selected layer (A/B/C/D).
-    var isPerLayer: Bool { self == .timbre || self == .keyboard }
+    public var isPerLayer: Bool { self == .timbre || self == .keyboard }
 }
 
 func midiNoteName(_ note: Int) -> String {
@@ -750,7 +750,8 @@ final class AudioTelemetryModel: ObservableObject {
 // MARK: - Main Nord Workstation ViewModel
 
 @MainActor
-final class PianoViewModel: ObservableObject {
+public final class PianoViewModel: ObservableObject {
+    public let isPluginHost: Bool
     nonisolated(unsafe) static weak var shared: PianoViewModel?
     nonisolated(unsafe) private var host: OpaquePointer?
     private var telemetryTimer: Timer?
@@ -764,7 +765,7 @@ final class PianoViewModel: ObservableObject {
     // Universal Knob & Control MIDI Mapping (Right-Click Context Menu, Non-Knob Controls & Mapping Manager)
     @Published var knobMidiMappings: [String: Int] = [:]
     @Published var midiMappingMeta: [String: MidiMappingMetadata] = [:]
-    @Published var activeMidiLearnKey: String? = nil
+    @Published public var activeMidiLearnKey: String? = nil
     private var knobSetters: [String: (Double) -> Void] = [:]
     private var knobRanges: [String: ClosedRange<Double>] = [:]
     private var knobSteps: [String: Double] = [:]
@@ -775,9 +776,9 @@ final class PianoViewModel: ObservableObject {
     @Published var midiMonitorPaused: Bool = false
     private var midiMonitorNextID: Int = 1
     private var telemetryTickCounter: Int = 0
-    @Published var showDebugManualCCSheet: Bool = false
-    @Published var showKeyboardShortcutsSheet: Bool = false
-    @Published var showAboutSheet: Bool = false
+    @Published public var showDebugManualCCSheet: Bool = false
+    @Published public var showKeyboardShortcutsSheet: Bool = false
+    @Published public var showAboutSheet: Bool = false
     @Published var debugManualCCNumber: Int = 1
     @Published var debugManualCCValue: Double = 64.0
 
@@ -992,7 +993,7 @@ final class PianoViewModel: ObservableObject {
     }
 
     // Selected tab and layer for detailed editing (0=A, 1=B, 2=C, 3=D)
-    @Published var selectedTab: WorkstationTab = {
+    @Published public var selectedTab: WorkstationTab = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_SelectedTab")
         return WorkstationTab(rawValue: saved) ?? .timbre
     }() {
@@ -1003,8 +1004,8 @@ final class PianoViewModel: ObservableObject {
             }
         }
     }
-    var lastLayerTab: WorkstationTab = .timbre
-    @Published var selectedLayer: Int = {
+    public var lastLayerTab: WorkstationTab = .timbre
+    @Published public var selectedLayer: Int = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_SelectedLayer")
         return (0..<4).contains(saved) ? saved : 0
     }() {
@@ -1017,7 +1018,7 @@ final class PianoViewModel: ObservableObject {
     @Published var showRenameProgramPopover: Bool = false
     @Published var renameProgramDraft: String = ""
     // 61-key virtual keyboard at the bottom, open by default
-    @Published var showVirtualKeyboard: Bool = {
+    @Published public var showVirtualKeyboard: Bool = {
         if UserDefaults.standard.object(forKey: "ElectroPiano_ShowVirtualKeyboard") == nil {
             return true
         }
@@ -1041,11 +1042,11 @@ final class PianoViewModel: ObservableObject {
     }
 
     // MARK: - 8 Program Slots, Undo/Redo, Modified Indicator & Export/Import (.epprog)
-    @Published var selectedMemorySlot: Int = {
+    @Published public var selectedMemorySlot: Int = {
         let saved = UserDefaults.standard.integer(forKey: "ElectroPiano_ActiveMemorySlot")
         return (saved >= 1 && saved <= 8) ? saved : 1
     }()
-    @Published var memorySlots: [ProgramMemoryPreset] = {
+    @Published public var memorySlots: [ProgramMemoryPreset] = {
         if let data = UserDefaults.standard.data(forKey: "ElectroPiano_Memories_JSON"),
            var decoded = try? JSONDecoder().decode([ProgramMemoryPreset].self, from: data),
            decoded.count == 8 {
@@ -1060,14 +1061,14 @@ final class PianoViewModel: ObservableObject {
     }()
     @Published var memoryStatusText: String = "M1: Init"
     @Published var storeConfirmationActive: Bool = false
-    @Published var isProgramEdited: Bool = false
+    @Published public var isProgramEdited: Bool = false
     @Published var undoStack: [ProgramMemoryPreset] = []
     @Published var redoStack: [ProgramMemoryPreset] = []
     private var dragUndoBaseline: ProgramMemoryPreset? = nil
     private var isApplyingSnapshot: Bool = false
 
-    var canUndo: Bool { !undoStack.isEmpty }
-    var canRedo: Bool { !redoStack.isEmpty }
+    public var canUndo: Bool { !undoStack.isEmpty }
+    public var canRedo: Bool { !redoStack.isEmpty }
 
     func beginParameterInteraction() {
         if dragUndoBaseline == nil {
@@ -1101,7 +1102,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    func performUndo() {
+    public func performUndo() {
         guard let prev = undoStack.popLast() else { return }
         let current = captureCurrentProgramSnapshot()
         redoStack.append(current)
@@ -1109,7 +1110,7 @@ final class PianoViewModel: ObservableObject {
         markProgramEditedAndAutosave()
     }
 
-    func performRedo() {
+    public func performRedo() {
         guard let next = redoStack.popLast() else { return }
         let current = captureCurrentProgramSnapshot()
         undoStack.append(current)
@@ -1302,10 +1303,10 @@ final class PianoViewModel: ObservableObject {
         return memorySlots[slot - 1].hasData
     }
 
-    func beginRenameCurrentProgram() {
+    public func beginRenameCurrentProgram() {
         let idx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
         let currentName = memorySlots[idx].name
-        renameProgramDraft = currentName.isEmpty ? String(localized: "Program \(selectedMemorySlot)", bundle: .module) : currentName
+        renameProgramDraft = currentName.isEmpty ? String(localized: "Program \(selectedMemorySlot)", bundle: epBundle) : currentName
         showRenameProgramPopover = true
     }
 
@@ -1322,7 +1323,7 @@ final class PianoViewModel: ObservableObject {
         showRenameProgramPopover = false
     }
 
-    func storeCurrentToMemory(slot: Int) {
+    public func storeCurrentToMemory(slot: Int) {
         guard (1...8).contains(slot) else { return }
         selectedMemorySlot = slot
         let existingName = memorySlots[slot - 1].hasData ? memorySlots[slot - 1].name : ""
@@ -1373,11 +1374,11 @@ final class PianoViewModel: ObservableObject {
         applyProgramSnapshot(p, loadSounds: true)
     }
 
-    func revertToSavedProgram() {
+    public func revertToSavedProgram() {
         recallMemory(slot: selectedMemorySlot)
     }
 
-    func copyCurrentProgram(toSlot targetSlot: Int) {
+    public func copyCurrentProgram(toSlot targetSlot: Int) {
         guard (1...8).contains(targetSlot) else { return }
         var p = captureCurrentProgramSnapshot()
         p.hasData = true
@@ -1390,7 +1391,7 @@ final class PianoViewModel: ObservableObject {
         persistMemories()
     }
 
-    func exportCurrentProgram() {
+    public func exportCurrentProgram() {
         let panel = NSSavePanel()
         panel.title = L("Export Program…")
         let slotIdx = min(max(selectedMemorySlot - 1, 0), memorySlots.count - 1)
@@ -1414,7 +1415,7 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    func importProgram() {
+    public func importProgram() {
         let panel = NSOpenPanel()
         panel.title = L("Import Program…")
         panel.allowsMultipleSelection = false
@@ -1473,8 +1474,8 @@ final class PianoViewModel: ObservableObject {
     }
     @Published var totalMemoryBytes: UInt64 = 0
     @Published var totalUnpurgedBytes: UInt64 = 0
-    @Published var midiLearnLayer: Int = -1
-    @Published var midiLearnSlot: Int = -1
+    @Published public var midiLearnLayer: Int = -1
+    @Published public var midiLearnSlot: Int = -1
     @Published var sustainDown: Bool = false
     @Published var peakL: Float = 0.0
     @Published var peakR: Float = 0.0
@@ -1709,7 +1710,7 @@ final class PianoViewModel: ObservableObject {
     @Published var hostActiveDeviceName: String = ""
     @Published var audioRouteChangeBanner: String? = nil
     @Published var showAudioHealthPopover: Bool = false
-    @Published var isRunningStressTest: Bool = false
+    @Published public var isRunningStressTest: Bool = false
     @Published var stressTestStatus: String? = nil
     private var lastRouteChangeSeq: UInt32 = 0
     private var routeBannerTask: Task<Void, Never>?
@@ -1838,13 +1839,20 @@ final class PianoViewModel: ObservableObject {
         4: 9, 32: 10, 38: 11, 40: 12, 31: 13, 37: 14, 35: 15, 41: 16, 39: 17
     ]
 
-    init() {
+    public init(pluginHost: OpaquePointer? = nil) {
+        self.isPluginHost = (pluginHost != nil)
         Self.shared = self
         restoreGlobalMidiMappings()
-        host = npno_host_create()
+        if let pluginHost {
+            host = pluginHost
+        } else {
+            host = npno_host_create()
+        }
         if let h = host {
-            _ = npno_host_set_buffer_size(h, Int32(bufferSize))
-            _ = npno_host_start_audio(h)
+            if !isPluginHost {
+                _ = npno_host_set_buffer_size(h, Int32(bufferSize))
+                _ = npno_host_start_audio(h)
+            }
             for l in 0..<4 {
                 var lp = NPNOLayerParams()
                 npno_host_get_layer_params(h, Int32(l), &lp)
@@ -1853,25 +1861,58 @@ final class PianoViewModel: ObservableObject {
             npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
             npno_host_set_midi_event_callback(h, kMidiEventBridgeCallback, nil)
         }
-        let wsCenter = NSWorkspace.shared.notificationCenter
-        sleepObserver = wsCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
-                self?.handleSystemWillSleep()
+        if !isPluginHost {
+            let wsCenter = NSWorkspace.shared.notificationCenter
+            sleepObserver = wsCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleSystemWillSleep()
+                }
             }
-        }
-        wakeObserver = wsCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
-                self?.handleSystemDidWake()
+            wakeObserver = wsCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleSystemDidWake()
+                }
             }
         }
         restoreSavedLibraryBookmarkIfNeeded()
-        if !firstRunCompleted && libraryFolderPath.isEmpty {
+        if !isPluginHost && !firstRunCompleted && libraryFolderPath.isEmpty {
             showFirstRunScreen = true
         }
         refreshAudioAndMidiDevices()
         startTelemetryTimer()
-        installKeyboardMonitors()
-        autoLoadDefaultBank()
+        if !isPluginHost {
+            installKeyboardMonitors()
+            autoLoadDefaultBank()
+        } else {
+            rescanLibraryFolder(autoLoadAfterScan: false)
+            syncFromPluginHost()
+        }
+    }
+
+    public func syncFromPluginHost() {
+        guard let h = host else { return }
+        for l in 0..<4 {
+            refreshLayerInfo(l)
+        }
+        masterGainDb = Double(npno_host_get_master_gain(h))
+        masterPan = Double(npno_host_get_master_pan(h))
+        fineTuneCents = Double(npno_host_get_fine_tune_cents(h))
+        baseTuningHz = Double(npno_host_get_base_tuning_hz(h))
+        maxVoices = Int(npno_host_get_max_voices(h))
+        transposeSemitones = Double(npno_host_get_transpose(h))
+        globalVelocityCurve = Double(npno_host_get_velocity_curve(h))
+        releaseNoisePercent = Double(npno_host_get_release_sample_gain(h) * 100.0)
+        releaseScalePercent = Double(npno_host_get_release_scale(h) * 100.0)
+        eqBassDb = Double(npno_host_get_eq_bass_db(h))
+        eqMidDb = Double(npno_host_get_eq_mid_db(h))
+        eqMidFreqHz = Double(npno_host_get_eq_mid_freq_hz(h))
+        eqTrebleDb = Double(npno_host_get_eq_treble_db(h))
+        driveEnabled = npno_host_get_drive_enabled(h)
+        driveAmountPercent = Double(npno_host_get_drive_amount(h) * 100.0)
+        npno_host_get_modulator_params(h, 0, &mod1)
+        npno_host_get_modulator_params(h, 1, &mod2)
+        npno_host_get_delay_params(h, &delay)
+        npno_host_get_reverb_params(h, &reverb)
     }
 
     deinit {
@@ -1909,7 +1950,7 @@ final class PianoViewModel: ObservableObject {
         underrunCount = 0
     }
 
-    func toggleStressTest() {
+    public func toggleStressTest() {
         if isRunningStressTest {
             stressTestTask?.cancel()
             stressTestTask = nil
@@ -1945,13 +1986,13 @@ final class PianoViewModel: ObservableObject {
                     try? await Task.sleep(nanoseconds: 30_000_000)
                 }
                 let elapsed = Int(Date().timeIntervalSince(start))
-                self.stressTestStatus = String(localized: "Stress test: \(elapsed)s / 60s · \(notesLaunched) notes · \(self.underrunCount) underruns", bundle: .module)
+                self.stressTestStatus = String(localized: "Stress test: \(elapsed)s / 60s · \(notesLaunched) notes · \(self.underrunCount) underruns", bundle: epBundle)
             }
             npno_host_sustain(h, false)
             npno_host_panic(h)
             let finalUnderruns = self.underrunCount
             self.isRunningStressTest = false
-            self.stressTestStatus = String(localized: "Stress test complete: \(notesLaunched) notes, \(finalUnderruns) underruns.", bundle: .module)
+            self.stressTestStatus = String(localized: "Stress test complete: \(notesLaunched) notes, \(finalUnderruns) underruns.", bundle: epBundle)
         }
     }
 
@@ -1997,7 +2038,7 @@ final class PianoViewModel: ObservableObject {
         delay = d
     }
 
-    func toggleMidiLearn(layer: Int, slot: Int) {
+    public func toggleMidiLearn(layer: Int, slot: Int) {
         guard let h = host else { return }
         if midiLearnLayer == layer && midiLearnSlot == slot {
             npno_host_cancel_midi_learn(h)
@@ -2006,19 +2047,19 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    func purgeUnusedMemory() {
+    public func purgeUnusedMemory() {
         guard let h = host else { return }
         _ = npno_host_purge_unused(h)
         for l in 0..<4 { refreshLayerInfo(l) }
     }
 
-    func reloadPurgedMemory() {
+    public func reloadPurgedMemory() {
         guard let h = host else { return }
         _ = npno_host_reload_purged(h)
         for l in 0..<4 { refreshLayerInfo(l) }
     }
 
-    func resetEq() {
+    public func resetEq() {
         eqBassDb = 0.0
         eqMidDb = 0.0
         eqMidFreqHz = 1000.0
@@ -2333,11 +2374,11 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    func openFilePicker(forLayer layer: Int) {
+    public func openFilePicker(forLayer layer: Int) {
         let panel = NSOpenPanel()
         let layerNames = ["A", "B", "C", "D"]
         let lName = (0..<4).contains(layer) ? layerNames[layer] : "A"
-        panel.title = String(localized: "Select .npno / .nsmp4 sound for Layer \(lName)", bundle: .module)
+        panel.title = String(localized: "Select .npno / .nsmp4 sound for Layer \(lName)", bundle: epBundle)
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -2581,7 +2622,7 @@ final class PianoViewModel: ObservableObject {
     // UI polling timer at ~60 Hz on MainActor (drains CCs and telemetry without creating Tasks per MIDI event)
     private func showAudioRouteBanner(deviceName: String) {
         routeBannerTask?.cancel()
-        audioRouteChangeBanner = String(localized: "Output changed to \(deviceName)", bundle: .module)
+        audioRouteChangeBanner = String(localized: "Output changed to \(deviceName)", bundle: epBundle)
         routeBannerTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             guard !Task.isCancelled else { return }
@@ -2683,7 +2724,7 @@ final class PianoViewModel: ObservableObject {
             if !rawEvents.isEmpty && !midiMonitorPaused {
                 for ev in rawEvents {
                     let timeStr = Self.formatMidiTimestamp(ev.timestamp)
-                    let chStr = String(localized: "Ch \(ev.channel)", bundle: .module)
+                    let chStr = String(localized: "Ch \(ev.channel)", bundle: epBundle)
                     let typeStr: String
                     let dataStr: String
 
@@ -2706,7 +2747,7 @@ final class PianoViewModel: ObservableObject {
                         typeStr = L("Program Change")
                         let pc = Int(ev.data1)
                         if (0...7).contains(pc) {
-                            dataStr = String(localized: "PC \(pc) → Program \(pc + 1)", bundle: .module)
+                            dataStr = String(localized: "PC \(pc) → Program \(pc + 1)", bundle: epBundle)
                         } else {
                             dataStr = "PC \(pc)"
                         }
@@ -2850,7 +2891,7 @@ final class PianoViewModel: ObservableObject {
         npno_host_sustain(h, down)
     }
 
-    func panic() {
+    public func panic() {
         demoTask?.cancel()
         isPlayingDemo = false
         guard let h = host else { return }
@@ -2985,10 +3026,11 @@ final class PianoViewModel: ObservableObject {
 
 // MARK: - Native Settings Scene (Cmd+,)
 
-struct ElectroProSettingsView: View {
+public struct ElectroProSettingsView: View {
     @ObservedObject var vm: PianoViewModel
+    public init(vm: PianoViewModel) { self.vm = vm }
 
-    var body: some View {
+    public var body: some View {
         TabView {
             Tab(L("Audio"), systemImage: "speaker.wave.3.fill") {
                 audioSettingsTab
@@ -3028,7 +3070,7 @@ struct ElectroProSettingsView: View {
                 }
 
                 LabeledContent(L("Sample Rate")) {
-                    Text(String(localized: "\(String(format: "%.1f", vm.sampleRate / 1000.0)) kHz • 32-bit Float Stereo", bundle: .module))
+                    Text(String(localized: "\(String(format: "%.1f", vm.sampleRate / 1000.0)) kHz • 32-bit Float Stereo", bundle: epBundle))
                         .font(StudioTokens.fontValue)
                         .foregroundStyle(StudioTokens.textSecondary)
                 }
@@ -3088,7 +3130,7 @@ struct ElectroProSettingsView: View {
                     Text(L("Omni (All Channels 1–16)")).tag(0)
                     Divider()
                     ForEach(1...16, id: \.self) { ch in
-                        Text(String(localized: "Channel \(ch)", bundle: .module)).tag(ch)
+                        Text(String(localized: "Channel \(ch)", bundle: epBundle)).tag(ch)
                     }
                 }
 
@@ -3151,14 +3193,14 @@ struct ElectroProSettingsView: View {
                 Toggle(L("Enable Mac Keyboard Input"), isOn: $vm.computerKeyboardEnabled)
 
                 Stepper(
-                    String(localized: "Base Octave: C\(vm.computerBaseOctave)", bundle: .module),
+                    String(localized: "Base Octave: C\(vm.computerBaseOctave)", bundle: epBundle),
                     value: $vm.computerBaseOctave,
                     in: 1...6
                 )
                 .disabled(!vm.computerKeyboardEnabled)
 
                 Stepper(
-                    String(localized: "Velocity: \(vm.computerVelocity)", bundle: .module),
+                    String(localized: "Velocity: \(vm.computerVelocity)", bundle: epBundle),
                     value: $vm.computerVelocity,
                     in: 16...127,
                     step: 8
@@ -3218,11 +3260,11 @@ struct ElectroProSettingsView: View {
 
                 LabeledContent(L("Sounds Found")) {
                     if vm.isScanningLibrary {
-                        Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: .module))
+                        Text(String(localized: "Scanning… \(vm.scannedFileCount) files", bundle: epBundle))
                             .font(StudioTokens.fontValue)
                             .foregroundStyle(StudioTokens.textSecondary)
                     } else {
-                        Text(String(localized: "\(vm.embeddedBanks.count) sounds • \(vm.formatBytes(vm.totalLibraryDiskBytes))", bundle: .module))
+                        Text(String(localized: "\(vm.embeddedBanks.count) sounds • \(vm.formatBytes(vm.totalLibraryDiskBytes))", bundle: epBundle))
                             .font(StudioTokens.fontValue)
                             .foregroundStyle(StudioTokens.textSecondary)
                     }
@@ -3296,207 +3338,3 @@ struct ElectroProSettingsView: View {
 
 // MARK: - App Entry Point (macOS 26 Tahoe)
 
-@main
-struct ElectroPianoApp: App {
-    @StateObject private var viewModel = PianoViewModel()
-
-    init() {
-        NSApplication.shared.setActivationPolicy(.regular)
-        NSApplication.shared.activate(ignoringOtherApps: true)
-    }
-
-    var body: some Scene {
-        WindowGroup(L("Electro Pro")) {
-            ContentView(vm: viewModel)
-        }
-        .defaultSize(width: 1200, height: 760)
-        .windowResizability(.contentMinSize)
-        .commands {
-            // File Menu
-            CommandGroup(replacing: .newItem) {
-                Button(L("Load Sound into Selected Layer…")) {
-                    viewModel.openFilePicker(forLayer: viewModel.selectedLayer)
-                }
-                .keyboardShortcut("o", modifiers: [.command])
-
-                Button(L("Load Sound into Layer A…")) {
-                    viewModel.openFilePicker(forLayer: 0)
-                }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
-
-                Button(L("Load Sound into Layer B…")) {
-                    viewModel.openFilePicker(forLayer: 1)
-                }
-                .keyboardShortcut("b", modifiers: [.command, .shift])
-
-                Button(L("Load Sound into Layer C…")) {
-                    viewModel.openFilePicker(forLayer: 2)
-                }
-                .keyboardShortcut("c", modifiers: [.command, .shift])
-
-                Button(L("Load Sound into Layer D…")) {
-                    viewModel.openFilePicker(forLayer: 3)
-                }
-                .keyboardShortcut("d", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(String(localized: "Save to Current Program (M\(viewModel.selectedMemorySlot))", bundle: .module)) {
-                    viewModel.storeCurrentToMemory(slot: viewModel.selectedMemorySlot)
-                }
-                .keyboardShortcut("s", modifiers: [.command])
-
-                Button(L("Revert to Saved")) {
-                    viewModel.revertToSavedProgram()
-                }
-                .disabled(!viewModel.isProgramEdited)
-
-                Button(L("Rename Program…")) {
-                    viewModel.beginRenameCurrentProgram()
-                }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-
-                Menu(L("Copy Program To…")) {
-                    ForEach(1...4, id: \.self) { slot in
-                        let slotName = viewModel.memorySlots[slot - 1].name
-                        Button(String(localized: "Program \(slot) — \(slotName)", bundle: .module)) {
-                            viewModel.copyCurrentProgram(toSlot: slot)
-                        }
-                        .disabled(slot == viewModel.selectedMemorySlot)
-                    }
-                }
-
-                Divider()
-
-                Button(L("Export Program…")) {
-                    viewModel.exportCurrentProgram()
-                }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-
-                Button(L("Import Program…")) {
-                    viewModel.importProgram()
-                }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-
-                Divider()
-
-                Button(L("Purge Unused Samples from RAM")) {
-                    viewModel.purgeUnusedMemory()
-                }
-                .keyboardShortcut("p", modifiers: [.command, .shift])
-
-                Button(L("Reload Purged Samples")) {
-                    viewModel.reloadPurgedMemory()
-                }
-            }
-
-            // Edit Menu (Undo / Redo + Reset + Panic)
-            CommandGroup(replacing: .undoRedo) {
-                Button(L("Undo")) {
-                    viewModel.performUndo()
-                }
-                .keyboardShortcut("z", modifiers: [.command])
-                .disabled(!viewModel.canUndo)
-
-                Button(L("Redo")) {
-                    viewModel.performRedo()
-                }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!viewModel.canRedo)
-            }
-
-            CommandGroup(after: .pasteboard) {
-                Divider()
-                Button(L("Reset Equalizer (Flat 0 dB)")) {
-                    viewModel.resetEq()
-                }
-                if viewModel.activeMidiLearnKey != nil || viewModel.midiLearnLayer >= 0 {
-                    Button(L("Cancel MIDI Learn")) {
-                        viewModel.activeMidiLearnKey = nil
-                        viewModel.toggleMidiLearn(layer: viewModel.midiLearnLayer, slot: viewModel.midiLearnSlot)
-                    }
-                    .keyboardShortcut(.escape, modifiers: [])
-                }
-                Button(L("Panic — All Notes Off")) {
-                    viewModel.panic()
-                }
-                .keyboardShortcut(".", modifiers: [.command])
-            }
-
-            // View Menu (Tabs, Layers, On-Screen Keyboard, and Zoom on Cmd +/−)
-            CommandGroup(after: .toolbar) {
-                Button(viewModel.showVirtualKeyboard ? L("Hide On-Screen Keyboard (61 Keys)") : L("Show On-Screen Keyboard (61 Keys)")) {
-                    viewModel.showVirtualKeyboard.toggle()
-                }
-                .keyboardShortcut("k", modifiers: [.command])
-
-                Divider()
-
-                ForEach(WorkstationTab.allCases) { tab in
-                    Button(String(localized: "Tab: \(tab.title)", bundle: .module)) {
-                        viewModel.selectedTab = tab
-                    }
-                    .keyboardShortcut(KeyEquivalent(Character("\(tab.rawValue + 1)")), modifiers: [.command])
-                }
-
-                Divider()
-
-                ForEach(0..<4, id: \.self) { layer in
-                    Button(String(localized: "Select Layer \(kLayerLetters[layer])", bundle: .module)) {
-                        viewModel.selectedLayer = layer
-                        if !viewModel.selectedTab.isPerLayer {
-                            viewModel.selectedTab = viewModel.lastLayerTab
-                        }
-                    }
-                    .keyboardShortcut(KeyEquivalent(Character("\(layer + 1)")), modifiers: [.option])
-                }
-
-                Divider()
-
-                Button(L("Zoom In")) {
-                    viewModel.zoomIn()
-                }
-                .keyboardShortcut("=", modifiers: [.command])
-
-                Button(L("Zoom Out")) {
-                    viewModel.zoomOut()
-                }
-                .keyboardShortcut("-", modifiers: [.command])
-
-                Button(L("Actual Size (100%)")) {
-                    viewModel.zoomToFitScreen()
-                }
-                .keyboardShortcut("0", modifiers: [.command])
-            }
-
-            CommandGroup(replacing: .appInfo) {
-                Button(L("About Electro Pro")) {
-                    viewModel.showAboutSheet = true
-                }
-            }
-
-            CommandGroup(replacing: .help) {
-                Button(L("Keyboard Shortcuts…")) {
-                    viewModel.showKeyboardShortcutsSheet = true
-                }
-                .keyboardShortcut("/", modifiers: [.command])
-            }
-
-            #if DEBUG
-            CommandMenu(L("Debug")) {
-                Button(L("Manual CC Sender…")) {
-                    viewModel.showDebugManualCCSheet = true
-                }
-                Button(viewModel.isRunningStressTest ? L("Stop Stress Test") : L("Stress Test (60s)…")) {
-                    viewModel.toggleStressTest()
-                }
-            }
-            #endif
-        }
-
-        // Native Settings Window (Cmd+,)
-        Settings {
-            ElectroProSettingsView(vm: viewModel)
-        }
-    }
-}

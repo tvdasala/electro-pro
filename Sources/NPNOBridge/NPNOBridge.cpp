@@ -48,7 +48,19 @@ std::vector<std::string> scanNpnoFilesInDir(const std::string& fileOrDirPath) {
 }  // namespace
 
 struct NPNOHost {
-    npno::Engine engine;
+    std::unique_ptr<npno::Engine> ownedEngine;
+    npno::Engine* enginePtr = nullptr;
+    bool isPlugin = false;
+    NPNOPluginCallbacks pluginCallbacks{};
+
+    npno::Engine& eng() noexcept { return *enginePtr; }
+    const npno::Engine& eng() const noexcept { return *enginePtr; }
+    void notifyPluginState() {
+        if (isPlugin && pluginCallbacks.notifyStateChanged) {
+            pluginCallbacks.notifyStateChanged(pluginCallbacks.pluginCtx);
+        }
+    }
+
     std::array<std::shared_ptr<npno::Instrument>, npno::Engine::kNumLayers> layerInstruments;
     std::array<std::vector<std::string>, npno::Engine::kNumLayers> layerBankFiles;
     std::array<int, npno::Engine::kNumLayers> layerBankIndex{-1, -1, -1, -1};
@@ -125,11 +137,11 @@ struct NPNOHost {
         if (ioData->mNumberBuffers >= 2 && ioData->mBuffers[0].mData && ioData->mBuffers[1].mData) {
             auto* outL = static_cast<float*>(ioData->mBuffers[0].mData);
             auto* outR = static_cast<float*>(ioData->mBuffers[1].mData);
-            self->engine.render(outL, outR, frames);
+            self->eng().render(outL, outR, frames);
         } else if (ioData->mBuffers[0].mData) {
             float* L = self->scratchL.data();
             float* R = self->scratchR.data();
-            self->engine.render(L, R, frames);
+            self->eng().render(L, R, frames);
             const UInt32 ch = ioData->mBuffers[0].mNumberChannels;
             auto* dst = static_cast<float*>(ioData->mBuffers[0].mData);
             if (ch >= 2) {
@@ -393,7 +405,7 @@ struct NPNOHost {
             }
         }
         sampleRate = hwRate;
-        engine.prepare(hwRate);
+        eng().prepare(hwRate);
 
         AudioStreamBasicDescription asbd{};
         asbd.mSampleRate = hwRate;
@@ -456,9 +468,9 @@ struct NPNOHost {
     /// Espera até `cycles` callbacks de render completos (ou timeout). Sem efeito se o áudio estiver parado.
     void waitForRenderCycles(int cycles) {
         if (!audioRunning.load()) return;
-        const uint64_t start = engine.renderCount();
+        const uint64_t start = eng().renderCount();
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(400);
-        while (engine.renderCount() < start + uint64_t(cycles) && std::chrono::steady_clock::now() < deadline) {
+        while (eng().renderCount() < start + uint64_t(cycles) && std::chrono::steady_clock::now() < deadline) {
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
     }
@@ -467,7 +479,7 @@ struct NPNOHost {
     void collectRetiredLocked(bool force = false) {
         if (retiredInstruments.empty()) return;
         const auto now = std::chrono::steady_clock::now();
-        const uint64_t rc = engine.renderCount();
+        const uint64_t rc = eng().renderCount();
         const bool running = audioRunning.load();
         std::vector<std::shared_ptr<npno::Instrument>> toFree;
         for (auto it = retiredInstruments.begin(); it != retiredInstruments.end();) {
@@ -487,11 +499,11 @@ struct NPNOHost {
 
     /// Solta todas as notas e pedais suavemente (usado quando um controlador MIDI é desconectado).
     void releaseAllNotes() {
-        engine.pushEvent(npno::Engine::EventType::ControlChange, 64, 0.0f, 0);
-        engine.pushEvent(npno::Engine::EventType::ControlChange, 66, 0.0f, 0);
-        engine.pushEvent(npno::Engine::EventType::Sustain, 0, 0.0f, 0);
+        eng().pushEvent(npno::Engine::EventType::ControlChange, 64, 0.0f, 0);
+        eng().pushEvent(npno::Engine::EventType::ControlChange, 66, 0.0f, 0);
+        eng().pushEvent(npno::Engine::EventType::Sustain, 0, 0.0f, 0);
         for (int n = 0; n < 128; ++n) {
-            engine.pushEvent(npno::Engine::EventType::NoteOff, n, 0.0f, 0);
+            eng().pushEvent(npno::Engine::EventType::NoteOff, n, 0.0f, 0);
         }
     }
 
@@ -550,24 +562,24 @@ struct NPNOHost {
 
                     if (type == 0x90) {
                         if (d2 > 0)
-                            self->engine.pushEvent(npno::Engine::EventType::NoteOn, d1, float(d2) / 127.0f, msgChan);
+                            self->eng().pushEvent(npno::Engine::EventType::NoteOn, d1, float(d2) / 127.0f, msgChan);
                         else
-                            self->engine.pushEvent(npno::Engine::EventType::NoteOff, d1, 0.0f, msgChan);
+                            self->eng().pushEvent(npno::Engine::EventType::NoteOff, d1, 0.0f, msgChan);
                     } else if (type == 0x80) {
-                        self->engine.pushEvent(npno::Engine::EventType::NoteOff, d1, 0.0f, msgChan);
+                        self->eng().pushEvent(npno::Engine::EventType::NoteOff, d1, 0.0f, msgChan);
                     } else if (type == 0xB0) {
                         if (self->midiCcCallback) {
                             self->midiCcCallback(d1, d2, msgChan, self->midiCcContext);
                         }
                         if (d1 == 120 || d1 == 123) {
-                            self->engine.pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, msgChan);
+                            self->eng().pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, msgChan);
                         } else {
-                            self->engine.pushEvent(npno::Engine::EventType::ControlChange, d1, float(d2), msgChan);
+                            self->eng().pushEvent(npno::Engine::EventType::ControlChange, d1, float(d2), msgChan);
                         }
                     } else if (type == 0xE0) {
                         const int bend = (int(d2) << 7) | int(d1);
                         const float norm = float(bend - 8192) / 8192.0f;
-                        self->engine.pushEvent(npno::Engine::EventType::PitchBend, 0, norm, msgChan);
+                        self->eng().pushEvent(npno::Engine::EventType::PitchBend, 0, norm, msgChan);
                     }
                 }
             }
@@ -740,6 +752,8 @@ extern "C" {
 
 NPNOHost* npno_host_create(void) {
     auto* host = new NPNOHost();
+    host->ownedEngine = std::make_unique<npno::Engine>();
+    host->enginePtr = host->ownedEngine.get();
     host->scratchL.resize(8192, 0.0f);
     host->scratchR.resize(8192, 0.0f);
     host->routeQueue = dispatch_queue_create("com.electropro.audio-route", DISPATCH_QUEUE_SERIAL);
@@ -749,8 +763,26 @@ NPNOHost* npno_host_create(void) {
     return host;
 }
 
+NPNOHost* npno_host_create_plugin(const NPNOPluginCallbacks* callbacks) {
+    if (!callbacks || !callbacks->enginePtr) return nullptr;
+    auto* host = new NPNOHost();
+    host->isPlugin = true;
+    host->pluginCallbacks = *callbacks;
+    host->enginePtr = static_cast<npno::Engine*>(callbacks->enginePtr);
+    host->audioRunning.store(true);
+    return host;
+}
+
+bool npno_host_is_plugin(NPNOHost* host) {
+    return host ? host->isPlugin : false;
+}
+
 void npno_host_destroy(NPNOHost* host) {
     if (!host) return;
+    if (host->isPlugin) {
+        delete host;
+        return;
+    }
     host->shuttingDown.store(true, std::memory_order_release);
     host->unregisterSystemListeners();
     // Aguarda qualquer verificação de rota agendada terminar antes de destruir o host.
@@ -774,20 +806,21 @@ void npno_host_destroy(NPNOHost* host) {
 
 bool npno_host_start_audio(NPNOHost* host) {
     if (!host) return false;
+    if (host->isPlugin) return true;
     std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
     host->wantAudio = true;
     return host->startAudioLocked();
 }
 
 void npno_host_stop_audio(NPNOHost* host) {
-    if (!host) return;
+    if (!host || host->isPlugin) return;
     std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
     host->wantAudio = false;
     host->stopAudioLocked();
 }
 
 void npno_host_reset_clip_indicator(NPNOHost* host) {
-    if (host) host->engine.resetClipIndicator();
+    if (host) host->eng().resetClipIndicator();
 }
 
 bool npno_host_set_buffer_size(NPNOHost* host, int32_t buffer_size) {
@@ -813,6 +846,13 @@ bool npno_host_load_layer_instrument(NPNOHost* host, int32_t layer, const char* 
                                      void (*progress_cb)(float progress, void* ctx), void* ctx,
                                      char* err_buf, int32_t err_buf_len) {
     if (!host || !path || layer < 0 || layer >= npno::Engine::kNumLayers) return false;
+    if (host->isPlugin) {
+        if (!host->pluginCallbacks.loadLayerInstrument) return false;
+        if (progress_cb) progress_cb(0.15f, ctx);
+        bool ok = host->pluginCallbacks.loadLayerInstrument(host->pluginCallbacks.pluginCtx, layer, path, err_buf, err_buf_len);
+        if (progress_cb) progress_cb(1.0f, ctx);
+        return ok;
+    }
     try {
         // Verifica se outra camada já possui exatamente o mesmo arquivo carregado para economizar RAM,
         // ou carrega um novo Instrument.
@@ -834,13 +874,13 @@ bool npno_host_load_layer_instrument(NPNOHost* host, int32_t layer, const char* 
         }
 
         std::lock_guard<std::mutex> lock(host->instMutex);
-        host->engine.setLayerInstrument(layer, inst.get());
-        auto lp = host->engine.layerParams(layer);
+        host->eng().setLayerInstrument(layer, inst.get());
+        auto lp = host->eng().layerParams(layer);
         lp.enabled = true;
-        host->engine.setLayerParams(layer, lp);
+        host->eng().setLayerParams(layer, lp);
         if (host->layerInstruments[layer]) {
             host->retiredInstruments.push_back(
-                {std::move(host->layerInstruments[layer]), host->engine.renderCount(), std::chrono::steady_clock::now()});
+                {std::move(host->layerInstruments[layer]), host->eng().renderCount(), std::chrono::steady_clock::now()});
         }
         host->layerInstruments[layer] = std::move(inst);
         host->layerBankFiles[layer] = std::move(bankFiles);
@@ -865,6 +905,13 @@ bool npno_host_step_layer_instrument(NPNOHost* host, int32_t layer, int32_t delt
                                      void (*progress_cb)(float progress, void* ctx), void* ctx,
                                      char* err_buf, int32_t err_buf_len) {
     if (!host || layer < 0 || layer >= npno::Engine::kNumLayers) return false;
+    if (host->isPlugin) {
+        if (!host->pluginCallbacks.stepLayerInstrument) return false;
+        if (progress_cb) progress_cb(0.2f, ctx);
+        bool ok = host->pluginCallbacks.stepLayerInstrument(host->pluginCallbacks.pluginCtx, layer, delta);
+        if (progress_cb) progress_cb(1.0f, ctx);
+        return ok;
+    }
     std::string targetPath;
     {
         std::lock_guard<std::mutex> lock(host->instMutex);
@@ -887,6 +934,12 @@ void npno_host_get_layer_instrument_info(NPNOHost* host, int32_t layer, NPNOInst
     if (!out_info) return;
     std::memset(out_info, 0, sizeof(*out_info));
     if (!host || layer < 0 || layer >= npno::Engine::kNumLayers) return;
+    if (host->isPlugin) {
+        if (host->pluginCallbacks.getLayerInstrumentInfo) {
+            host->pluginCallbacks.getLayerInstrumentInfo(host->pluginCallbacks.pluginCtx, layer, out_info);
+        }
+        return;
+    }
 
     std::lock_guard<std::mutex> lock(host->instMutex);
     const npno::Instrument* inst = host->layerInstruments[layer].get();
@@ -929,7 +982,7 @@ void npno_host_get_layer_params(NPNOHost* host, int32_t layer, NPNOLayerParams* 
     std::memset(out_params, 0, sizeof(*out_params));
     if (!host || layer < 0 || layer >= npno::Engine::kNumLayers) return;
 
-    const npno::LayerParams lp = host->engine.layerParams(layer);
+    const npno::LayerParams lp = host->eng().layerParams(layer);
     out_params->enabled = lp.enabled;
     out_params->volume = lp.volume;
     out_params->filter = lp.filter;
@@ -1003,15 +1056,15 @@ void npno_host_set_layer_params(NPNOHost* host, int32_t layer, const NPNOLayerPa
     lp.originalEnvelope = params->originalEnvelope;
     lp.attackMs = params->attackMs;
     lp.releaseMs = params->releaseMs;
-    host->engine.setLayerParams(layer, lp);
+    host->eng().setLayerParams(layer, lp);
 }
 
 void npno_host_start_midi_learn(NPNOHost* host, int32_t layer, int32_t slot) {
-    if (host) host->engine.startMidiLearn(layer, slot);
+    if (host) host->eng().startMidiLearn(layer, slot);
 }
 
 void npno_host_cancel_midi_learn(NPNOHost* host) {
-    if (host) host->engine.cancelMidiLearn();
+    if (host) host->eng().cancelMidiLearn();
 }
 
 namespace {
@@ -1020,15 +1073,15 @@ namespace {
 std::array<const npno::Instrument*, npno::Engine::kNumLayers> detachInstrumentsForMaintenance(NPNOHost* host) {
     std::array<const npno::Instrument*, npno::Engine::kNumLayers> saved{};
     for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
-        host->engine.pushEvent(npno::Engine::EventType::KillLayer, l, 0.0f, 0);
+        host->eng().pushEvent(npno::Engine::EventType::KillLayer, l, 0.0f, 0);
     }
     if (host->audioRunning.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(12)); // rampa de 6 ms + margem
         host->waitForRenderCycles(2);
     }
     for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
-        saved[size_t(l)] = host->engine.layerInstrument(l);
-        host->engine.setLayerInstrumentPointer(l, nullptr);
+        saved[size_t(l)] = host->eng().layerInstrument(l);
+        host->eng().setLayerInstrumentPointer(l, nullptr);
     }
     host->waitForRenderCycles(2);
     return saved;
@@ -1036,13 +1089,16 @@ std::array<const npno::Instrument*, npno::Engine::kNumLayers> detachInstrumentsF
 
 void reattachInstruments(NPNOHost* host, const std::array<const npno::Instrument*, npno::Engine::kNumLayers>& saved) {
     for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
-        host->engine.setLayerInstrumentPointer(l, saved[size_t(l)]);
+        host->eng().setLayerInstrumentPointer(l, saved[size_t(l)]);
     }
 }
 }  // namespace
 
 uint64_t npno_host_purge_unused(NPNOHost* host) {
     if (!host) return 0;
+    if (host->isPlugin) {
+        return host->pluginCallbacks.purgeUnused ? host->pluginCallbacks.purgeUnused(host->pluginCallbacks.pluginCtx) : 0;
+    }
     std::lock_guard<std::mutex> lock(host->instMutex);
     const auto saved = detachInstrumentsForMaintenance(host);
     uint64_t freed = 0;
@@ -1057,6 +1113,9 @@ uint64_t npno_host_purge_unused(NPNOHost* host) {
 
 bool npno_host_reload_purged(NPNOHost* host) {
     if (!host) return false;
+    if (host->isPlugin) {
+        return host->pluginCallbacks.reloadPurged ? host->pluginCallbacks.reloadPurged(host->pluginCallbacks.pluginCtx) : false;
+    }
     std::lock_guard<std::mutex> lock(host->instMutex);
     const auto saved = detachInstrumentsForMaintenance(host);
     bool ok = true;
@@ -1074,33 +1133,44 @@ void npno_host_get_telemetry(NPNOHost* host, NPNOTelemetry* out_telemetry) {
     std::memset(out_telemetry, 0, sizeof(*out_telemetry));
     if (!host) return;
 
-    out_telemetry->activeVoices = host->engine.activeVoices();
-    out_telemetry->maxVoices = host->engine.maxVoices();
+    out_telemetry->activeVoices = host->eng().activeVoices();
+    out_telemetry->maxVoices = host->eng().maxVoices();
     for (int l = 0; l < 4; ++l) {
-        out_telemetry->layerActiveVoices[l] = host->engine.layerActiveVoices(l);
+        out_telemetry->layerActiveVoices[l] = host->eng().layerActiveVoices(l);
     }
-    out_telemetry->midiLearnLayer = host->engine.midiLearnLayer();
-    out_telemetry->midiLearnSlot = host->engine.midiLearnSlot();
-    out_telemetry->sustainDown = host->engine.isSustainDown();
-    out_telemetry->peakL = host->engine.peakLeft();
-    out_telemetry->peakR = host->engine.peakRight();
-    host->engine.decayPeaks(0.84f);
-    out_telemetry->sampleRate = host->sampleRate;
+    out_telemetry->midiLearnLayer = host->eng().midiLearnLayer();
+    out_telemetry->midiLearnSlot = host->eng().midiLearnSlot();
+    out_telemetry->sustainDown = host->eng().isSustainDown();
+    out_telemetry->peakL = host->eng().peakLeft();
+    out_telemetry->peakR = host->eng().peakRight();
+    host->eng().decayPeaks(0.84f);
+    if (host->isPlugin && host->pluginCallbacks.getSampleRate) {
+        out_telemetry->sampleRate = host->pluginCallbacks.getSampleRate(host->pluginCallbacks.pluginCtx);
+    } else {
+        out_telemetry->sampleRate = host->sampleRate;
+    }
 
-    out_telemetry->clipped = host->engine.isClipped();
+    out_telemetry->clipped = host->eng().isClipped();
     out_telemetry->callbackCpuPercent = host->cpuEma.load(std::memory_order_relaxed);
     out_telemetry->underrunCount = host->underrunCount.load(std::memory_order_relaxed);
     out_telemetry->bufferSize = host->currentBufferSize.load(std::memory_order_relaxed);
     out_telemetry->estimatedLatencyMs = host->estimatedLatencyMs.load(std::memory_order_relaxed);
     out_telemetry->audioRouteChangeSeq = host->routeChangeSeq.load(std::memory_order_relaxed);
     out_telemetry->audioRunning = host->audioRunning.load();
-    {
+    if (host->isPlugin) {
+        std::snprintf(out_telemetry->activeAudioDeviceName, sizeof(out_telemetry->activeAudioDeviceName), "DAW Host");
+    } else {
         std::lock_guard<std::mutex> nameLock(host->deviceNameMutex);
         std::snprintf(out_telemetry->activeAudioDeviceName, sizeof(out_telemetry->activeAudioDeviceName), "%s",
                       host->activeDeviceName.c_str());
     }
 
-    {
+    if (host->isPlugin) {
+        out_telemetry->totalMemoryBytes = host->pluginCallbacks.getTotalMemoryBytes
+            ? host->pluginCallbacks.getTotalMemoryBytes(host->pluginCallbacks.pluginCtx) : 0;
+        out_telemetry->totalUnpurgedBytes = host->pluginCallbacks.getTotalUnpurgedBytes
+            ? host->pluginCallbacks.getTotalUnpurgedBytes(host->pluginCallbacks.pluginCtx) : 0;
+    } else {
         std::lock_guard<std::mutex> lock(host->instMutex);
         host->collectRetiredLocked();
         uint64_t memBytes = 0, unpurgedBytes = 0;
@@ -1121,163 +1191,163 @@ void npno_host_get_telemetry(NPNOHost* host, NPNOTelemetry* out_telemetry) {
                       host->midiSourcesSummary.c_str());
     }
     for (int n = 0; n < 128; ++n) {
-        out_telemetry->keyVelocities[n] = host->engine.keyVelocity(n);
+        out_telemetry->keyVelocities[n] = host->eng().keyVelocity(n);
     }
 }
 
 void npno_host_note_on(NPNOHost* host, int32_t note, float velocity) {
     if (!host) return;
-    host->engine.pushEvent(npno::Engine::EventType::NoteOn, note, velocity, 0);
+    host->eng().pushEvent(npno::Engine::EventType::NoteOn, note, velocity, 0);
 }
 
 void npno_host_note_off(NPNOHost* host, int32_t note) {
     if (!host) return;
-    host->engine.pushEvent(npno::Engine::EventType::NoteOff, note, 0.0f, 0);
+    host->eng().pushEvent(npno::Engine::EventType::NoteOff, note, 0.0f, 0);
 }
 
 void npno_host_sustain(NPNOHost* host, bool down) {
     if (!host) return;
-    host->engine.pushEvent(npno::Engine::EventType::Sustain, 0, down ? 1.0f : 0.0f, 0);
+    host->eng().pushEvent(npno::Engine::EventType::Sustain, 0, down ? 1.0f : 0.0f, 0);
 }
 
 void npno_host_panic(NPNOHost* host) {
     if (!host) return;
-    host->engine.pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, 0);
+    host->eng().pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, 0);
 }
 
 void npno_host_set_master_gain(NPNOHost* host, float gain) {
-    if (host) host->engine.setMasterGain(gain);
+    if (host) host->eng().setMasterGain(gain);
 }
 
 float npno_host_get_master_gain(NPNOHost* host) {
-    return host ? host->engine.masterGain() : 1.0f;
+    return host ? host->eng().masterGain() : 1.0f;
 }
 
 void npno_host_set_master_pan(NPNOHost* host, float pan) {
-    if (host) host->engine.setMasterPan(pan);
+    if (host) host->eng().setMasterPan(pan);
 }
 
 float npno_host_get_master_pan(NPNOHost* host) {
-    return host ? host->engine.masterPan() : 0.0f;
+    return host ? host->eng().masterPan() : 0.0f;
 }
 
 void npno_host_set_fine_tune_cents(NPNOHost* host, float cents) {
-    if (host) host->engine.setFineTuneCents(cents);
+    if (host) host->eng().setFineTuneCents(cents);
 }
 
 float npno_host_get_fine_tune_cents(NPNOHost* host) {
-    return host ? host->engine.fineTuneCents() : 0.0f;
+    return host ? host->eng().fineTuneCents() : 0.0f;
 }
 
 void npno_host_set_base_tuning_hz(NPNOHost* host, float hz) {
-    if (host) host->engine.setBaseTuningHz(hz);
+    if (host) host->eng().setBaseTuningHz(hz);
 }
 
 float npno_host_get_base_tuning_hz(NPNOHost* host) {
-    return host ? host->engine.baseTuningHz() : 440.0f;
+    return host ? host->eng().baseTuningHz() : 440.0f;
 }
 
 void npno_host_set_max_voices(NPNOHost* host, int32_t max_voices) {
-    if (host) host->engine.setMaxVoices(max_voices);
+    if (host) host->eng().setMaxVoices(max_voices);
 }
 
 int32_t npno_host_get_max_voices(NPNOHost* host) {
-    return host ? host->engine.maxVoices() : 256;
+    return host ? host->eng().maxVoices() : 256;
 }
 
 void npno_host_set_transpose(NPNOHost* host, int32_t semitones) {
-    if (host) host->engine.setTransposeSemitones(semitones);
+    if (host) host->eng().setTransposeSemitones(semitones);
 }
 
 int32_t npno_host_get_transpose(NPNOHost* host) {
-    return host ? host->engine.transposeSemitones() : 0;
+    return host ? host->eng().transposeSemitones() : 0;
 }
 
 void npno_host_set_velocity_curve(NPNOHost* host, int32_t curve) {
-    if (host) host->engine.setVelocityCurve(curve);
+    if (host) host->eng().setVelocityCurve(curve);
 }
 
 int32_t npno_host_get_velocity_curve(NPNOHost* host) {
-    return host ? host->engine.velocityCurve() : 0;
+    return host ? host->eng().velocityCurve() : 0;
 }
 
 void npno_host_set_release_samples_enabled(NPNOHost* host, bool enabled) {
-    if (host) host->engine.setReleaseSamplesEnabled(enabled);
+    if (host) host->eng().setReleaseSamplesEnabled(enabled);
 }
 
 bool npno_host_get_release_samples_enabled(NPNOHost* host) {
-    return host ? host->engine.releaseSamplesEnabled() : true;
+    return host ? host->eng().releaseSamplesEnabled() : true;
 }
 
 void npno_host_set_release_sample_gain(NPNOHost* host, float gain) {
-    if (host) host->engine.setReleaseSampleGain(gain);
+    if (host) host->eng().setReleaseSampleGain(gain);
 }
 
 float npno_host_get_release_sample_gain(NPNOHost* host) {
-    return host ? host->engine.releaseSampleGain() : 1.0f;
+    return host ? host->eng().releaseSampleGain() : 1.0f;
 }
 
 void npno_host_set_release_scale(NPNOHost* host, float scale) {
-    if (host) host->engine.setReleaseScale(scale);
+    if (host) host->eng().setReleaseScale(scale);
 }
 
 float npno_host_get_release_scale(NPNOHost* host) {
-    return host ? host->engine.releaseScale() : 1.0f;
+    return host ? host->eng().releaseScale() : 1.0f;
 }
 
 void npno_host_set_eq_bass_db(NPNOHost* host, float db) {
-    if (host) host->engine.setEqBassDb(db);
+    if (host) host->eng().setEqBassDb(db);
 }
 
 float npno_host_get_eq_bass_db(NPNOHost* host) {
-    return host ? host->engine.eqBassDb() : 0.0f;
+    return host ? host->eng().eqBassDb() : 0.0f;
 }
 
 void npno_host_set_eq_mid_db(NPNOHost* host, float db) {
-    if (host) host->engine.setEqMidDb(db);
+    if (host) host->eng().setEqMidDb(db);
 }
 
 float npno_host_get_eq_mid_db(NPNOHost* host) {
-    return host ? host->engine.eqMidDb() : 0.0f;
+    return host ? host->eng().eqMidDb() : 0.0f;
 }
 
 void npno_host_set_eq_mid_freq_hz(NPNOHost* host, float hz) {
-    if (host) host->engine.setEqMidFreqHz(hz);
+    if (host) host->eng().setEqMidFreqHz(hz);
 }
 
 float npno_host_get_eq_mid_freq_hz(NPNOHost* host) {
-    return host ? host->engine.eqMidFreqHz() : 1000.0f;
+    return host ? host->eng().eqMidFreqHz() : 1000.0f;
 }
 
 void npno_host_set_eq_treble_db(NPNOHost* host, float db) {
-    if (host) host->engine.setEqTrebleDb(db);
+    if (host) host->eng().setEqTrebleDb(db);
 }
 
 float npno_host_get_eq_treble_db(NPNOHost* host) {
-    return host ? host->engine.eqTrebleDb() : 0.0f;
+    return host ? host->eng().eqTrebleDb() : 0.0f;
 }
 
 void npno_host_set_drive_enabled(NPNOHost* host, bool enabled) {
-    if (host) host->engine.setDriveEnabled(enabled);
+    if (host) host->eng().setDriveEnabled(enabled);
 }
 
 bool npno_host_get_drive_enabled(NPNOHost* host) {
-    return host ? host->engine.driveEnabled() : false;
+    return host ? host->eng().driveEnabled() : false;
 }
 
 void npno_host_set_drive_amount(NPNOHost* host, float amount) {
-    if (host) host->engine.setDriveAmount(amount);
+    if (host) host->eng().setDriveAmount(amount);
 }
 
 float npno_host_get_drive_amount(NPNOHost* host) {
-    return host ? host->engine.driveAmount() : 0.25f;
+    return host ? host->eng().driveAmount() : 0.25f;
 }
 
 void npno_host_get_modulator_params(NPNOHost* host, int32_t index, NPNOModulatorParams* out_params) {
     if (!out_params) return;
     std::memset(out_params, 0, sizeof(*out_params));
     if (!host || index < 0 || index > 1) return;
-    const auto m = host->engine.modulatorParams(index);
+    const auto m = host->eng().modulatorParams(index);
     out_params->enabled = m.enabled;
     out_params->target = m.target;
     out_params->wave = m.wave;
@@ -1293,14 +1363,14 @@ void npno_host_set_modulator_params(NPNOHost* host, int32_t index, const NPNOMod
     m.wave = params->wave;
     m.rateHz = params->rateHz;
     m.depth = params->depth;
-    host->engine.setModulatorParams(index, m);
+    host->eng().setModulatorParams(index, m);
 }
 
 void npno_host_get_delay_params(NPNOHost* host, NPNODelayParams* out_params) {
     if (!out_params) return;
     std::memset(out_params, 0, sizeof(*out_params));
     if (!host) return;
-    const auto d = host->engine.delayParams();
+    const auto d = host->eng().delayParams();
     out_params->enabled = d.enabled;
     out_params->amount = d.amount;
     out_params->feedback = d.feedback;
@@ -1322,7 +1392,7 @@ void npno_host_set_delay_params(NPNOHost* host, const NPNODelayParams* params) {
     d.hostBpm = params->hostBpm;
     d.syncDivision = params->syncDivision;
     d.pingPong = params->pingPong;
-    host->engine.setDelayParams(d);
+    host->eng().setDelayParams(d);
 }
 
 void npno_host_tap_delay(NPNOHost* host) {
@@ -1330,14 +1400,14 @@ void npno_host_tap_delay(NPNOHost* host) {
     const double nowSec = std::chrono::duration<double>(
                               std::chrono::steady_clock::now().time_since_epoch())
                               .count();
-    host->engine.tapDelay(nowSec);
+    host->eng().tapDelay(nowSec);
 }
 
 void npno_host_get_reverb_params(NPNOHost* host, NPNOReverbParams* out_params) {
     if (!out_params) return;
     std::memset(out_params, 0, sizeof(*out_params));
     if (!host) return;
-    const auto r = host->engine.reverbParams();
+    const auto r = host->eng().reverbParams();
     out_params->enabled = r.enabled;
     out_params->amount = r.amount;
     out_params->size = r.size;
@@ -1355,7 +1425,7 @@ void npno_host_set_reverb_params(NPNOHost* host, const NPNOReverbParams* params)
     r.decay = params->decay;
     r.damping = params->damping;
     r.preDelayMs = params->preDelayMs;
-    host->engine.setReverbParams(r);
+    host->eng().setReverbParams(r);
 }
 
 void npno_host_refresh_audio_devices(NPNOHost* host) {
@@ -1443,7 +1513,7 @@ void npno_host_set_midi_channel(NPNOHost* host, int32_t channel) {
     if (!host) return;
     const int ch = std::clamp<int>(channel, 0, 16);
     host->midiChannelFilter.store(ch, std::memory_order_relaxed);
-    host->engine.setGlobalMidiChannel(ch);
+    host->eng().setGlobalMidiChannel(ch);
 }
 
 int32_t npno_host_get_midi_channel(NPNOHost* host) {
@@ -1474,15 +1544,15 @@ void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t c
         host->midiCcCallback(clampedCC, clampedVal, clampedCh > 0 ? clampedCh : 1, host->midiCcContext);
     }
     if (clampedCC == 120 || clampedCC == 123) {
-        host->engine.pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, clampedCh);
+        host->eng().pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, clampedCh);
     } else {
-        host->engine.pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
+        host->eng().pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
     }
 }
 
 void npno_host_render_offline(NPNOHost* host, float* out_l, float* out_r, int32_t num_frames) {
     if (!host || !out_l || !out_r || num_frames <= 0) return;
-    host->engine.render(out_l, out_r, int(num_frames));
+    host->eng().render(out_l, out_r, int(num_frames));
 }
 
 bool npno_host_load_test_tone(NPNOHost* host, int32_t layer, float amplitude) {
@@ -1524,13 +1594,13 @@ bool npno_host_load_test_tone(NPNOHost* host, int32_t layer, float amplitude) {
     inst->normalByRoot[60] = {0};
 
     std::lock_guard<std::mutex> lock(host->instMutex);
-    host->engine.setLayerInstrument(layer, inst.get());
-    auto lp = host->engine.layerParams(layer);
+    host->eng().setLayerInstrument(layer, inst.get());
+    auto lp = host->eng().layerParams(layer);
     lp.enabled = true;
-    host->engine.setLayerParams(layer, lp);
+    host->eng().setLayerParams(layer, lp);
     if (host->layerInstruments[layer]) {
         host->retiredInstruments.push_back(
-            {std::move(host->layerInstruments[layer]), host->engine.renderCount(), std::chrono::steady_clock::now()});
+            {std::move(host->layerInstruments[layer]), host->eng().renderCount(), std::chrono::steady_clock::now()});
     }
     host->layerInstruments[layer] = std::move(inst);
     return true;

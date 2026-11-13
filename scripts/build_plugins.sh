@@ -52,7 +52,7 @@ cat > "$AU_BUNDLE/Contents/Info.plist" <<'EOF'
     <key>CFBundleVersion</key>
     <string>65536</string>
     <key>LSMinimumSystemVersion</key>
-    <string>11.0</string>
+    <string>26.0</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>AudioComponents</key>
@@ -110,7 +110,7 @@ cat > "$VST3_BUNDLE/Contents/Info.plist" <<'EOF'
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
     <key>LSMinimumSystemVersion</key>
-    <string>11.0</string>
+    <string>26.0</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CSResourcesFileMapped</key>
@@ -119,30 +119,50 @@ cat > "$VST3_BUNDLE/Contents/Info.plist" <<'EOF'
 </plist>
 EOF
 
+echo "==> Compilando ElectroProUI + NPNOBridge + NPNOKit (Release)..."
+swift build -c release --product ElectroPiano
+
+RELEASE_PRODUCTS="$ROOT_DIR/.build/out/Products/Release"
+if [ ! -f "$RELEASE_PRODUCTS/ElectroProUI.o" ] || [ ! -f "$RELEASE_PRODUCTS/NPNOBridge.o" ] || [ ! -f "$RELEASE_PRODUCTS/NPNOKit.o" ]; then
+    # Fallback para layout padrão .build/arm64-apple-macosx/release
+    RELEASE_PRODUCTS="$ROOT_DIR/.build/arm64-apple-macosx/release"
+fi
+
+if [ -d "$RELEASE_PRODUCTS/ElectroPiano_ElectroProUI.bundle" ]; then
+    echo "==> Copiando ElectroPiano_ElectroProUI.bundle para os plugins..."
+    cp -R "$RELEASE_PRODUCTS/ElectroPiano_ElectroProUI.bundle" "$AU_BUNDLE/Contents/Resources/ElectroPiano_ElectroProUI.bundle"
+    cp -R "$RELEASE_PRODUCTS/ElectroPiano_ElectroProUI.bundle" "$VST3_BUNDLE/Contents/Resources/ElectroPiano_ElectroProUI.bundle"
+fi
+
 COMMON_SRCS=(
-    "Sources/NPNOKit/Document.cpp"
-    "Sources/NPNOKit/Instrument.cpp"
-    "Sources/NPNOKit/Engine.cpp"
     "Sources/ElectroPianoPlugin/PluginShared.mm"
+)
+
+SWIFT_OBJS=(
+    "$RELEASE_PRODUCTS/ElectroProUI.o"
+    "$RELEASE_PRODUCTS/NPNOBridge.o"
+    "$RELEASE_PRODUCTS/NPNOKit.o"
 )
 
 CXXFLAGS=(
     -std=c++20
     -O3
-    -mmacosx-version-min=11.0
+    -mmacosx-version-min=26.0
     -arch arm64
-    -arch x86_64
     -fobjc-arc
     -fvisibility=hidden
     -Wall
     -Wextra
     -Wno-unused-parameter
     -ISources/NPNOKit/include
+    -ISources/NPNOBridge/include
     -ISources/ElectroPianoPlugin
 )
 
 FRAMEWORKS=(
     -framework Cocoa
+    -framework SwiftUI
+    -framework Combine
     -framework AudioToolbox
     -framework AudioUnit
     -framework CoreAudio
@@ -150,6 +170,7 @@ FRAMEWORKS=(
     -framework CoreFoundation
     -framework UniformTypeIdentifiers
     -framework QuartzCore
+    -L/usr/lib/swift
 )
 
 echo "==> Compilando binário AudioUnit (.component)..."
@@ -157,6 +178,7 @@ clang++ -bundle \
     "${CXXFLAGS[@]}" \
     "${COMMON_SRCS[@]}" \
     "Sources/ElectroPianoPlugin/AudioUnitPlugin.mm" \
+    "${SWIFT_OBJS[@]}" \
     "${FRAMEWORKS[@]}" \
     -o "$AU_BUNDLE/Contents/MacOS/Electro Piano"
 
@@ -166,6 +188,7 @@ clang++ -bundle \
     -DEPNO_BUILD_VST3=1 \
     "${COMMON_SRCS[@]}" \
     "Sources/ElectroPianoPlugin/VST3Plugin.mm" \
+    "${SWIFT_OBJS[@]}" \
     "${FRAMEWORKS[@]}" \
     -o "$VST3_BUNDLE/Contents/MacOS/Electro Piano"
 

@@ -1,10 +1,31 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Localization Helper (Bundle.module String Catalog)
+// MARK: - Safe Resource Bundle & Localization Helper (Standalone + AU/VST3)
 
-func L(_ key: String.LocalizationValue) -> String {
-    String(localized: key, bundle: .module)
+private final class _ElectroProBundleToken {}
+
+public let epBundle: Bundle = {
+    let bundleName = "ElectroPiano_ElectroProUI.bundle"
+    let hostBundle = Bundle(for: _ElectroProBundleToken.self)
+    let candidates: [URL?] = [
+        hostBundle.resourceURL?.appendingPathComponent(bundleName),
+        hostBundle.bundleURL.appendingPathComponent(bundleName),
+        hostBundle.bundleURL.deletingLastPathComponent().appendingPathComponent(bundleName),
+        Bundle.main.resourceURL?.appendingPathComponent(bundleName),
+        Bundle.main.bundleURL.appendingPathComponent(bundleName),
+        Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent(bundleName),
+    ]
+    for case let url? in candidates {
+        if let found = Bundle(url: url) {
+            return found
+        }
+    }
+    return hostBundle
+}()
+
+public func L(_ key: String.LocalizationValue) -> String {
+    String(localized: key, bundle: epBundle)
 }
 
 // MARK: - Accent Color Options (Settings > Appearance)
@@ -29,7 +50,7 @@ enum AccentOption: Int, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .nordRed:
-            return Color("AccentColor", bundle: .module)
+            return Color("AccentColor", bundle: epBundle)
         case .studioBlue:
             return Color(red: 0x2E / 255.0, green: 0x7C / 255.0, blue: 0xF6 / 255.0)
         case .warmAmber:
@@ -57,7 +78,7 @@ enum StudioTokens {
 
     // Active accent (used ONLY on: knob value arc, selected layer border+dot, and meter peak)
     static var accent: Color {
-        PianoViewModel.shared?.accentOption.color ?? Color("AccentColor", bundle: .module)
+        PianoViewModel.shared?.accentOption.color ?? Color("AccentColor", bundle: epBundle)
     }
 
     // Audio meters (green -> yellow -> red)
@@ -382,7 +403,7 @@ struct ProKnob: View {
     private var tooltipText: String {
         var base = "\(title): \(valueFormatter(value))"
         if let cc = mappedCC {
-            base += " (\(String(localized: "Mapped to MIDI CC \(cc)", bundle: .module)))"
+            base += " (\(String(localized: "Mapped to MIDI CC \(cc)", bundle: epBundle)))"
         }
         base += " — \(L("Drag to adjust, hold Shift for fine control, double-click knob to reset, double-click value to type, right-click for MIDI Learn."))"
         return base
@@ -517,7 +538,7 @@ struct ProKnob: View {
     private var midiContextMenu: some View {
         Text(verbatim: "\(title) — \(valueFormatter(value))")
         if let cc = mappedCC {
-            Text(String(localized: "Mapped to MIDI CC \(cc)", bundle: .module))
+            Text(String(localized: "Mapped to MIDI CC \(cc)", bundle: epBundle))
         } else {
             Text(L("No MIDI CC assigned"))
         }
@@ -527,7 +548,7 @@ struct ProKnob: View {
         }
         Menu(L("Assign CC Manually")) {
             ForEach([1, 2, 4, 7, 10, 11, 64, 71, 72, 73, 74, 91, 93], id: \.self) { cc in
-                Button(String(localized: "CC \(cc)", bundle: .module)) {
+                Button(String(localized: "CC \(cc)", bundle: epBundle)) {
                     PianoViewModel.shared?.assignKnobCC(idKey: effectiveKey, cc: cc)
                 }
             }
@@ -596,7 +617,7 @@ struct StereoPeakMeter: View {
         .onChange(of: peakR) { _, _ in updateBallistics() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L("Stereo output meter"))
-        .accessibilityValue(String(localized: "Left \(Int(dbL.rounded())) dB, Right \(Int(dbR.rounded())) dB", bundle: .module))
+        .accessibilityValue(String(localized: "Left \(Int(dbL.rounded())) dB, Right \(Int(dbR.rounded())) dB", bundle: epBundle))
     }
 
     private func toDb(_ linear: Float) -> Double {
@@ -781,7 +802,7 @@ struct DualRangeSlider: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
-        .accessibilityValue(String(localized: "From \(valueFormatter(lowValue)) to \(valueFormatter(highValue))", bundle: .module))
+        .accessibilityValue(String(localized: "From \(valueFormatter(lowValue)) to \(valueFormatter(highValue))", bundle: epBundle))
     }
 }
 
@@ -926,7 +947,7 @@ struct KeyZoneRangeControl: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L("Layer keyboard zone"))
-        .accessibilityValue(String(localized: "From \(shortNoteName(keyLow)) to \(shortNoteName(keyHigh))", bundle: .module))
+        .accessibilityValue(String(localized: "From \(shortNoteName(keyLow)) to \(shortNoteName(keyHigh))", bundle: epBundle))
     }
 }
 
@@ -1018,7 +1039,7 @@ struct EQResponseGraph: View {
         .accessibilityValue(
             String(
                 localized: "Bass \(String(format: "%+.1f", bassDb)) dB, Mid \(String(format: "%+.1f", midDb)) dB at \(String(format: "%.0f", midFreqHz)) Hz, Treble \(String(format: "%+.1f", trebleDb)) dB",
-                bundle: .module
+                bundle: epBundle
             )
         )
     }
