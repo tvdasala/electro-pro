@@ -239,6 +239,7 @@ private:
         bool isReleaseVoice = false;
         bool keyHeld = false;
         bool sustained = false;
+        bool sostenutoHeld = false;
         bool releasing = false;
         bool undamped = false;
         uint64_t age = 0;
@@ -299,6 +300,11 @@ private:
     double sampleRate_ = 48000.0;
     uint64_t voiceCounter_ = 0;
     bool sustainPedal_ = false;
+    float sustainPedalLevel_ = 0.0f; // 0.0 .. 1.0 (continuous half-pedaling on CC64)
+    bool sostenutoPedal_ = false;    // CC66
+    bool softPedal_ = false;         // CC67 (una corda)
+    float expressionGain_ = 1.0f;    // CC11 (0.0 .. 1.0)
+    float channelVolumeGain_ = 1.0f; // CC7 (0.0 .. 1.0)
     float pitchBendNorm_ = 0.0f; // -1.0 .. +1.0
 
     std::array<Voice, kMaxVoices> voices_{};

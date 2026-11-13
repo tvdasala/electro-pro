@@ -240,9 +240,13 @@ void npno_host_set_midi_input_enabled(NPNOHost* host, int32_t index, bool enable
 void npno_host_set_midi_channel(NPNOHost* host, int32_t channel); // 0 = Omni, 1..16 = canal específico
 int32_t npno_host_get_midi_channel(NPNOHost* host);
 
-// Callback universal de Control Change (MIDI CC)
+// Callback universal de Control Change (MIDI CC) e Eventos MIDI (Monitor + Program Change)
 typedef void (*NPNOMidiCCCallback)(int32_t cc, int32_t val, int32_t chan, void* ctx);
 void npno_host_set_midi_cc_callback(NPNOHost* host, NPNOMidiCCCallback cb, void* ctx);
+
+typedef void (*NPNOMidiEventCallback)(uint8_t status_type, int32_t data1, int32_t data2, int32_t chan, void* ctx);
+void npno_host_set_midi_event_callback(NPNOHost* host, NPNOMidiEventCallback cb, void* ctx);
+void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t channel);
 
 #ifdef __cplusplus
 }

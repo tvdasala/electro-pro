@@ -84,6 +84,8 @@ struct NPNOHost {
     std::vector<MidiInputEntry> midiInputs;
     NPNOMidiCCCallback midiCcCallback = nullptr;
     void* midiCcContext = nullptr;
+    NPNOMidiEventCallback midiEventCallback = nullptr;
+    void* midiEventContext = nullptr;
 
     static OSStatus renderCallback(void* inRefCon, AudioUnitRenderActionFlags* /*ioActionFlags*/,
                                    const AudioTimeStamp* /*inTimeStamp*/, UInt32 /*inBusNumber*/,
@@ -150,13 +152,22 @@ struct NPNOHost {
 
                 if (type == 0xC0 || type == 0xD0) {
                     if (i + 1 > len) break;
+                    const uint8_t d1 = d[i] & 0x7F;
                     i += 1;
+                    if (!passChan) continue;
+                    if (self->midiEventCallback) {
+                        self->midiEventCallback(type, d1, 0, msgChan, self->midiEventContext);
+                    }
                 } else {
                     if (i + 2 > len) break;
                     const uint8_t d1 = d[i] & 0x7F;
                     const uint8_t d2 = d[i + 1] & 0x7F;
                     i += 2;
                     if (!passChan) continue;
+
+                    if (self->midiEventCallback) {
+                        self->midiEventCallback(type, d1, d2, msgChan, self->midiEventContext);
+                    }
 
                     if (type == 0x90) {
                         if (d2 > 0)
@@ -169,9 +180,7 @@ struct NPNOHost {
                         if (self->midiCcCallback) {
                             self->midiCcCallback(d1, d2, msgChan, self->midiCcContext);
                         }
-                        if (d1 == 64) {
-                            self->engine.pushEvent(npno::Engine::EventType::Sustain, 0, d2 >= 64 ? 1.0f : 0.0f, msgChan);
-                        } else if (d1 == 120 || d1 == 123) {
+                        if (d1 == 120 || d1 == 123) {
                             self->engine.pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, msgChan);
                         } else {
                             self->engine.pushEvent(npno::Engine::EventType::ControlChange, d1, float(d2), msgChan);
@@ -1050,6 +1059,30 @@ void npno_host_set_midi_cc_callback(NPNOHost* host, NPNOMidiCCCallback cb, void*
     if (!host) return;
     host->midiCcCallback = cb;
     host->midiCcContext = ctx;
+}
+
+void npno_host_set_midi_event_callback(NPNOHost* host, NPNOMidiEventCallback cb, void* ctx) {
+    if (!host) return;
+    host->midiEventCallback = cb;
+    host->midiEventContext = ctx;
+}
+
+void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t channel) {
+    if (!host) return;
+    const int clampedCC = std::clamp<int>(cc, 0, 127);
+    const int clampedVal = std::clamp<int>(value, 0, 127);
+    const int clampedCh = std::clamp<int>(channel, 0, 16);
+    if (host->midiEventCallback) {
+        host->midiEventCallback(0xB0, clampedCC, clampedVal, clampedCh > 0 ? clampedCh : 1, host->midiEventContext);
+    }
+    if (host->midiCcCallback) {
+        host->midiCcCallback(clampedCC, clampedVal, clampedCh > 0 ? clampedCh : 1, host->midiCcContext);
+    }
+    if (clampedCC == 120 || clampedCC == 123) {
+        host->engine.pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, clampedCh);
+    } else {
+        host->engine.pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
+    }
 }
 
 }  // extern "C"

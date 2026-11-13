@@ -10,28 +10,82 @@ import UniformTypeIdentifiers
 final class RealtimeMIDIBridge: @unchecked Sendable {
     static let shared = RealtimeMIDIBridge()
 
+    struct RawMIDIEvent: Sendable {
+        var statusType: UInt8
+        var data1: UInt8
+        var data2: UInt8
+        var channel: UInt8
+        var timestamp: TimeInterval
+    }
+
+    private static let kRingCapacity = 128
+
     private var lock = os_unfair_lock()
     private var dirtyCCLow: UInt64 = 0
     private var dirtyCCHigh: UInt64 = 0
     private var ccValues: [UInt8] = Array(repeating: 0, count: 128)
+    private var ccChannels: [UInt8] = Array(repeating: 1, count: 128)
     private var latestLearnCC: Int32 = -1
+    private var latestLearnChannel: Int32 = 0
+    private var latestProgramChange: Int32 = -1
+    private var latestProgramChangeChannel: Int32 = 0
+
+    private var eventRing: [RawMIDIEvent] = Array(
+        repeating: RawMIDIEvent(statusType: 0, data1: 0, data2: 0, channel: 1, timestamp: 0),
+        count: 128
+    )
+    private var eventWriteIndex: Int = 0
+    private var eventCount: Int = 0
 
     private var dirtyLoadMask: UInt8 = 0
     private var loadProgress: (Float, Float, Float, Float) = (0, 0, 0, 0)
 
     private init() {}
 
-    nonisolated func recordMidiCC(cc: Int32, value: Int32) {
+    nonisolated func recordMidiCC(cc: Int32, value: Int32, channel: Int32 = 1) {
         let clampedCC = Int(cc) & 0x7F
         let clampedVal = UInt8(clamping: value)
+        let clampedCh = UInt8(clamping: max(1, min(16, Int(channel))))
         os_unfair_lock_lock(&lock)
         ccValues[clampedCC] = clampedVal
+        ccChannels[clampedCC] = clampedCh
         if clampedCC < 64 {
             dirtyCCLow |= (UInt64(1) << UInt64(clampedCC))
         } else {
             dirtyCCHigh |= (UInt64(1) << UInt64(clampedCC - 64))
         }
         latestLearnCC = Int32(clampedCC)
+        latestLearnChannel = Int32(clampedCh)
+        os_unfair_lock_unlock(&lock)
+    }
+
+    nonisolated func recordMidiEvent(statusType: UInt8, data1: Int32, data2: Int32, channel: Int32) {
+        let now = CFAbsoluteTimeGetCurrent()
+        let st = statusType
+        let d1 = UInt8(clamping: data1)
+        let d2 = UInt8(clamping: data2)
+        let ch = UInt8(clamping: max(1, min(16, Int(channel))))
+
+        os_unfair_lock_lock(&lock)
+        eventRing[eventWriteIndex] = RawMIDIEvent(
+            statusType: st,
+            data1: d1,
+            data2: d2,
+            channel: ch,
+            timestamp: now
+        )
+        eventWriteIndex = (eventWriteIndex + 1) % Self.kRingCapacity
+        if eventCount < Self.kRingCapacity {
+            eventCount += 1
+        }
+        if st == 0xC0 {
+            latestProgramChange = Int32(d1)
+            latestProgramChangeChannel = Int32(ch)
+        } else if st == 0xB0 {
+            let ccIdx = Int(d1) & 0x7F
+            ccChannels[ccIdx] = ch
+            latestLearnChannel = Int32(ch)
+        }
         os_unfair_lock_unlock(&lock)
     }
 
@@ -52,14 +106,18 @@ final class RealtimeMIDIBridge: @unchecked Sendable {
         var lowMask: UInt64
         var highMask: UInt64
         var values: [UInt8]
+        var channels: [UInt8]
         var latestLearnCC: Int32
+        var latestLearnChannel: Int32
+        var latestProgramChange: Int32
+        var latestProgramChangeChannel: Int32
         var loadMask: UInt8
         var loadProgress: (Float, Float, Float, Float)
     }
 
     nonisolated func drain() -> Snapshot? {
         os_unfair_lock_lock(&lock)
-        if dirtyCCLow == 0 && dirtyCCHigh == 0 && dirtyLoadMask == 0 && latestLearnCC < 0 {
+        if dirtyCCLow == 0 && dirtyCCHigh == 0 && dirtyLoadMask == 0 && latestLearnCC < 0 && latestProgramChange < 0 {
             os_unfair_lock_unlock(&lock)
             return nil
         }
@@ -67,22 +125,50 @@ final class RealtimeMIDIBridge: @unchecked Sendable {
             lowMask: dirtyCCLow,
             highMask: dirtyCCHigh,
             values: ccValues,
+            channels: ccChannels,
             latestLearnCC: latestLearnCC,
+            latestLearnChannel: latestLearnChannel,
+            latestProgramChange: latestProgramChange,
+            latestProgramChangeChannel: latestProgramChangeChannel,
             loadMask: dirtyLoadMask,
             loadProgress: loadProgress
         )
         dirtyCCLow = 0
         dirtyCCHigh = 0
         latestLearnCC = -1
+        latestProgramChange = -1
         dirtyLoadMask = 0
         os_unfair_lock_unlock(&lock)
         return snap
+    }
+
+    nonisolated func drainEvents() -> [RawMIDIEvent] {
+        os_unfair_lock_lock(&lock)
+        guard eventCount > 0 else {
+            os_unfair_lock_unlock(&lock)
+            return []
+        }
+        let count = eventCount
+        let start = (eventWriteIndex - count + Self.kRingCapacity) % Self.kRingCapacity
+        var result: [RawMIDIEvent] = []
+        result.reserveCapacity(count)
+        for i in 0..<count {
+            let idx = (start + i) % Self.kRingCapacity
+            result.append(eventRing[idx])
+        }
+        eventCount = 0
+        os_unfair_lock_unlock(&lock)
+        return result
     }
 }
 
 // Pure C callbacks defined outside @MainActor so actor-isolation checks are never injected on CoreMIDI/Background threads
 private nonisolated let kMidiCCBridgeCallback: NPNOMidiCCCallback = { cc, val, _, _ in
     RealtimeMIDIBridge.shared.recordMidiCC(cc: cc, value: val)
+}
+
+private nonisolated let kMidiEventBridgeCallback: NPNOMidiEventCallback = { statusType, data1, data2, channel, _ in
+    RealtimeMIDIBridge.shared.recordMidiEvent(statusType: statusType, data1: data1, data2: data2, channel: channel)
 }
 
 private nonisolated let kLoadProgressCallbackLayer0: @convention(c) (Float, UnsafeMutableRawPointer?) -> Void = { progress, _ in
@@ -516,6 +602,19 @@ struct MasterMemoryPreset: Codable, Equatable, Sendable {
     var reverbPreDelayMs: Float = 18.0
 }
 
+struct MidiMappingMetadata: Codable, Equatable, Sendable {
+    var channel: Int = 0       // 0 = Omni, 1...16 = Channel 1...16
+    var isGlobal: Bool = true  // true = Global, false = This Program
+}
+
+struct MidiMonitorMessage: Identifiable, Equatable, Sendable {
+    let id: Int
+    let timeString: String
+    let typeString: String
+    let channelString: String
+    let dataString: String
+}
+
 struct ProgramMemoryPreset: Codable, Equatable, Sendable {
     var version: Int = 1
     var name: String = "Init"
@@ -528,6 +627,7 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
     ]
     var master: MasterMemoryPreset = MasterMemoryPreset()
     var programMidiMappings: [String: Int] = [:]
+    var programMidiMappingMeta: [String: MidiMappingMetadata] = [:]
 
     init(
         version: Int = 1,
@@ -540,7 +640,8 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
             LayerMemoryPreset(enabled: false)
         ],
         master: MasterMemoryPreset = MasterMemoryPreset(),
-        programMidiMappings: [String: Int] = [:]
+        programMidiMappings: [String: Int] = [:],
+        programMidiMappingMeta: [String: MidiMappingMetadata] = [:]
     ) {
         self.version = version
         self.name = name
@@ -548,6 +649,7 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
         self.layers = layers
         self.master = master
         self.programMidiMappings = programMidiMappings
+        self.programMidiMappingMeta = programMidiMappingMeta
     }
 
     init(from decoder: Decoder) throws {
@@ -568,6 +670,7 @@ struct ProgramMemoryPreset: Codable, Equatable, Sendable {
         }
         master = try c.decodeIfPresent(MasterMemoryPreset.self, forKey: .master) ?? MasterMemoryPreset()
         programMidiMappings = try c.decodeIfPresent([String: Int].self, forKey: .programMidiMappings) ?? [:]
+        programMidiMappingMeta = try c.decodeIfPresent([String: MidiMappingMetadata].self, forKey: .programMidiMappingMeta) ?? [:]
     }
 }
 
@@ -657,12 +760,23 @@ final class PianoViewModel: ObservableObject {
     /// Isolated sub-model for L/R meter, virtual keyboard, and voice counter at 60 Hz.
     let telemetry = AudioTelemetryModel()
 
-    // Universal Knob MIDI Mapping (Right-Click Context Menu & MIDI Learn)
+    // Universal Knob & Control MIDI Mapping (Right-Click Context Menu, Non-Knob Controls & Mapping Manager)
     @Published var knobMidiMappings: [String: Int] = [:]
+    @Published var midiMappingMeta: [String: MidiMappingMetadata] = [:]
     @Published var activeMidiLearnKey: String? = nil
     private var knobSetters: [String: (Double) -> Void] = [:]
     private var knobRanges: [String: ClosedRange<Double>] = [:]
     private var knobSteps: [String: Double] = [:]
+    private var lastTriggerCCValues: [Int: Int] = [:]
+
+    // Live 30 Hz MIDI Monitor (last 100 messages) & Debug Manual CC Sender
+    @Published var midiMonitorMessages: [MidiMonitorMessage] = []
+    @Published var midiMonitorPaused: Bool = false
+    private var midiMonitorNextID: Int = 1
+    private var telemetryTickCounter: Int = 0
+    @Published var showDebugManualCCSheet: Bool = false
+    @Published var debugManualCCNumber: Int = 1
+    @Published var debugManualCCValue: Double = 64.0
 
     func registerKnob(idKey: String, range: ClosedRange<Double>, step: Double, setter: @escaping (Double) -> Void) {
         knobRanges[idKey] = range
@@ -678,30 +792,193 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
-    func assignKnobCC(idKey: String, cc: Int) {
+    func assignKnobCC(idKey: String, cc: Int, channel: Int? = nil, isGlobal: Bool? = nil) {
         knobMidiMappings[idKey] = cc
+        var meta = midiMappingMeta[idKey] ?? MidiMappingMetadata()
+        if let ch = channel { meta.channel = ch }
+        if let gl = isGlobal { meta.isGlobal = gl }
+        midiMappingMeta[idKey] = meta
         if activeMidiLearnKey == idKey {
             activeMidiLearnKey = nil
+        }
+        persistGlobalMidiMappings()
+        if !meta.isGlobal {
+            markProgramEditedAndAutosave()
         }
     }
 
     func unassignKnobCC(idKey: String) {
+        let wasGlobal = midiMappingMeta[idKey]?.isGlobal ?? true
         knobMidiMappings.removeValue(forKey: idKey)
+        midiMappingMeta.removeValue(forKey: idKey)
         if activeMidiLearnKey == idKey {
             activeMidiLearnKey = nil
         }
+        persistGlobalMidiMappings()
+        if !wasGlobal {
+            markProgramEditedAndAutosave()
+        }
     }
 
-    func handleIncomingMidiCC(cc: Int, value: Int) {
+    func clearAllMidiMappings() {
+        knobMidiMappings.removeAll()
+        midiMappingMeta.removeAll()
+        activeMidiLearnKey = nil
+        if let h = host {
+            npno_host_cancel_midi_learn(h)
+        }
+        for l in 0..<4 {
+            updateLayerParams(l) {
+                $0.ccVolume = -1
+                $0.ccFilter = -1
+                $0.ccFxaAmount = -1
+                $0.ccFxaRelease = -1
+            }
+        }
+        persistGlobalMidiMappings()
+        markProgramEditedAndAutosave()
+    }
+
+    func setMappingChannel(idKey: String, channel: Int) {
+        var meta = midiMappingMeta[idKey] ?? MidiMappingMetadata()
+        meta.channel = min(max(0, channel), 16)
+        midiMappingMeta[idKey] = meta
+        persistGlobalMidiMappings()
+        if !meta.isGlobal {
+            markProgramEditedAndAutosave()
+        }
+    }
+
+    func setMappingScope(idKey: String, isGlobal: Bool) {
+        var meta = midiMappingMeta[idKey] ?? MidiMappingMetadata()
+        meta.isGlobal = isGlobal
+        midiMappingMeta[idKey] = meta
+        persistGlobalMidiMappings()
+        markProgramEditedAndAutosave()
+    }
+
+    private struct GlobalMappingsStorage: Codable {
+        var mappings: [String: Int]
+        var meta: [String: MidiMappingMetadata]
+    }
+
+    private func persistGlobalMidiMappings() {
+        var globalMap: [String: Int] = [:]
+        var globalMeta: [String: MidiMappingMetadata] = [:]
+        for (k, cc) in knobMidiMappings {
+            let m = midiMappingMeta[k] ?? MidiMappingMetadata()
+            if m.isGlobal {
+                globalMap[k] = cc
+                globalMeta[k] = m
+            }
+        }
+        if let data = try? JSONEncoder().encode(GlobalMappingsStorage(mappings: globalMap, meta: globalMeta)) {
+            UserDefaults.standard.set(data, forKey: "ElectroPiano_GlobalMidiMappings_JSON")
+        }
+    }
+
+    private func restoreGlobalMidiMappings() {
+        guard let data = UserDefaults.standard.data(forKey: "ElectroPiano_GlobalMidiMappings_JSON"),
+              let decoded = try? JSONDecoder().decode(GlobalMappingsStorage.self, from: data) else {
+            return
+        }
+        for (k, cc) in decoded.mappings {
+            knobMidiMappings[k] = cc
+            midiMappingMeta[k] = decoded.meta[k] ?? MidiMappingMetadata(channel: 0, isGlobal: true)
+        }
+    }
+
+    func clearMidiMonitor() {
+        midiMonitorMessages.removeAll()
+    }
+
+    func sendDebugManualCC(cc: Int, value: Int) {
+        guard let h = host else { return }
+        npno_host_send_midi_cc(h, Int32(cc), Int32(value), 1)
+    }
+
+    func handleIncomingProgramChange(program: Int, channel: Int) {
+        guard respondToProgramChange else { return }
+        if midiChannel > 0 && channel > 0 && channel != midiChannel {
+            return
+        }
+        if (0...7).contains(program) {
+            let targetSlot = program + 1
+            if selectedMemorySlot != targetSlot {
+                recallMemory(slot: targetSlot)
+            }
+        }
+    }
+
+    func handleIncomingMidiCC(cc: Int, value: Int, channel: Int = 1) {
         if let learnKey = activeMidiLearnKey {
             knobMidiMappings[learnKey] = cc
+            if midiMappingMeta[learnKey] == nil {
+                midiMappingMeta[learnKey] = MidiMappingMetadata(channel: 0, isGlobal: true)
+            }
             activeMidiLearnKey = nil
+            persistGlobalMidiMappings()
             return
         }
 
+        let prevVal = lastTriggerCCValues[cc] ?? 0
+        lastTriggerCCValues[cc] = value
+        let risingEdge = (value >= 64 && prevVal < 64)
         let norm = Double(value) / 127.0
-        for (idKey, mappedCC) in knobMidiMappings {
-            if mappedCC == cc, let range = knobRanges[idKey], let setter = knobSetters[idKey] {
+
+        for (idKey, mappedCC) in knobMidiMappings where mappedCC == cc {
+            let meta = midiMappingMeta[idKey] ?? MidiMappingMetadata()
+            if meta.channel > 0 && channel > 0 && meta.channel != channel {
+                continue
+            }
+
+            // 1. Non-knob switches & actions (Layer A-D switches, Prev/Next Program, Transpose ±, Panic)
+            if idKey.hasPrefix("switch_L"),
+               let layerIdx = Int(idKey.dropFirst("switch_L".count)),
+               (0..<4).contains(layerIdx) {
+                if risingEdge {
+                    let cur = layers[layerIdx].params.enabled
+                    updateLayerParams(layerIdx) { $0.enabled = !cur }
+                }
+                continue
+            }
+            if idKey == "action_prev_prog" {
+                if risingEdge {
+                    let prevSlot = ((selectedMemorySlot - 2 + 8) % 8) + 1
+                    recallMemory(slot: prevSlot)
+                }
+                continue
+            }
+            if idKey == "action_next_prog" {
+                if risingEdge {
+                    let nextSlot = (selectedMemorySlot % 8) + 1
+                    recallMemory(slot: nextSlot)
+                }
+                continue
+            }
+            if idKey == "action_transpose_down" {
+                if risingEdge {
+                    let cur = Int(transposeSemitones.rounded())
+                    transposeSemitones = Double(max(-12, cur - 1))
+                }
+                continue
+            }
+            if idKey == "action_transpose_up" {
+                if risingEdge {
+                    let cur = Int(transposeSemitones.rounded())
+                    transposeSemitones = Double(min(12, cur + 1))
+                }
+                continue
+            }
+            if idKey == "action_panic" {
+                if risingEdge {
+                    panic()
+                }
+                continue
+            }
+
+            // 2. Continuous knobs
+            if let range = knobRanges[idKey], let setter = knobSetters[idKey] {
                 var next = range.lowerBound + norm * (range.upperBound - range.lowerBound)
                 if let st = knobSteps[idKey], st > 0 {
                     next = (next / st).rounded() * st
@@ -888,7 +1165,17 @@ final class PianoViewModel: ObservableObject {
             reverbDamping: reverb.damping,
             reverbPreDelayMs: reverb.preDelayMs
         )
-        p.programMidiMappings = knobMidiMappings
+        var progMappings: [String: Int] = [:]
+        var progMeta: [String: MidiMappingMetadata] = [:]
+        for (k, cc) in knobMidiMappings {
+            let meta = midiMappingMeta[k] ?? MidiMappingMetadata()
+            if !meta.isGlobal {
+                progMappings[k] = cc
+                progMeta[k] = meta
+            }
+        }
+        p.programMidiMappings = progMappings
+        p.programMidiMappingMeta = progMeta
         return p
     }
 
@@ -950,9 +1237,24 @@ final class PianoViewModel: ObservableObject {
         r.preDelayMs = m.reverbPreDelayMs
         reverb = r
 
-        if !p.programMidiMappings.isEmpty {
-            knobMidiMappings = p.programMidiMappings
+        // Merge global MIDI mappings with this program's per-program MIDI mappings
+        var mergedMappings: [String: Int] = [:]
+        var mergedMeta: [String: MidiMappingMetadata] = [:]
+        for (k, cc) in knobMidiMappings {
+            let meta = midiMappingMeta[k] ?? MidiMappingMetadata()
+            if meta.isGlobal {
+                mergedMappings[k] = cc
+                mergedMeta[k] = meta
+            }
         }
+        for (k, cc) in p.programMidiMappings {
+            mergedMappings[k] = cc
+            var meta = p.programMidiMappingMeta[k] ?? MidiMappingMetadata(channel: 0, isGlobal: false)
+            meta.isGlobal = false
+            mergedMeta[k] = meta
+        }
+        knobMidiMappings = mergedMappings
+        midiMappingMeta = mergedMeta
 
         for i in 0..<4 {
             let lp = p.layers[i]
@@ -1516,6 +1818,7 @@ final class PianoViewModel: ObservableObject {
 
     init() {
         Self.shared = self
+        restoreGlobalMidiMappings()
         host = npno_host_create()
         if let h = host {
             _ = npno_host_start_audio(h)
@@ -1525,6 +1828,7 @@ final class PianoViewModel: ObservableObject {
                 layers[l].params = lp
             }
             npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
+            npno_host_set_midi_event_callback(h, kMidiEventBridgeCallback, nil)
         }
         restoreSavedLibraryBookmarkIfNeeded()
         if !firstRunCompleted && libraryFolderPath.isEmpty {
@@ -1541,6 +1845,7 @@ final class PianoViewModel: ObservableObject {
         if let up = keyMonitorUp { NSEvent.removeMonitor(up) }
         if let h = host {
             npno_host_set_midi_cc_callback(h, nil, nil)
+            npno_host_set_midi_event_callback(h, nil, nil)
             npno_host_destroy(h)
         }
     }
@@ -2181,12 +2486,39 @@ final class PianoViewModel: ObservableObject {
         }
     }
 
+    private static func formatMidiTimestamp(_ cfaTime: TimeInterval) -> String {
+        let date = Date(timeIntervalSinceReferenceDate: cfaTime)
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.hour, .minute, .second, .nanosecond], from: date)
+        let h = comps.hour ?? 0
+        let m = comps.minute ?? 0
+        let s = comps.second ?? 0
+        let ms = (comps.nanosecond ?? 0) / 1_000_000
+        return String(format: "%02d:%02d:%02d.%03d", h, m, s, ms)
+    }
+
+    private static func ccDescription(_ cc: Int) -> String {
+        switch cc {
+        case 1: return L("Mod Wheel")
+        case 7: return L("Channel Volume")
+        case 10: return L("Pan")
+        case 11: return L("Expression")
+        case 64: return L("Sustain Pedal")
+        case 66: return L("Sostenuto Pedal")
+        case 67: return L("Soft / Una Corda")
+        case 71: return L("Resonance")
+        case 74: return L("Cutoff")
+        default: return ""
+        }
+    }
+
     private func pollTelemetry() {
         guard let h = host else { return }
 
         var hadCCTraffic = false
+        telemetryTickCounter &+= 1
 
-        // 1. Drain continuous MIDI CC stream and load progress from lock-free/unfair_lock bridge
+        // 1. Drain continuous MIDI CC stream, Program Change, and load progress from lock-free/unfair_lock bridge
         if let snap = RealtimeMIDIBridge.shared.drain() {
             if snap.loadMask != 0 {
                 let progresses = [snap.loadProgress.0, snap.loadProgress.1, snap.loadProgress.2, snap.loadProgress.3]
@@ -2197,23 +2529,94 @@ final class PianoViewModel: ObservableObject {
                 }
             }
 
+            if snap.latestProgramChange >= 0 {
+                handleIncomingProgramChange(
+                    program: Int(snap.latestProgramChange),
+                    channel: Int(snap.latestProgramChangeChannel)
+                )
+            }
+
             if snap.lowMask != 0 || snap.highMask != 0 || snap.latestLearnCC >= 0 {
                 hadCCTraffic = true
             }
 
             if activeMidiLearnKey != nil, snap.latestLearnCC >= 0 {
-                handleIncomingMidiCC(cc: Int(snap.latestLearnCC), value: Int(snap.values[Int(snap.latestLearnCC)]))
+                let ccIdx = Int(snap.latestLearnCC)
+                handleIncomingMidiCC(
+                    cc: ccIdx,
+                    value: Int(snap.values[ccIdx]),
+                    channel: Int(snap.latestLearnChannel)
+                )
             } else {
                 if snap.lowMask != 0 {
                     for cc in 0..<64 where (snap.lowMask & (UInt64(1) << UInt64(cc))) != 0 {
-                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]))
+                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]), channel: Int(snap.channels[cc]))
                     }
                 }
                 if snap.highMask != 0 {
                     for bit in 0..<64 where (snap.highMask & (UInt64(1) << UInt64(bit))) != 0 {
                         let cc = bit + 64
-                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]))
+                        handleIncomingMidiCC(cc: cc, value: Int(snap.values[cc]), channel: Int(snap.channels[cc]))
                     }
+                }
+            }
+        }
+
+        // 1b. Drain lock-free MIDI Monitor ring buffer at 30 Hz (every 2nd 60 Hz tick)
+        if (telemetryTickCounter & 1) == 0 {
+            let rawEvents = RealtimeMIDIBridge.shared.drainEvents()
+            if !rawEvents.isEmpty && !midiMonitorPaused {
+                for ev in rawEvents {
+                    let timeStr = Self.formatMidiTimestamp(ev.timestamp)
+                    let chStr = String(localized: "Ch \(ev.channel)", bundle: .module)
+                    let typeStr: String
+                    let dataStr: String
+
+                    switch ev.statusType {
+                    case 0x90:
+                        typeStr = L("Note On")
+                        dataStr = "\(midiNoteName(Int(ev.data1)))  •  Vel \(ev.data2)"
+                    case 0x80:
+                        typeStr = L("Note Off")
+                        dataStr = "\(midiNoteName(Int(ev.data1)))  •  Vel 0"
+                    case 0xB0:
+                        typeStr = L("Control Change")
+                        let desc = Self.ccDescription(Int(ev.data1))
+                        if desc.isEmpty {
+                            dataStr = "CC \(ev.data1)  •  Val \(ev.data2)"
+                        } else {
+                            dataStr = "CC \(ev.data1) (\(desc))  •  Val \(ev.data2)"
+                        }
+                    case 0xC0:
+                        typeStr = L("Program Change")
+                        let pc = Int(ev.data1)
+                        if (0...7).contains(pc) {
+                            dataStr = String(localized: "PC \(pc) → Program \(pc + 1)", bundle: .module)
+                        } else {
+                            dataStr = "PC \(pc)"
+                        }
+                    case 0xE0:
+                        typeStr = L("Pitch Bend")
+                        let raw14 = (Int(ev.data2) << 7) | Int(ev.data1)
+                        let centered = raw14 - 8192
+                        dataStr = String(format: "%+d", centered)
+                    default:
+                        typeStr = String(format: "0x%02X", ev.statusType)
+                        dataStr = "\(ev.data1), \(ev.data2)"
+                    }
+
+                    let msg = MidiMonitorMessage(
+                        id: midiMonitorNextID,
+                        timeString: timeStr,
+                        typeString: typeStr,
+                        channelString: chStr,
+                        dataString: dataStr
+                    )
+                    midiMonitorNextID &+= 1
+                    midiMonitorMessages.insert(msg, at: 0)
+                }
+                if midiMonitorMessages.count > 100 {
+                    midiMonitorMessages.removeLast(midiMonitorMessages.count - 100)
                 }
             }
         }
@@ -2924,6 +3327,14 @@ struct ElectroPianoApp: App {
                 }
                 .keyboardShortcut("0", modifiers: [.command])
             }
+
+            #if DEBUG
+            CommandMenu(L("Debug")) {
+                Button(L("Manual CC Sender…")) {
+                    viewModel.showDebugManualCCSheet = true
+                }
+            }
+            #endif
         }
 
         // Native Settings Window (Cmd+,)

@@ -51,7 +51,16 @@ func friendlyKnobName(_ key: String) -> String {
         "mod1_rate": L("Mod 1 Rate"),
         "mod1_depth": L("Mod 1 Depth"),
         "mod2_rate": L("Mod 2 Rate"),
-        "mod2_depth": L("Mod 2 Depth")
+        "mod2_depth": L("Mod 2 Depth"),
+        "switch_L0": L("Layer A Switch"),
+        "switch_L1": L("Layer B Switch"),
+        "switch_L2": L("Layer C Switch"),
+        "switch_L3": L("Layer D Switch"),
+        "action_prev_prog": L("Previous Program"),
+        "action_next_prog": L("Next Program"),
+        "action_transpose_down": L("Transpose −"),
+        "action_transpose_up": L("Transpose +"),
+        "action_panic": L("Panic")
     ]
     if let f = fixed[key] { return f }
     if key.hasPrefix("L"),
@@ -878,11 +887,39 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             statusBarSection
         }
+        .sheet(isPresented: $vm.showDebugManualCCSheet) {
+            debugManualCCSenderSheet
+        }
         .onAppear {
             DispatchQueue.main.async {
                 if let win = NSApplication.shared.windows.first(where: { $0.canBecomeMain }) {
                     _ = win.setFrameAutosaveName("ElectroProMainWindow")
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nonKnobMidiLearnContextMenu(idKey: String, label: String) -> some View {
+        let isLearning = (vm.activeMidiLearnKey == idKey)
+        let mappedCC = vm.knobMidiMappings[idKey]
+
+        Button {
+            vm.startKnobMidiLearn(idKey: idKey)
+        } label: {
+            Label(
+                isLearning
+                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: .module)
+                    : String(localized: "Learn MIDI CC for \(label)", bundle: .module),
+                systemImage: isLearning ? "xmark.circle" : "antenna.radiowaves.left.and.right"
+            )
+        }
+
+        if let cc = mappedCC {
+            Button(role: .destructive) {
+                vm.unassignKnobCC(idKey: idKey)
+            } label: {
+                Label(String(localized: "Remove MIDI CC \(cc)", bundle: .module), systemImage: "trash")
             }
         }
     }
@@ -908,7 +945,11 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help(L("Select Program (1 to 8)"))
+            .contextMenu {
+                nonKnobMidiLearnContextMenu(idKey: "action_prev_prog", label: L("Previous Program"))
+                nonKnobMidiLearnContextMenu(idKey: "action_next_prog", label: L("Next Program"))
+            }
+            .help(L("Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."))
 
             Button {
                 vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
@@ -941,7 +982,10 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("Decrease Transpose by 1 semitone"))
+                .contextMenu {
+                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_down", label: L("Transpose −"))
+                }
+                .help(L("Decrease Transpose by 1 semitone (right-click for MIDI Learn)"))
 
                 let st = Int(vm.transposeSemitones.rounded())
                 Text(verbatim: st == 0 ? "0 st" : String(format: "%+d st", st))
@@ -964,7 +1008,10 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("Increase Transpose by 1 semitone"))
+                .contextMenu {
+                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_up", label: L("Transpose +"))
+                }
+                .help(L("Increase Transpose by 1 semitone (right-click for MIDI Learn)"))
             }
 
             Button {
@@ -1022,7 +1069,10 @@ struct ContentView: View {
                 Label(L("Panic"), systemImage: "xmark.octagon")
             }
             .buttonStyle(.glass)
-            .help(L("Immediately silence all active voices (⌘.)"))
+            .contextMenu {
+                nonKnobMidiLearnContextMenu(idKey: "action_panic", label: L("Panic"))
+            }
+            .help(L("Immediately silence all active voices (⌘., right-click for MIDI Learn)"))
         }
 
         ToolbarSpacer(.fixed)
@@ -1178,7 +1228,13 @@ struct ContentView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .help(String(localized: "Turn Layer \(letter) on or off", bundle: .module))
+                    .contextMenu {
+                        nonKnobMidiLearnContextMenu(
+                            idKey: "switch_L\(layer)",
+                            label: String(localized: "Layer \(letter) Switch", bundle: .module)
+                        )
+                    }
+                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: .module))
 
                     Circle()
                         .fill(isSelected ? StudioTokens.accent : StudioTokens.textSecondary)
@@ -1329,7 +1385,13 @@ struct ContentView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .help(String(localized: "Turn Layer \(letter) on or off", bundle: .module))
+                    .contextMenu {
+                        nonKnobMidiLearnContextMenu(
+                            idKey: "switch_L\(layer)",
+                            label: String(localized: "Layer \(letter) Switch", bundle: .module)
+                        )
+                    }
+                    .help(String(localized: "Turn Layer \(letter) on or off (right-click for MIDI Learn)", bundle: .module))
 
                     if isSelected {
                         Circle()
@@ -2060,37 +2122,292 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Master Tab: MIDI (Layer MIDI Controls + Knob/Control Mappings)
+    // MARK: - Master Tab: MIDI (Mapping Manager + 30 Hz Live MIDI Monitor)
 
     private func midiCCTabContent(layer: Int, availableWidth: CGFloat) -> some View {
         let lp = vm.layers[layer].params
         let mappings = vm.knobMidiMappings.sorted { $0.key < $1.key }
         let spacing: CGFloat = 12
-        let colW = floor(max(300, availableWidth - spacing) / 2.0)
+        let leftW = floor(max(440, (availableWidth - spacing) * 0.56))
+        let rightW = max(320, availableWidth - spacing - leftW)
+
+        let learnableActions: [(idKey: String, title: String)] = [
+            ("switch_L0", L("Layer A Switch")),
+            ("switch_L1", L("Layer B Switch")),
+            ("switch_L2", L("Layer C Switch")),
+            ("switch_L3", L("Layer D Switch")),
+            ("action_prev_prog", L("Previous Program")),
+            ("action_next_prog", L("Next Program")),
+            ("action_transpose_down", L("Transpose −")),
+            ("action_transpose_up", L("Transpose +")),
+            ("action_panic", L("Panic"))
+        ]
 
         return HStack(alignment: .top, spacing: spacing) {
-            // Column 1: Layer CC Table (Parameter | CC | Learn) with Layer A/B/C/D selector
+            // Left Column: Mapping Manager (Parameter | CC | Channel | Scope | Remove + Clear All + Layer CCs)
             SectionCard(
-                title: L("Layer MIDI Controls"),
+                title: L("MIDI Mappings"),
+                subtitle: String(localized: "\(mappings.count) active", bundle: .module),
                 headerTrailing: {
-                    Picker(L("Layer"), selection: $vm.selectedLayer) {
-                        ForEach(0..<4, id: \.self) { idx in
-                            Text(String(localized: "Layer \(kLayerLetters[idx])", bundle: .module)).tag(idx)
+                    HStack(spacing: 8) {
+                        if let activeKey = vm.activeMidiLearnKey {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(StudioTokens.accent)
+                                    .frame(width: 7, height: 7)
+                                Text(String(localized: "Waiting for CC for \(friendlyKnobName(activeKey))…", bundle: .module))
+                                    .font(StudioTokens.fontLabel)
+                                    .foregroundStyle(StudioTokens.textPrimary)
+                                    .lineLimit(1)
+                                Button(L("Cancel")) {
+                                    vm.activeMidiLearnKey = nil
+                                }
+                                .buttonStyle(.glass)
+                                .controlSize(.small)
+                            }
                         }
+
+                        Menu {
+                            ForEach(learnableActions, id: \.idKey) { item in
+                                Button {
+                                    vm.startKnobMidiLearn(idKey: item.idKey)
+                                } label: {
+                                    if let cc = vm.knobMidiMappings[item.idKey] {
+                                        Text(String(localized: "\(item.title) (CC \(cc))", bundle: .module))
+                                    } else {
+                                        Text(item.title)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label(L("Learn Control…"), systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+
+                        Button(role: .destructive) {
+                            vm.clearAllMidiMappings()
+                        } label: {
+                            Text(L("Clear All"))
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                        .disabled(
+                            mappings.isEmpty &&
+                            vm.layers.allSatisfy {
+                                $0.params.ccVolume < 0 && $0.params.ccFilter < 0 &&
+                                $0.params.ccFxaAmount < 0 && $0.params.ccFxaRelease < 0
+                            }
+                        )
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
                 }
             ) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if mappings.isEmpty {
+                        HStack(spacing: 12) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 18))
+                                .foregroundStyle(StudioTokens.textSecondary)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L("No MIDI mappings"))
+                                    .font(StudioTokens.fontBodyMedium)
+                                    .foregroundStyle(StudioTokens.textPrimary)
+                                Text(L("Right-click any knob, Layer A–D switch, Program selector, Transpose button, or Panic button and choose \"Learn MIDI CC\"."))
+                                    .font(StudioTokens.fontLabel)
+                                    .foregroundStyle(StudioTokens.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(StudioTokens.surfaceControl.opacity(0.45), in: .rect(cornerRadius: 8))
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text(L("Parameter"))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(L("CC"))
+                                    .frame(width: 58, alignment: .leading)
+                                Text(L("Channel"))
+                                    .frame(width: 86, alignment: .leading)
+                                Text(L("Scope"))
+                                    .frame(width: 112, alignment: .leading)
+                                Text(L("Remove"))
+                                    .frame(width: 52, alignment: .trailing)
+                            }
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textSecondary)
+                            .padding(.horizontal, 10)
+
+                            Divider().overlay(StudioTokens.borderHairline)
+
+                            VStack(spacing: 4) {
+                                ForEach(mappings, id: \.key) { item in
+                                    let meta = vm.midiMappingMeta[item.key] ?? MidiMappingMetadata()
+                                    HStack(spacing: 8) {
+                                        Text(friendlyKnobName(item.key))
+                                            .font(StudioTokens.fontBodyMedium)
+                                            .foregroundStyle(StudioTokens.textPrimary)
+                                            .lineLimit(1)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                                        Text(String(localized: "CC \(item.value)", bundle: .module))
+                                            .font(StudioTokens.fontValue)
+                                            .foregroundStyle(StudioTokens.textPrimary)
+                                            .frame(width: 58, alignment: .leading)
+
+                                        Picker(
+                                            L("Channel"),
+                                            selection: Binding(
+                                                get: { meta.channel },
+                                                set: { ch in vm.setMappingChannel(idKey: item.key, channel: ch) }
+                                            )
+                                        ) {
+                                            Text(L("Omni")).tag(0)
+                                            ForEach(1...16, id: \.self) { ch in
+                                                Text(String(localized: "Ch \(ch)", bundle: .module)).tag(ch)
+                                            }
+                                        }
+                                        .labelsHidden()
+                                        .controlSize(.small)
+                                        .frame(width: 86)
+
+                                        Picker(
+                                            L("Scope"),
+                                            selection: Binding(
+                                                get: { meta.isGlobal },
+                                                set: { gl in vm.setMappingScope(idKey: item.key, isGlobal: gl) }
+                                            )
+                                        ) {
+                                            Text(L("Global")).tag(true)
+                                            Text(L("This Program")).tag(false)
+                                        }
+                                        .labelsHidden()
+                                        .controlSize(.small)
+                                        .frame(width: 112)
+
+                                        Button(role: .destructive) {
+                                            vm.unassignKnobCC(idKey: item.key)
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .font(.system(size: 12))
+                                        }
+                                        .buttonStyle(.glass)
+                                        .controlSize(.small)
+                                        .frame(width: 52, alignment: .trailing)
+                                        .help(String(localized: "Remove mapping for \(friendlyKnobName(item.key))", bundle: .module))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        StudioTokens.surfaceControl,
+                                        in: .rect(cornerRadius: StudioTokens.controlRadius)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Divider().overlay(StudioTokens.borderHairline)
+
+                    // Direct Layer A–D Real-Time C++ Engine CC Assignment
                     HStack {
-                        Text(L("Parameter"))
+                        Text(L("Direct Layer Engine CCs"))
+                            .font(StudioTokens.fontLabel)
+                            .foregroundStyle(StudioTokens.textSecondary)
+                        Spacer()
+                        Picker(L("Layer"), selection: $vm.selectedLayer) {
+                            ForEach(0..<4, id: \.self) { idx in
+                                Text(String(localized: "Layer \(kLayerLetters[idx])", bundle: .module)).tag(idx)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .fixedSize()
+                    }
+
+                    VStack(spacing: 4) {
+                        layerCCRow(
+                            layer: layer,
+                            slot: 0,
+                            parameterName: L("Layer Volume"),
+                            ccValue: Int(lp.ccVolume)
+                        ) { newCC in
+                            vm.updateLayerParams(layer) { $0.ccVolume = Int32(newCC) }
+                        }
+
+                        layerCCRow(
+                            layer: layer,
+                            slot: 1,
+                            parameterName: L("LP/HP Cutoff"),
+                            ccValue: Int(lp.ccFilter)
+                        ) { newCC in
+                            vm.updateLayerParams(layer) { $0.ccFilter = Int32(newCC) }
+                        }
+
+                        layerCCRow(
+                            layer: layer,
+                            slot: 2,
+                            parameterName: L("String Resonance"),
+                            ccValue: Int(lp.ccFxaAmount)
+                        ) { newCC in
+                            vm.updateLayerParams(layer) { $0.ccFxaAmount = Int32(newCC) }
+                        }
+
+                        layerCCRow(
+                            layer: layer,
+                            slot: 3,
+                            parameterName: L("Release Tail"),
+                            ccValue: Int(lp.ccFxaRelease)
+                        ) { newCC in
+                            vm.updateLayerParams(layer) { $0.ccFxaRelease = Int32(newCC) }
+                        }
+                    }
+                }
+            }
+            .frame(width: leftW)
+
+            // Right Column: Live 30 Hz MIDI Monitor (last 100 messages: time, type, channel, data)
+            SectionCard(
+                title: L("MIDI Monitor"),
+                subtitle: String(localized: "\(vm.midiMonitorMessages.count) / 100 events", bundle: .module),
+                headerTrailing: {
+                    HStack(spacing: 8) {
+                        Button {
+                            vm.midiMonitorPaused.toggle()
+                        } label: {
+                            Label(
+                                vm.midiMonitorPaused ? L("Resume") : L("Pause"),
+                                systemImage: vm.midiMonitorPaused ? "play.fill" : "pause.fill"
+                            )
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+
+                        Button {
+                            vm.clearMidiMonitor()
+                        } label: {
+                            Text(L("Clear"))
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                        .disabled(vm.midiMonitorMessages.isEmpty)
+                    }
+                }
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(L("Time"))
+                            .frame(width: 82, alignment: .leading)
+                        Text(L("Type"))
+                            .frame(width: 112, alignment: .leading)
+                        Text(L("Channel"))
+                            .frame(width: 52, alignment: .leading)
+                        Text(L("Data"))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(L("CC"))
-                            .frame(width: 130, alignment: .leading)
-                        Text(L("Learn"))
-                            .frame(width: 96, alignment: .trailing)
                     }
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.textSecondary)
@@ -2098,143 +2415,115 @@ struct ContentView: View {
 
                     Divider().overlay(StudioTokens.borderHairline)
 
-                    layerCCRow(
-                        layer: layer,
-                        slot: 0,
-                        parameterName: L("Layer Volume"),
-                        ccValue: Int(lp.ccVolume)
-                    ) { newCC in
-                        vm.updateLayerParams(layer) { $0.ccVolume = Int32(newCC) }
-                    }
-
-                    layerCCRow(
-                        layer: layer,
-                        slot: 1,
-                        parameterName: L("LP/HP Cutoff"),
-                        ccValue: Int(lp.ccFilter)
-                    ) { newCC in
-                        vm.updateLayerParams(layer) { $0.ccFilter = Int32(newCC) }
-                    }
-
-                    layerCCRow(
-                        layer: layer,
-                        slot: 2,
-                        parameterName: L("String Resonance"),
-                        ccValue: Int(lp.ccFxaAmount)
-                    ) { newCC in
-                        vm.updateLayerParams(layer) { $0.ccFxaAmount = Int32(newCC) }
-                    }
-
-                    layerCCRow(
-                        layer: layer,
-                        slot: 3,
-                        parameterName: L("Release Tail"),
-                        ccValue: Int(lp.ccFxaRelease)
-                    ) { newCC in
-                        vm.updateLayerParams(layer) { $0.ccFxaRelease = Int32(newCC) }
-                    }
-                }
-            }
-            .frame(width: colW)
-
-            // Column 2: Knob Mappings Table
-            SectionCard(
-                title: L("MIDI Mappings"),
-                subtitle: String(localized: "\(mappings.count) active", bundle: .module),
-                headerTrailing: {
-                    if let activeKey = vm.activeMidiLearnKey {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(StudioTokens.accent)
-                                .frame(width: 8, height: 8)
-                            Text(String(localized: "Waiting for CC for \(friendlyKnobName(activeKey))…", bundle: .module))
-                                .font(StudioTokens.fontLabel)
-                                .foregroundStyle(StudioTokens.textPrimary)
-                                .lineLimit(1)
-                            Button(L("Cancel")) {
-                                vm.activeMidiLearnKey = nil
-                            }
-                            .buttonStyle(.glass)
-                            .controlSize(.small)
-                        }
-                    }
-                }
-            ) {
-                if mappings.isEmpty {
-                    HStack(spacing: 12) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 20))
-                            .foregroundStyle(StudioTokens.textSecondary)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(L("No MIDI mappings"))
-                                .font(StudioTokens.fontBodyMedium)
-                                .foregroundStyle(StudioTokens.textPrimary)
-                            Text(L("Right-click any knob or control and choose \"Learn MIDI CC\", then move a physical control on your MIDI controller."))
+                    if vm.midiMonitorMessages.isEmpty {
+                        HStack(spacing: 10) {
+                            Image(systemName: "waveform.path.ecg")
+                                .font(.system(size: 16))
+                                .foregroundStyle(StudioTokens.textSecondary)
+                            Text(L("Play a MIDI controller or sustain/expression pedal to view incoming messages in real time."))
                                 .font(StudioTokens.fontLabel)
                                 .foregroundStyle(StudioTokens.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
                         }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(StudioTokens.surfaceControl.opacity(0.45), in: .rect(cornerRadius: 8))
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text(L("Parameter"))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(L("CC"))
-                                .frame(width: 72, alignment: .leading)
-                            Text(L("Remove"))
-                                .frame(width: 64, alignment: .trailing)
-                        }
-                        .font(StudioTokens.fontLabel)
-                        .foregroundStyle(StudioTokens.textSecondary)
-                        .padding(.horizontal, 10)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(StudioTokens.surfaceControl.opacity(0.45), in: .rect(cornerRadius: 8))
+                    } else {
+                        ScrollView(.vertical) {
+                            LazyVStack(alignment: .leading, spacing: 3) {
+                                ForEach(vm.midiMonitorMessages) { msg in
+                                    HStack(spacing: 8) {
+                                        Text(verbatim: msg.timeString)
+                                            .font(StudioTokens.fontLabel.monospacedDigit())
+                                            .foregroundStyle(StudioTokens.textSecondary)
+                                            .frame(width: 82, alignment: .leading)
 
-                        Divider().overlay(StudioTokens.borderHairline)
+                                        Text(msg.typeString)
+                                            .font(StudioTokens.fontLabel)
+                                            .foregroundStyle(StudioTokens.textPrimary)
+                                            .lineLimit(1)
+                                            .frame(width: 112, alignment: .leading)
 
-                        VStack(spacing: 4) {
-                            ForEach(mappings, id: \.key) { item in
-                                HStack {
-                                    Text(friendlyKnobName(item.key))
-                                        .font(StudioTokens.fontBodyMedium)
-                                        .foregroundStyle(StudioTokens.textPrimary)
-                                        .lineLimit(1)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        Text(msg.channelString)
+                                            .font(StudioTokens.fontLabel.monospacedDigit())
+                                            .foregroundStyle(StudioTokens.textSecondary)
+                                            .frame(width: 52, alignment: .leading)
 
-                                    Text(String(localized: "CC \(item.value)", bundle: .module))
-                                        .font(StudioTokens.fontValue)
-                                        .foregroundStyle(StudioTokens.textPrimary)
-                                        .frame(width: 72, alignment: .leading)
-
-                                    Button(role: .destructive) {
-                                        vm.unassignKnobCC(idKey: item.key)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                            .font(.system(size: 12))
+                                        Text(verbatim: msg.dataString)
+                                            .font(StudioTokens.fontLabel.monospacedDigit())
+                                            .foregroundStyle(StudioTokens.textPrimary)
+                                            .lineLimit(1)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    .buttonStyle(.glass)
-                                    .controlSize(.small)
-                                    .frame(width: 64, alignment: .trailing)
-                                    .help(String(localized: "Remove mapping for \(friendlyKnobName(item.key))", bundle: .module))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        StudioTokens.surfaceControl.opacity(0.55),
+                                        in: .rect(cornerRadius: 4)
+                                    )
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(
-                                    StudioTokens.surfaceControl,
-                                    in: .rect(cornerRadius: StudioTokens.controlRadius)
-                                )
                             }
                         }
+                        .frame(maxHeight: 220)
                     }
                 }
             }
-            .frame(width: max(100, availableWidth - spacing - colW))
+            .frame(width: rightW)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var debugManualCCSenderSheet: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(L("Manual MIDI CC Sender (Debug)"))
+                .font(StudioTokens.fontSectionTitle)
+                .foregroundStyle(StudioTokens.textPrimary)
+
+            Picker(L("CC Number"), selection: $vm.debugManualCCNumber) {
+                ForEach(0..<128, id: \.self) { cc in
+                    Text(String(localized: "CC \(cc)", bundle: .module)).tag(cc)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(L("CC Value"))
+                        .font(StudioTokens.fontLabel)
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Spacer()
+                    Text(verbatim: "\(Int(vm.debugManualCCValue.rounded()))")
+                        .font(StudioTokens.fontValue)
+                }
+                Slider(
+                    value: Binding(
+                        get: { vm.debugManualCCValue },
+                        set: { v in
+                            vm.debugManualCCValue = v
+                            vm.sendDebugManualCC(cc: vm.debugManualCCNumber, value: Int(v.rounded()))
+                        }
+                    ),
+                    in: 0...127,
+                    step: 1
+                )
+            }
+
+            HStack {
+                Button(L("Send Now")) {
+                    vm.sendDebugManualCC(cc: vm.debugManualCCNumber, value: Int(vm.debugManualCCValue.rounded()))
+                }
+                .buttonStyle(.glass)
+
+                Spacer()
+
+                Button(L("Close")) {
+                    vm.showDebugManualCCSheet = false
+                }
+                .buttonStyle(.glassProminent)
+            }
+        }
+        .padding(StudioTokens.grid3)
+        .frame(width: 340)
+        .background(StudioTokens.surfacePanel)
     }
 
     private func layerCCRow(
