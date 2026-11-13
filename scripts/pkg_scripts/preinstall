@@ -1,0 +1,17 @@
+#!/bin/bash
+# Remove versões antigas ou duplicadas antes da instalação limpa
+
+rm -rf "/Applications/Electro Piano.app"
+rm -rf "/Library/Audio/Plug-Ins/Components/Electro Piano.component"
+rm -rf "/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3"
+
+# Remove eventuais cópias antigas na pasta do usuário para evitar duplicatas na DAW
+for user_home in /Users/*; do
+    if [ -d "$user_home/Library/Audio/Plug-Ins" ]; then
+        rm -rf "$user_home/Library/Audio/Plug-Ins/Components/Electro Piano.component"
+        rm -rf "$user_home/Library/Audio/Plug-Ins/VST3/Electro Piano.vst3"
+    fi
+done
+
+killall -9 AudioComponentRegistrar 2>/dev/null || true
+exit 0
