@@ -270,8 +270,10 @@ std::unique_ptr<Instrument> Instrument::load(const std::string& path, const Prog
                 s.release = r.isRelease();
                 s.channels = r.isNsmp4 ? r.channels : doc->channels;
                 s.frames = r.decodedFrames;
+                s.originalFrames = r.decodedFrames;
                 s.loopStart = r.loopStart;
                 s.loopLength = r.loopLength;
+                s.originalLoopLength = r.loopLength;
                 s.fineTuneCents = r.fineTuneCents;
                 s.keyLow = r.keyLow;
                 s.keyHigh = r.keyHigh;
@@ -458,14 +460,40 @@ std::unique_ptr<Instrument> Instrument::load(const std::string& path, const Prog
 }
 
 size_t Instrument::purgeUnusedSamples() {
+    constexpr uint32_t kPreloadAttackFrames = 4096; // ~117 ms attack kept resident so purged notes sound immediately
     size_t freed = 0;
     size_t remaining = 0;
     for (size_t i = 0; i < samples.size(); ++i) {
         Sample& s = samples[i];
         const bool used = (i < sampleUsed.size()) && (sampleUsed[i] != 0);
-        if (!used && !s.pcm.empty()) {
-            freed += s.pcm.size() * sizeof(int16_t);
-            std::vector<int16_t>().swap(s.pcm);
+        const bool alreadyPurged = (i < samplePurged.size()) && (samplePurged[i] != 0);
+        if (!used && !alreadyPurged && !s.pcm.empty()) {
+            const size_t oldBytes = s.pcm.size() * sizeof(int16_t);
+            const int ch = std::max<int>(1, s.channels);
+            const uint32_t keepFrames = std::min<uint32_t>(s.originalFrames > 0 ? s.originalFrames : s.frames, kPreloadAttackFrames);
+            const size_t keepCount = size_t(keepFrames + 4) * size_t(ch);
+            if (s.pcm.size() > keepCount) {
+                std::vector<int16_t> attackBuf(s.pcm.begin(), s.pcm.begin() + ptrdiff_t(keepCount));
+                // Smooth fade-out on the last 256 frames of the preloaded attack prefix
+                const uint32_t fadeLen = std::min<uint32_t>(256, keepFrames);
+                for (uint32_t f = 0; f < fadeLen; ++f) {
+                    const uint32_t frameIdx = keepFrames - fadeLen + f;
+                    const float gain = float(fadeLen - f) / float(fadeLen);
+                    for (int c = 0; c < ch; ++c) {
+                        attackBuf[size_t(frameIdx) * size_t(ch) + size_t(c)] =
+                            int16_t(std::lround(float(attackBuf[size_t(frameIdx) * size_t(ch) + size_t(c)]) * gain));
+                    }
+                }
+                for (size_t g = size_t(keepFrames) * size_t(ch); g < keepCount; ++g) {
+                    attackBuf[g] = 0;
+                }
+                s.pcm.swap(attackBuf);
+                s.frames = keepFrames;
+                s.loopLength = 0;
+            }
+            const size_t newBytes = s.pcm.size() * sizeof(int16_t);
+            if (oldBytes > newBytes) freed += (oldBytes - newBytes);
+            remaining += newBytes;
             if (i < samplePurged.size()) samplePurged[i] = 1;
         } else {
             remaining += s.pcm.size() * sizeof(int16_t);
@@ -479,7 +507,8 @@ bool Instrument::reloadPurgedSamples() {
     if (path.empty()) return false;
     bool anyPurged = false;
     for (size_t i = 0; i < samples.size(); ++i) {
-        if (samples[i].pcm.empty()) {
+        const bool isPurged = (i < samplePurged.size()) && (samplePurged[i] != 0);
+        if (isPurged || samples[i].pcm.empty()) {
             anyPurged = true;
             break;
         }
@@ -491,22 +520,27 @@ bool Instrument::reloadPurgedSamples() {
         size_t totalBytes = 0;
         for (size_t i = 0; i < samples.size(); ++i) {
             Sample& s = samples[i];
-            if (s.pcm.empty() && s.recordIndex < doc->records.size()) {
+            const bool isPurged = (i < samplePurged.size()) && (samplePurged[i] != 0);
+            if ((isPurged || s.pcm.empty()) && s.recordIndex < doc->records.size()) {
                 const Record& r = doc->records[s.recordIndex];
                 std::vector<int16_t> pcm = doc->decode(r);
                 const int ch = s.channels;
-                size_t needed = size_t(s.frames) + 4;
-                if (s.loopLength > 0) {
-                    size_t loopEnd = size_t(s.loopStart) + s.loopLength;
+                const uint32_t fullFrames = (s.originalFrames > 0) ? s.originalFrames : r.decodedFrames;
+                const uint32_t fullLoopLen = s.originalLoopLength;
+                size_t needed = size_t(fullFrames) + 4;
+                if (fullLoopLen > 0) {
+                    size_t loopEnd = size_t(s.loopStart) + fullLoopLen;
                     pcm.resize(std::max(pcm.size(), loopEnd * ch));
                     size_t have = pcm.size() / ch;
                     for (size_t f = have; f < loopEnd + 4; ++f)
-                        for (int c = 0; c < ch; ++c) pcm.push_back(pcm[(f - s.loopLength) * ch + c]);
+                        for (int c = 0; c < ch; ++c) pcm.push_back(pcm[(f - fullLoopLen) * ch + c]);
                     needed = std::max(needed, loopEnd + 4);
                 }
                 if (pcm.size() < needed * ch) pcm.resize(needed * ch, 0);
                 pcm.shrink_to_fit();
                 s.pcm = std::move(pcm);
+                s.frames = fullFrames;
+                s.loopLength = fullLoopLen;
                 if (i < samplePurged.size()) samplePurged[i] = 0;
             }
             totalBytes += s.pcm.size() * sizeof(int16_t);
@@ -524,8 +558,9 @@ void Instrument::resetUsedMarks() const {
 
 size_t Instrument::residentSampleCount() const {
     size_t n = 0;
-    for (const auto& s : samples) {
-        if (!s.pcm.empty()) ++n;
+    for (size_t i = 0; i < samples.size(); ++i) {
+        const bool isPurged = (i < samplePurged.size()) && (samplePurged[i] != 0);
+        if (!isPurged && !samples[i].pcm.empty()) ++n;
     }
     return n;
 }

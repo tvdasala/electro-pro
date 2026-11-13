@@ -101,6 +101,7 @@ public:
         Panic = 3,
         PitchBend = 4,
         ControlChange = 5,
+        KillLayer = 6,
     };
 
     struct Event {
@@ -221,6 +222,19 @@ public:
         peakL_.store(peakL_.load(std::memory_order_relaxed) * factor, std::memory_order_relaxed);
         peakR_.store(peakR_.load(std::memory_order_relaxed) * factor, std::memory_order_relaxed);
     }
+    bool isClipped() const { return clipped_.load(std::memory_order_relaxed); }
+    void resetClipIndicator() { clipped_.store(false, std::memory_order_relaxed); }
+
+    /// Número de ciclos de render concluídos (usado para liberar instrumentos fora da thread de áudio
+    /// somente depois que nenhum callback em andamento possa estar lendo o ponteiro antigo).
+    uint64_t renderCount() const { return renderCount_.load(std::memory_order_acquire); }
+
+    /// Troca apenas o ponteiro do instrumento da camada (sem alterar params nem enfileirar eventos).
+    /// Usado em manutenção (purge/reload) depois que as vozes da camada já foram silenciadas.
+    void setLayerInstrumentPointer(int layer, const Instrument* inst) {
+        if (layer < 0 || layer >= kNumLayers) return;
+        instruments_[layer].store(inst, std::memory_order_release);
+    }
     uint8_t keyVelocity(int note) const {
         if (note < 0 || note > 127) return 0;
         return keyState_[note].load(std::memory_order_relaxed);
@@ -278,6 +292,10 @@ private:
         float lpZ1R = 0.0f;
         float hpZ1L = 0.0f;
         float hpZ1R = 0.0f;
+        // One-pole parameter smoothing (~10 ms) for zero zipper noise
+        float smoothVol = 1.0f;
+        float smoothLpAlpha = 1.0f;
+        bool smoothInitialized = false;
         // Compressor e limitador por camada
         float compEnv = 0.0f;
         float layerLimiterGain = 1.0f;
@@ -292,6 +310,8 @@ private:
     Voice& allocateVoice(int layer, int note, bool isReleaseVoice, bool legatoMono) noexcept;
     void beginKill(Voice& v, float seconds) noexcept;
     void hardStealVoice(Voice& v) noexcept;
+    void killLayerVoices(int layer) noexcept;
+    void syncAudioParamsIfUnlocked() noexcept;
     const std::array<LayerParams, kNumLayers>& audioLayerParams() noexcept;
     void startReleaseOnVoice(Voice& v, const Instrument* inst, const LayerParams& lp, bool triggerRelSample) noexcept;
     void spawnReleaseVoice(int layer, int note, float envLevel, const Instrument* inst, const LayerParams& lp) noexcept;
@@ -316,6 +336,21 @@ private:
     mutable std::atomic<uint32_t> paramLock_{0}; // spinlock ultraleve apenas para cópia de structs pequenas
     // Cópia usada pela thread de áudio: atualizada com try-lock (nunca bloqueia/espera a UI).
     std::array<LayerParams, kNumLayers> audioLps_{};
+    std::array<ModulatorParams, 2> audioMods_{};
+    DelayParams audioDelay_{};
+    ReverbParams audioReverb_{};
+
+    // One-pole master parameter smoothing (~10 ms)
+    bool masterSmoothInit_ = false;
+    float smoothMasterGain_ = 1.0f;
+    float smoothPanL_ = 1.0f;
+    float smoothPanR_ = 1.0f;
+    float smoothDriveAmt_ = 0.25f;
+    float smoothDelayMix_ = 0.25f;
+    float smoothReverbMix_ = 0.22f;
+    float smoothBassDb_ = 0.0f;
+    float smoothMidDb_ = 0.0f;
+    float smoothTrebleDb_ = 0.0f;
 
     // MIDI Learn
     std::atomic<int> midiLearnLayer_{-1};
@@ -439,6 +474,8 @@ private:
     std::atomic<bool> sustainState_{false};
     std::atomic<float> peakL_{0.0f};
     std::atomic<float> peakR_{0.0f};
+    std::atomic<bool> clipped_{false};
+    std::atomic<uint64_t> renderCount_{0};
     std::array<std::atomic<uint8_t>, 128> keyState_{};
 };
 

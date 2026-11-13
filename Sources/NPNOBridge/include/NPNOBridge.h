@@ -115,6 +115,16 @@ typedef struct NPNOTelemetry {
     int32_t midiSourceCount;
     char midiSources[256];
     uint8_t keyVelocities[128];
+
+    // Phase 7: audio reliability telemetry
+    bool clipped;                    // persistent clip indicator (cleared by npno_host_reset_clip_indicator)
+    float callbackCpuPercent;        // render callback time / buffer duration (EMA, 0..100+)
+    uint32_t underrunCount;          // callbacks that overran their deadline + HAL processor overloads
+    int32_t bufferSize;              // current I/O buffer size in frames
+    float estimatedLatencyMs;        // buffer + device latency + safety offset
+    uint32_t audioRouteChangeSeq;    // increments every time the output is rebuilt after a route change
+    bool audioRunning;
+    char activeAudioDeviceName[128];
 } NPNOTelemetry;
 
 NPNOHost* npno_host_create(void);
@@ -122,6 +132,14 @@ void npno_host_destroy(NPNOHost* host);
 
 bool npno_host_start_audio(NPNOHost* host);
 void npno_host_stop_audio(NPNOHost* host);
+
+/// Clears the persistent clip indicator.
+void npno_host_reset_clip_indicator(NPNOHost* host);
+/// Requests an I/O buffer size in frames (32..2048). Applied immediately if audio is running.
+bool npno_host_set_buffer_size(NPNOHost* host, int32_t buffer_size);
+int32_t npno_host_get_buffer_size(NPNOHost* host);
+/// Resets the underrun counter (used by the stress test).
+void npno_host_reset_underrun_count(NPNOHost* host);
 
 /// Carrega um arquivo .npno na camada `layer` (0=A, 1=B, 2=C, 3=D).
 bool npno_host_load_layer_instrument(NPNOHost* host, int32_t layer, const char* path,
@@ -247,6 +265,10 @@ void npno_host_set_midi_cc_callback(NPNOHost* host, NPNOMidiCCCallback cb, void*
 typedef void (*NPNOMidiEventCallback)(uint8_t status_type, int32_t data1, int32_t data2, int32_t chan, void* ctx);
 void npno_host_set_midi_event_callback(NPNOHost* host, NPNOMidiEventCallback cb, void* ctx);
 void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t channel);
+
+/// Offline render & test helpers (used by unit tests).
+void npno_host_render_offline(NPNOHost* host, float* out_l, float* out_r, int32_t num_frames);
+bool npno_host_load_test_tone(NPNOHost* host, int32_t layer, float amplitude);
 
 #ifdef __cplusplus
 }

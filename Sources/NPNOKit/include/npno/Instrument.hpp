@@ -26,8 +26,10 @@ struct Sample {
     uint16_t channels = 2;
     double rate = kNativeSampleRate;
     uint32_t frames = 0;        // frames reproduzíveis
+    uint32_t originalFrames = 0;
     uint32_t loopStart = 0;
     uint32_t loopLength = 0;    // 0 = sem loop
+    uint32_t originalLoopLength = 0;
     float gain = 1.0f;          // inclui a conversão PCM16 -> float
     double loopDecayDb = 6.0;   // dB/s aplicado a partir do início do loop
     bool decayRealtime = false; // true: dB/s em tempo real; false: em tempo da amostra

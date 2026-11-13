@@ -4,10 +4,12 @@
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreMIDI/CoreMIDI.h>
+#include <dispatch/dispatch.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -50,16 +52,41 @@ struct NPNOHost {
     std::array<std::shared_ptr<npno::Instrument>, npno::Engine::kNumLayers> layerInstruments;
     std::array<std::vector<std::string>, npno::Engine::kNumLayers> layerBankFiles;
     std::array<int, npno::Engine::kNumLayers> layerBankIndex{-1, -1, -1, -1};
-    std::vector<std::shared_ptr<npno::Instrument>> retiredInstruments;
+
+    // Instrumentos substituídos: só são destruídos (fora da thread de áudio) depois que vários ciclos de
+    // render terminaram e um tempo mínimo passou, garantindo que nenhum callback em andamento ainda lê o ponteiro.
+    struct RetiredInstrument {
+        std::shared_ptr<npno::Instrument> inst;
+        uint64_t renderCountAtRetire = 0;
+        std::chrono::steady_clock::time_point when;
+    };
+    std::vector<RetiredInstrument> retiredInstruments;
     std::mutex instMutex;
 
     // CoreAudio
+    std::recursive_mutex audioMutex;
     AudioComponentInstance audioUnit = nullptr;
     AudioDeviceID selectedAudioDeviceID = 0; // 0 = Saída Padrão do Sistema
+    AudioDeviceID listenedDeviceID = 0;      // dispositivo físico atualmente em uso (com listeners registrados)
     double sampleRate = 48000.0;
-    bool audioRunning = false;
+    std::atomic<bool> audioRunning{false};
+    bool wantAudio = false;                  // o usuário/app quer áudio rodando (false durante sleep)
+    int preferredBufferSize = 0;             // 0 = padrão do dispositivo
     std::vector<float> scratchL;
     std::vector<float> scratchR;
+
+    // Telemetria de confiabilidade (escrita pela thread de áudio / HAL, lida pela UI)
+    std::atomic<float> cpuEma{0.0f};
+    std::atomic<uint32_t> underrunCount{0};
+    std::atomic<int32_t> currentBufferSize{0};
+    std::atomic<float> estimatedLatencyMs{0.0f};
+    std::atomic<uint32_t> routeChangeSeq{0};
+    std::mutex deviceNameMutex;
+    std::string activeDeviceName;
+
+    dispatch_queue_t routeQueue = nullptr;
+    std::atomic<bool> routeCheckPending{false};
+    std::atomic<bool> shuttingDown{false};
 
     struct AudioOutputEntry {
         AudioDeviceID deviceID = 0;
@@ -92,6 +119,7 @@ struct NPNOHost {
                                    UInt32 inNumberFrames, AudioBufferList* ioData) noexcept {
         auto* self = static_cast<NPNOHost*>(inRefCon);
         if (!ioData || ioData->mNumberBuffers == 0) return noErr;
+        const auto t0 = std::chrono::steady_clock::now();
 
         const int frames = int(std::min<UInt32>(inNumberFrames, UInt32(self->scratchL.size())));
         if (ioData->mNumberBuffers >= 2 && ioData->mBuffers[0].mData && ioData->mBuffers[1].mData) {
@@ -113,7 +141,358 @@ struct NPNOHost {
                 for (int i = 0; i < frames; ++i) dst[i] = 0.5f * (L[i] + R[i]);
             }
         }
+
+        // Medição de carga do callback (sem alocação, sem lock, sem log)
+        const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        const double budget = double(inNumberFrames) / std::max(8000.0, self->sampleRate);
+        if (budget > 0.0) {
+            const float pct = float(elapsed / budget * 100.0);
+            const float prev = self->cpuEma.load(std::memory_order_relaxed);
+            self->cpuEma.store(prev + 0.08f * (pct - prev), std::memory_order_relaxed);
+            if (elapsed > budget) self->underrunCount.fetch_add(1, std::memory_order_relaxed);
+        }
         return noErr;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // CoreAudio helpers
+    // ---------------------------------------------------------------------------------------------
+    static AudioDeviceID systemDefaultOutputDevice() {
+        AudioObjectPropertyAddress a = {kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal,
+                                        kAudioObjectPropertyElementMain};
+        AudioDeviceID dev = 0;
+        UInt32 sz = sizeof(dev);
+        if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, nullptr, &sz, &dev) != noErr) return 0;
+        return dev;
+    }
+
+    static bool deviceIsAlive(AudioDeviceID dev) {
+        if (dev == 0) return false;
+        AudioObjectPropertyAddress a = {kAudioDevicePropertyDeviceIsAlive, kAudioObjectPropertyScopeGlobal,
+                                        kAudioObjectPropertyElementMain};
+        UInt32 alive = 0;
+        UInt32 sz = sizeof(alive);
+        if (AudioObjectGetPropertyData(dev, &a, 0, nullptr, &sz, &alive) != noErr) return false;
+        return alive != 0;
+    }
+
+    static double deviceNominalRate(AudioDeviceID dev) {
+        if (dev == 0) return 0.0;
+        AudioObjectPropertyAddress a = {kAudioDevicePropertyNominalSampleRate, kAudioObjectPropertyScopeGlobal,
+                                        kAudioObjectPropertyElementMain};
+        Float64 rate = 0.0;
+        UInt32 sz = sizeof(rate);
+        if (AudioObjectGetPropertyData(dev, &a, 0, nullptr, &sz, &rate) != noErr) return 0.0;
+        return rate;
+    }
+
+    static UInt32 deviceUInt32(AudioDeviceID dev, AudioObjectPropertySelector sel, AudioObjectPropertyScope scope) {
+        if (dev == 0) return 0;
+        AudioObjectPropertyAddress a = {sel, scope, kAudioObjectPropertyElementMain};
+        UInt32 v = 0;
+        UInt32 sz = sizeof(v);
+        if (AudioObjectGetPropertyData(dev, &a, 0, nullptr, &sz, &v) != noErr) return 0;
+        return v;
+    }
+
+    static std::string deviceName(AudioDeviceID dev) {
+        std::string result = "Audio Output";
+        if (dev == 0) return result;
+        AudioObjectPropertyAddress a = {kAudioObjectPropertyName, kAudioObjectPropertyScopeGlobal,
+                                        kAudioObjectPropertyElementMain};
+        CFStringRef cfName = nullptr;
+        UInt32 sz = sizeof(cfName);
+        if (AudioObjectGetPropertyData(dev, &a, 0, nullptr, &sz, &cfName) == noErr && cfName) {
+            char buf[192] = {};
+            if (CFStringGetCString(cfName, buf, sizeof(buf), kCFStringEncodingUTF8)) result = buf;
+            CFRelease(cfName);
+        }
+        return result;
+    }
+
+    static OSStatus hwListenerProc(AudioObjectID /*obj*/, UInt32 numAddresses,
+                                   const AudioObjectPropertyAddress* addresses, void* clientData) {
+        auto* self = static_cast<NPNOHost*>(clientData);
+        if (!self || self->shuttingDown.load(std::memory_order_acquire)) return noErr;
+        bool needCheck = false;
+        for (UInt32 i = 0; i < numAddresses; ++i) {
+            if (addresses[i].mSelector == kAudioDeviceProcessorOverload) {
+                self->underrunCount.fetch_add(1, std::memory_order_relaxed);
+            } else {
+                needCheck = true;
+            }
+        }
+        if (needCheck) self->scheduleRouteCheck();
+        return noErr;
+    }
+
+    static constexpr AudioObjectPropertySelector kSystemSelectors[2] = {
+        kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDevices};
+    static constexpr AudioObjectPropertySelector kDeviceSelectors[4] = {
+        kAudioDevicePropertyNominalSampleRate, kAudioDevicePropertyDeviceIsAlive, kAudioDeviceProcessorOverload,
+        kAudioDevicePropertyBufferFrameSize};
+
+    void registerSystemListeners() {
+        for (auto sel : kSystemSelectors) {
+            AudioObjectPropertyAddress a = {sel, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            AudioObjectAddPropertyListener(kAudioObjectSystemObject, &a, &NPNOHost::hwListenerProc, this);
+        }
+    }
+
+    void unregisterSystemListeners() {
+        for (auto sel : kSystemSelectors) {
+            AudioObjectPropertyAddress a = {sel, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            AudioObjectRemovePropertyListener(kAudioObjectSystemObject, &a, &NPNOHost::hwListenerProc, this);
+        }
+    }
+
+    void registerDeviceListeners(AudioDeviceID dev) {
+        if (dev == 0) return;
+        for (auto sel : kDeviceSelectors) {
+            AudioObjectPropertyAddress a = {sel, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            AudioObjectAddPropertyListener(dev, &a, &NPNOHost::hwListenerProc, this);
+        }
+        listenedDeviceID = dev;
+    }
+
+    void unregisterDeviceListeners() {
+        if (listenedDeviceID == 0) return;
+        for (auto sel : kDeviceSelectors) {
+            AudioObjectPropertyAddress a = {sel, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            AudioObjectRemovePropertyListener(listenedDeviceID, &a, &NPNOHost::hwListenerProc, this);
+        }
+        listenedDeviceID = 0;
+    }
+
+    AudioDeviceID resolveTargetDevice() const {
+        return selectedAudioDeviceID != 0 ? selectedAudioDeviceID : systemDefaultOutputDevice();
+    }
+
+    void refreshDeviceMetricsLocked() {
+        AudioDeviceID dev = listenedDeviceID;
+        if (dev == 0) return;
+        UInt32 bufFrames = deviceUInt32(dev, kAudioDevicePropertyBufferFrameSize, kAudioObjectPropertyScopeGlobal);
+        if (audioUnit) {
+            UInt32 auFrames = 0;
+            UInt32 sz = sizeof(auFrames);
+            if (AudioUnitGetProperty(audioUnit, kAudioDevicePropertyBufferFrameSize, kAudioUnitScope_Global, 0,
+                                     &auFrames, &sz) == noErr && auFrames > 0) {
+                bufFrames = auFrames;
+            }
+        }
+        const UInt32 devLatency = deviceUInt32(dev, kAudioDevicePropertyLatency, kAudioObjectPropertyScopeOutput);
+        const UInt32 safety = deviceUInt32(dev, kAudioDevicePropertySafetyOffset, kAudioObjectPropertyScopeOutput);
+        currentBufferSize.store(int32_t(bufFrames), std::memory_order_relaxed);
+        const double totalFrames = double(bufFrames) + double(devLatency) + double(safety);
+        estimatedLatencyMs.store(float(totalFrames / std::max(8000.0, sampleRate) * 1000.0),
+                                 std::memory_order_relaxed);
+    }
+
+    void scheduleRouteCheck() {
+        if (!routeQueue || shuttingDown.load(std::memory_order_acquire)) return;
+        if (routeCheckPending.exchange(true)) return;
+        // Pequeno debounce: o HAL costuma emitir várias notificações em sequência numa troca de rota.
+        dispatch_after_f(dispatch_time(DISPATCH_TIME_NOW, int64_t(150) * NSEC_PER_MSEC), routeQueue, this,
+                         &NPNOHost::routeCheckTrampoline);
+    }
+
+    static void routeCheckTrampoline(void* ctx) {
+        auto* self = static_cast<NPNOHost*>(ctx);
+        if (self->shuttingDown.load(std::memory_order_acquire)) {
+            self->routeCheckPending.store(false);
+            return;
+        }
+        self->handleRouteCheck();
+        self->routeCheckPending.store(false);
+    }
+
+    void handleRouteCheck() {
+        enumerateAudioOutputDevices();
+        std::lock_guard<std::recursive_mutex> lock(audioMutex);
+        if (!wantAudio) return;
+
+        if (selectedAudioDeviceID != 0 && !deviceIsAlive(selectedAudioDeviceID)) {
+            // Dispositivo escolhido foi removido: volta para a saída padrão do sistema.
+            selectedAudioDeviceID = 0;
+        }
+        const AudioDeviceID target = resolveTargetDevice();
+        const double targetRate = deviceNominalRate(target);
+        const bool rateChanged = targetRate > 0.0 && std::fabs(targetRate - sampleRate) > 0.5;
+        const bool deviceChanged = target != listenedDeviceID;
+        const bool deadDevice = listenedDeviceID != 0 && !deviceIsAlive(listenedDeviceID);
+
+        if (!audioRunning.load() || deviceChanged || rateChanged || deadDevice) {
+            stopAudioLocked();
+            if (startAudioLocked()) {
+                routeChangeSeq.fetch_add(1, std::memory_order_relaxed);
+            }
+        } else {
+            refreshDeviceMetricsLocked();
+        }
+    }
+
+    bool startAudioLocked() {
+        if (audioRunning.load()) return true;
+
+        AudioComponentDescription desc{};
+        desc.componentType = kAudioUnitType_Output;
+        desc.componentSubType =
+            (selectedAudioDeviceID == 0) ? kAudioUnitSubType_DefaultOutput : kAudioUnitSubType_HALOutput;
+        desc.componentManufacturer = kAudioUnitManufacturer_Apple;
+
+        AudioComponent comp = AudioComponentFindNext(nullptr, &desc);
+        if (!comp) return false;
+        if (AudioComponentInstanceNew(comp, &audioUnit) != noErr || !audioUnit) {
+            audioUnit = nullptr;
+            return false;
+        }
+
+        auto fail = [this]() {
+            AudioComponentInstanceDispose(audioUnit);
+            audioUnit = nullptr;
+            return false;
+        };
+
+        if (selectedAudioDeviceID != 0) {
+            AudioDeviceID devID = selectedAudioDeviceID;
+            if (AudioUnitSetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                     &devID, sizeof(devID)) != noErr) {
+                fail();
+                selectedAudioDeviceID = 0;
+                return startAudioLocked();
+            }
+        }
+
+        AudioDeviceID actualDevice = 0;
+        {
+            UInt32 sz = sizeof(actualDevice);
+            if (AudioUnitGetProperty(audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                     &actualDevice, &sz) != noErr || actualDevice == 0) {
+                actualDevice = resolveTargetDevice();
+            }
+        }
+
+        if (preferredBufferSize > 0) {
+            UInt32 frames = UInt32(preferredBufferSize);
+            AudioUnitSetProperty(audioUnit, kAudioDevicePropertyBufferFrameSize, kAudioUnitScope_Global, 0, &frames,
+                                 sizeof(frames));
+        }
+        {
+            UInt32 maxFrames = 4096;
+            AudioUnitSetProperty(audioUnit, kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0,
+                                 &maxFrames, sizeof(maxFrames));
+        }
+
+        Float64 hwRate = deviceNominalRate(actualDevice);
+        if (hwRate < 8000.0) {
+            UInt32 propSize = sizeof(hwRate);
+            if (AudioUnitGetProperty(audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &hwRate,
+                                     &propSize) != noErr ||
+                hwRate < 8000.0) {
+                hwRate = 48000.0;
+            }
+        }
+        sampleRate = hwRate;
+        engine.prepare(hwRate);
+
+        AudioStreamBasicDescription asbd{};
+        asbd.mSampleRate = hwRate;
+        asbd.mFormatID = kAudioFormatLinearPCM;
+        asbd.mFormatFlags =
+            AudioFormatFlags(kAudioFormatFlagsNativeFloatPacked) | AudioFormatFlags(kAudioFormatFlagIsNonInterleaved);
+        asbd.mBytesPerPacket = sizeof(float);
+        asbd.mFramesPerPacket = 1;
+        asbd.mBytesPerFrame = sizeof(float);
+        asbd.mChannelsPerFrame = 2;
+        asbd.mBitsPerChannel = 32;
+
+        if (AudioUnitSetProperty(audioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &asbd,
+                                 sizeof(asbd)) != noErr) {
+            return fail();
+        }
+
+        AURenderCallbackStruct cb{};
+        cb.inputProc = &NPNOHost::renderCallback;
+        cb.inputProcRefCon = this;
+        if (AudioUnitSetProperty(audioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb,
+                                 sizeof(cb)) != noErr) {
+            return fail();
+        }
+
+        if (AudioUnitInitialize(audioUnit) != noErr) {
+            return fail();
+        }
+        if (AudioOutputUnitStart(audioUnit) != noErr) {
+            AudioUnitUninitialize(audioUnit);
+            return fail();
+        }
+
+        audioRunning.store(true);
+        cpuEma.store(0.0f, std::memory_order_relaxed);
+        registerDeviceListeners(actualDevice);
+        refreshDeviceMetricsLocked();
+        {
+            std::lock_guard<std::mutex> nameLock(deviceNameMutex);
+            activeDeviceName = deviceName(actualDevice);
+        }
+        return true;
+    }
+
+    void stopAudioLocked() {
+        unregisterDeviceListeners();
+        if (!audioUnit) {
+            audioRunning.store(false);
+            return;
+        }
+        if (audioRunning.load()) {
+            AudioOutputUnitStop(audioUnit);
+            audioRunning.store(false);
+        }
+        AudioUnitUninitialize(audioUnit);
+        AudioComponentInstanceDispose(audioUnit);
+        audioUnit = nullptr;
+    }
+
+    /// Espera até `cycles` callbacks de render completos (ou timeout). Sem efeito se o áudio estiver parado.
+    void waitForRenderCycles(int cycles) {
+        if (!audioRunning.load()) return;
+        const uint64_t start = engine.renderCount();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(400);
+        while (engine.renderCount() < start + uint64_t(cycles) && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    }
+
+    /// Libera instrumentos aposentados em uma thread de fundo (nunca na thread de áudio nem na UI).
+    void collectRetiredLocked(bool force = false) {
+        if (retiredInstruments.empty()) return;
+        const auto now = std::chrono::steady_clock::now();
+        const uint64_t rc = engine.renderCount();
+        const bool running = audioRunning.load();
+        std::vector<std::shared_ptr<npno::Instrument>> toFree;
+        for (auto it = retiredInstruments.begin(); it != retiredInstruments.end();) {
+            const bool oldEnough = (now - it->when) >= std::chrono::milliseconds(500);
+            const bool cyclesPassed = !running || rc >= it->renderCountAtRetire + 4;
+            if (force || (oldEnough && cyclesPassed)) {
+                toFree.push_back(std::move(it->inst));
+                it = retiredInstruments.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (!toFree.empty()) {
+            std::thread([victims = std::move(toFree)]() mutable { victims.clear(); }).detach();
+        }
+    }
+
+    /// Solta todas as notas e pedais suavemente (usado quando um controlador MIDI é desconectado).
+    void releaseAllNotes() {
+        engine.pushEvent(npno::Engine::EventType::ControlChange, 64, 0.0f, 0);
+        engine.pushEvent(npno::Engine::EventType::ControlChange, 66, 0.0f, 0);
+        engine.pushEvent(npno::Engine::EventType::Sustain, 0, 0.0f, 0);
+        for (int n = 0; n < 128; ++n) {
+            engine.pushEvent(npno::Engine::EventType::NoteOff, n, 0.0f, 0);
+        }
     }
 
     static void midiReadProc(const MIDIPacketList* pktlist, void* readProcRefCon, void* /*srcConnRefCon*/) {
@@ -199,6 +578,10 @@ struct NPNOHost {
     static void midiNotifyProc(const MIDINotification* message, void* refCon) {
         auto* self = static_cast<NPNOHost*>(refCon);
         if (!self || !message) return;
+        if (message->messageID == kMIDIMsgObjectRemoved) {
+            // Um controlador sumiu: nenhuma nota pode ficar presa.
+            self->releaseAllNotes();
+        }
         if (message->messageID == kMIDIMsgSetupChanged || message->messageID == kMIDIMsgObjectAdded ||
             message->messageID == kMIDIMsgObjectRemoved) {
             self->connectAllMidiSources();
@@ -270,8 +653,10 @@ struct NPNOHost {
         }
 
         midiInputs = std::move(updated);
+        const int prevConnected = midiSourceCount;
         midiSourceCount = connected;
         midiSourcesSummary = connected > 0 ? names : "No MIDI controller detected";
+        if (connected < prevConnected) releaseAllNotes();
     }
 
     void updateMidiSummaryLocked() {
@@ -357,107 +742,71 @@ NPNOHost* npno_host_create(void) {
     auto* host = new NPNOHost();
     host->scratchL.resize(8192, 0.0f);
     host->scratchR.resize(8192, 0.0f);
+    host->routeQueue = dispatch_queue_create("com.electropro.audio-route", DISPATCH_QUEUE_SERIAL);
     host->enumerateAudioOutputDevices();
+    host->registerSystemListeners();
     host->initMidi();
     return host;
 }
 
 void npno_host_destroy(NPNOHost* host) {
     if (!host) return;
+    host->shuttingDown.store(true, std::memory_order_release);
+    host->unregisterSystemListeners();
+    // Aguarda qualquer verificação de rota agendada terminar antes de destruir o host.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(600);
+    while (host->routeCheckPending.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     npno_host_stop_audio(host);
     if (host->midiInPort) MIDIPortDispose(host->midiInPort);
     if (host->midiClient) MIDIClientDispose(host->midiClient);
+    {
+        std::lock_guard<std::mutex> lock(host->instMutex);
+        host->retiredInstruments.clear();
+    }
+    if (host->routeQueue) {
+        dispatch_release(host->routeQueue);
+        host->routeQueue = nullptr;
+    }
     delete host;
 }
 
 bool npno_host_start_audio(NPNOHost* host) {
     if (!host) return false;
-    if (host->audioRunning) return true;
-
-    AudioComponentDescription desc{};
-    desc.componentType = kAudioUnitType_Output;
-    desc.componentSubType =
-        (host->selectedAudioDeviceID == 0) ? kAudioUnitSubType_DefaultOutput : kAudioUnitSubType_HALOutput;
-    desc.componentManufacturer = kAudioUnitManufacturer_Apple;
-
-    AudioComponent comp = AudioComponentFindNext(nullptr, &desc);
-    if (!comp) return false;
-    if (AudioComponentInstanceNew(comp, &host->audioUnit) != noErr || !host->audioUnit) return false;
-
-    if (host->selectedAudioDeviceID != 0) {
-        AudioDeviceID devID = host->selectedAudioDeviceID;
-        if (AudioUnitSetProperty(host->audioUnit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                 &devID, sizeof(devID)) != noErr) {
-            AudioComponentInstanceDispose(host->audioUnit);
-            host->audioUnit = nullptr;
-            host->selectedAudioDeviceID = 0;
-            return npno_host_start_audio(host);
-        }
-    }
-
-    Float64 hwRate = 48000.0;
-    UInt32 propSize = sizeof(hwRate);
-    if (AudioUnitGetProperty(host->audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &hwRate,
-                             &propSize) != noErr ||
-        hwRate < 8000.0) {
-        hwRate = 48000.0;
-    }
-    host->sampleRate = hwRate;
-    host->engine.prepare(hwRate);
-
-    AudioStreamBasicDescription asbd{};
-    asbd.mSampleRate = hwRate;
-    asbd.mFormatID = kAudioFormatLinearPCM;
-    asbd.mFormatFlags =
-        AudioFormatFlags(kAudioFormatFlagsNativeFloatPacked) | AudioFormatFlags(kAudioFormatFlagIsNonInterleaved);
-    asbd.mBytesPerPacket = sizeof(float);
-    asbd.mFramesPerPacket = 1;
-    asbd.mBytesPerFrame = sizeof(float);
-    asbd.mChannelsPerFrame = 2;
-    asbd.mBitsPerChannel = 32;
-
-    if (AudioUnitSetProperty(host->audioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &asbd,
-                             sizeof(asbd)) != noErr) {
-        AudioComponentInstanceDispose(host->audioUnit);
-        host->audioUnit = nullptr;
-        return false;
-    }
-
-    AURenderCallbackStruct cb{};
-    cb.inputProc = &NPNOHost::renderCallback;
-    cb.inputProcRefCon = host;
-    if (AudioUnitSetProperty(host->audioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb,
-                             sizeof(cb)) != noErr) {
-        AudioComponentInstanceDispose(host->audioUnit);
-        host->audioUnit = nullptr;
-        return false;
-    }
-
-    if (AudioUnitInitialize(host->audioUnit) != noErr) {
-        AudioComponentInstanceDispose(host->audioUnit);
-        host->audioUnit = nullptr;
-        return false;
-    }
-    if (AudioOutputUnitStart(host->audioUnit) != noErr) {
-        AudioUnitUninitialize(host->audioUnit);
-        AudioComponentInstanceDispose(host->audioUnit);
-        host->audioUnit = nullptr;
-        return false;
-    }
-
-    host->audioRunning = true;
-    return true;
+    std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
+    host->wantAudio = true;
+    return host->startAudioLocked();
 }
 
 void npno_host_stop_audio(NPNOHost* host) {
-    if (!host || !host->audioUnit) return;
-    if (host->audioRunning) {
-        AudioOutputUnitStop(host->audioUnit);
-        host->audioRunning = false;
-    }
-    AudioUnitUninitialize(host->audioUnit);
-    AudioComponentInstanceDispose(host->audioUnit);
-    host->audioUnit = nullptr;
+    if (!host) return;
+    std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
+    host->wantAudio = false;
+    host->stopAudioLocked();
+}
+
+void npno_host_reset_clip_indicator(NPNOHost* host) {
+    if (host) host->engine.resetClipIndicator();
+}
+
+bool npno_host_set_buffer_size(NPNOHost* host, int32_t buffer_size) {
+    if (!host) return false;
+    std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
+    const int clamped = buffer_size <= 0 ? 0 : std::clamp<int>(buffer_size, 32, 2048);
+    if (clamped == host->preferredBufferSize && host->audioRunning.load()) return true;
+    host->preferredBufferSize = clamped;
+    if (!host->audioRunning.load()) return true;
+    host->stopAudioLocked();
+    return host->startAudioLocked();
+}
+
+int32_t npno_host_get_buffer_size(NPNOHost* host) {
+    return host ? host->currentBufferSize.load(std::memory_order_relaxed) : 0;
+}
+
+void npno_host_reset_underrun_count(NPNOHost* host) {
+    if (host) host->underrunCount.store(0, std::memory_order_relaxed);
 }
 
 bool npno_host_load_layer_instrument(NPNOHost* host, int32_t layer, const char* path,
@@ -490,14 +839,13 @@ bool npno_host_load_layer_instrument(NPNOHost* host, int32_t layer, const char* 
         lp.enabled = true;
         host->engine.setLayerParams(layer, lp);
         if (host->layerInstruments[layer]) {
-            host->retiredInstruments.push_back(std::move(host->layerInstruments[layer]));
+            host->retiredInstruments.push_back(
+                {std::move(host->layerInstruments[layer]), host->engine.renderCount(), std::chrono::steady_clock::now()});
         }
         host->layerInstruments[layer] = std::move(inst);
         host->layerBankFiles[layer] = std::move(bankFiles);
         host->layerBankIndex[layer] = idx;
-        if (host->retiredInstruments.size() > 4) {
-            host->retiredInstruments.erase(host->retiredInstruments.begin());
-        }
+        host->collectRetiredLocked();
         return true;
     } catch (const std::exception& e) {
         if (err_buf && err_buf_len > 0) {
@@ -666,29 +1014,58 @@ void npno_host_cancel_midi_learn(NPNOHost* host) {
     if (host) host->engine.cancelMidiLearn();
 }
 
+namespace {
+// Silencia suavemente todas as camadas, desconecta os ponteiros de instrumento da engine e espera
+// a thread de áudio confirmar (ciclos de render completos) antes de mutar buffers PCM.
+std::array<const npno::Instrument*, npno::Engine::kNumLayers> detachInstrumentsForMaintenance(NPNOHost* host) {
+    std::array<const npno::Instrument*, npno::Engine::kNumLayers> saved{};
+    for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
+        host->engine.pushEvent(npno::Engine::EventType::KillLayer, l, 0.0f, 0);
+    }
+    if (host->audioRunning.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(12)); // rampa de 6 ms + margem
+        host->waitForRenderCycles(2);
+    }
+    for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
+        saved[size_t(l)] = host->engine.layerInstrument(l);
+        host->engine.setLayerInstrumentPointer(l, nullptr);
+    }
+    host->waitForRenderCycles(2);
+    return saved;
+}
+
+void reattachInstruments(NPNOHost* host, const std::array<const npno::Instrument*, npno::Engine::kNumLayers>& saved) {
+    for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
+        host->engine.setLayerInstrumentPointer(l, saved[size_t(l)]);
+    }
+}
+}  // namespace
+
 uint64_t npno_host_purge_unused(NPNOHost* host) {
     if (!host) return 0;
-    host->engine.panic();
     std::lock_guard<std::mutex> lock(host->instMutex);
+    const auto saved = detachInstrumentsForMaintenance(host);
     uint64_t freed = 0;
     for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
         if (host->layerInstruments[l]) {
             freed += host->layerInstruments[l]->purgeUnusedSamples();
         }
     }
+    reattachInstruments(host, saved);
     return freed;
 }
 
 bool npno_host_reload_purged(NPNOHost* host) {
     if (!host) return false;
-    host->engine.panic();
     std::lock_guard<std::mutex> lock(host->instMutex);
+    const auto saved = detachInstrumentsForMaintenance(host);
     bool ok = true;
     for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
         if (host->layerInstruments[l]) {
             if (!host->layerInstruments[l]->reloadPurgedSamples()) ok = false;
         }
     }
+    reattachInstruments(host, saved);
     return ok;
 }
 
@@ -710,8 +1087,22 @@ void npno_host_get_telemetry(NPNOHost* host, NPNOTelemetry* out_telemetry) {
     host->engine.decayPeaks(0.84f);
     out_telemetry->sampleRate = host->sampleRate;
 
+    out_telemetry->clipped = host->engine.isClipped();
+    out_telemetry->callbackCpuPercent = host->cpuEma.load(std::memory_order_relaxed);
+    out_telemetry->underrunCount = host->underrunCount.load(std::memory_order_relaxed);
+    out_telemetry->bufferSize = host->currentBufferSize.load(std::memory_order_relaxed);
+    out_telemetry->estimatedLatencyMs = host->estimatedLatencyMs.load(std::memory_order_relaxed);
+    out_telemetry->audioRouteChangeSeq = host->routeChangeSeq.load(std::memory_order_relaxed);
+    out_telemetry->audioRunning = host->audioRunning.load();
+    {
+        std::lock_guard<std::mutex> nameLock(host->deviceNameMutex);
+        std::snprintf(out_telemetry->activeAudioDeviceName, sizeof(out_telemetry->activeAudioDeviceName), "%s",
+                      host->activeDeviceName.c_str());
+    }
+
     {
         std::lock_guard<std::mutex> lock(host->instMutex);
+        host->collectRetiredLocked();
         uint64_t memBytes = 0, unpurgedBytes = 0;
         for (int l = 0; l < npno::Engine::kNumLayers; ++l) {
             if (host->layerInstruments[l]) {
@@ -993,14 +1384,18 @@ bool npno_host_get_audio_output_device_info(NPNOHost* host, int32_t index,
 
 bool npno_host_set_audio_output_device(NPNOHost* host, uint32_t device_id) {
     if (!host) return false;
-    if (host->selectedAudioDeviceID == device_id && host->audioRunning) return true;
-    npno_host_stop_audio(host);
+    std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
+    if (host->selectedAudioDeviceID == device_id && host->audioRunning.load()) return true;
+    host->stopAudioLocked();
     host->selectedAudioDeviceID = device_id;
-    return npno_host_start_audio(host);
+    host->wantAudio = true;
+    return host->startAudioLocked();
 }
 
 uint32_t npno_host_get_current_audio_output_device(NPNOHost* host) {
-    return host ? host->selectedAudioDeviceID : 0;
+    if (!host) return 0;
+    std::lock_guard<std::recursive_mutex> lock(host->audioMutex);
+    return host->selectedAudioDeviceID;
 }
 
 void npno_host_rescan_midi(NPNOHost* host) {
@@ -1083,6 +1478,62 @@ void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t c
     } else {
         host->engine.pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
     }
+}
+
+void npno_host_render_offline(NPNOHost* host, float* out_l, float* out_r, int32_t num_frames) {
+    if (!host || !out_l || !out_r || num_frames <= 0) return;
+    host->engine.render(out_l, out_r, int(num_frames));
+}
+
+bool npno_host_load_test_tone(NPNOHost* host, int32_t layer, float amplitude) {
+    if (!host || layer < 0 || layer >= npno::Engine::kNumLayers) return false;
+    auto inst = std::make_shared<npno::Instrument>();
+    inst->name = "Test Tone";
+    inst->model = "Synthetic";
+    inst->channels = 2;
+    inst->lowestNote = 0;
+    inst->highestNote = 127;
+    inst->damperBoundary = 127;
+
+    npno::Sample s{};
+    s.sampleIndex = 0;
+    s.root = 60;
+    s.keyLow = 0;
+    s.keyHigh = 127;
+    s.velLow = 0;
+    s.velHigh = 127;
+    s.rate = 48000.0;
+    s.channels = 2;
+    s.frames = 4096;
+    s.originalFrames = 4096;
+    s.loopStart = 0;
+    s.loopLength = 4096;
+    s.originalLoopLength = 4096;
+    s.loopDecayDb = 0.0;
+    s.releaseMs = 200.0f;
+    s.gain = 1.0f / 32768.0f;
+    s.peak = int(std::clamp(int(std::lround(amplitude * 32767.0f)), 1, 32767));
+    s.pcm.resize(size_t(s.frames) * 2 + 16, int16_t(s.peak));
+    inst->samples.push_back(std::move(s));
+    inst->sampleUsed.assign(1, 0);
+    inst->samplePurged.assign(1, 0);
+    inst->keymap.fill(60);
+    inst->cents.fill(0);
+    inst->trim.fill(0);
+    inst->noteGainLinear.fill(1.0f);
+    inst->normalByRoot[60] = {0};
+
+    std::lock_guard<std::mutex> lock(host->instMutex);
+    host->engine.setLayerInstrument(layer, inst.get());
+    auto lp = host->engine.layerParams(layer);
+    lp.enabled = true;
+    host->engine.setLayerParams(layer, lp);
+    if (host->layerInstruments[layer]) {
+        host->retiredInstruments.push_back(
+            {std::move(host->layerInstruments[layer]), host->engine.renderCount(), std::chrono::steady_clock::now()});
+    }
+    host->layerInstruments[layer] = std::move(inst);
+    return true;
 }
 
 }  // extern "C"

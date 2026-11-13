@@ -743,6 +743,7 @@ final class AudioTelemetryModel: ObservableObject {
     @Published var sustainDown: Bool = false
     @Published var peakL: Float = 0.0
     @Published var peakR: Float = 0.0
+    @Published var clipped: Bool = false
     @Published var keyVelocities: [UInt8] = Array(repeating: 0, count: 128)
 }
 
@@ -1694,14 +1695,33 @@ final class PianoViewModel: ObservableObject {
     }() {
         didSet {
             UserDefaults.standard.set(bufferSize, forKey: "ElectroPiano_BufferSize")
+            if let h = host {
+                _ = npno_host_set_buffer_size(h, Int32(bufferSize))
+            }
         }
     }
     @Published var callbackCpuPercent: Double = 0.0
+    @Published var underrunCount: Int = 0
+    @Published var hostEstimatedLatencyMs: Double = 0.0
+    @Published var hostBufferSize: Int = 128
+    @Published var hostActiveDeviceName: String = ""
+    @Published var audioRouteChangeBanner: String? = nil
+    @Published var showAudioHealthPopover: Bool = false
+    @Published var isRunningStressTest: Bool = false
+    @Published var stressTestStatus: String? = nil
+    private var lastRouteChangeSeq: UInt32 = 0
+    private var routeBannerTask: Task<Void, Never>?
+    private var stressTestTask: Task<Void, Never>?
+    nonisolated(unsafe) private var sleepObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var wakeObserver: NSObjectProtocol?
+
     var estimatedLatencyMs: Double {
+        if hostEstimatedLatencyMs > 0.01 { return hostEstimatedLatencyMs }
         let bufMs = (Double(bufferSize) / max(8000.0, sampleRate)) * 1000.0
         return bufMs + 2.6
     }
     var activeAudioDeviceName: String {
+        if !hostActiveDeviceName.isEmpty { return hostActiveDeviceName }
         if let match = audioOutputDevices.first(where: { $0.id == selectedAudioDeviceID }) {
             return match.name
         }
@@ -1821,6 +1841,7 @@ final class PianoViewModel: ObservableObject {
         restoreGlobalMidiMappings()
         host = npno_host_create()
         if let h = host {
+            _ = npno_host_set_buffer_size(h, Int32(bufferSize))
             _ = npno_host_start_audio(h)
             for l in 0..<4 {
                 var lp = NPNOLayerParams()
@@ -1829,6 +1850,17 @@ final class PianoViewModel: ObservableObject {
             }
             npno_host_set_midi_cc_callback(h, kMidiCCBridgeCallback, nil)
             npno_host_set_midi_event_callback(h, kMidiEventBridgeCallback, nil)
+        }
+        let wsCenter = NSWorkspace.shared.notificationCenter
+        sleepObserver = wsCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleSystemWillSleep()
+            }
+        }
+        wakeObserver = wsCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleSystemDidWake()
+            }
         }
         restoreSavedLibraryBookmarkIfNeeded()
         if !firstRunCompleted && libraryFolderPath.isEmpty {
@@ -1843,10 +1875,81 @@ final class PianoViewModel: ObservableObject {
     deinit {
         if let down = keyMonitorDown { NSEvent.removeMonitor(down) }
         if let up = keyMonitorUp { NSEvent.removeMonitor(up) }
+        let wsCenter = NSWorkspace.shared.notificationCenter
+        if let s = sleepObserver { wsCenter.removeObserver(s) }
+        if let w = wakeObserver { wsCenter.removeObserver(w) }
         if let h = host {
             npno_host_set_midi_cc_callback(h, nil, nil)
             npno_host_set_midi_event_callback(h, nil, nil)
             npno_host_destroy(h)
+        }
+    }
+
+    private func handleSystemWillSleep() {
+        guard let h = host else { return }
+        npno_host_panic(h)
+        npno_host_stop_audio(h)
+    }
+
+    private func handleSystemDidWake() {
+        guard let h = host else { return }
+        _ = npno_host_start_audio(h)
+        refreshAudioAndMidiDevices()
+    }
+
+    func resetClipIndicator() {
+        if let h = host { npno_host_reset_clip_indicator(h) }
+        telemetry.clipped = false
+    }
+
+    func resetUnderrunCount() {
+        if let h = host { npno_host_reset_underrun_count(h) }
+        underrunCount = 0
+    }
+
+    func toggleStressTest() {
+        if isRunningStressTest {
+            stressTestTask?.cancel()
+            stressTestTask = nil
+            isRunningStressTest = false
+            if let h = host { npno_host_panic(h) }
+            stressTestStatus = L("Stress test cancelled.")
+            return
+        }
+        guard let h = host else { return }
+        npno_host_reset_underrun_count(h)
+        underrunCount = 0
+        isRunningStressTest = true
+        stressTestStatus = L("Running 60s stress test…")
+
+        stressTestTask = Task { [weak self] in
+            guard let self else { return }
+            let start = Date()
+            var notesLaunched = 0
+            while !Task.isCancelled && Date().timeIntervalSince(start) < 60.0 {
+                npno_host_sustain(h, true)
+                for _ in 0..<8 {
+                    let note = Int32.random(in: 28...96)
+                    let vel = Float.random(in: 0.35...0.98)
+                    npno_host_note_on(h, note, vel)
+                    notesLaunched += 1
+                    try? await Task.sleep(nanoseconds: 25_000_000)
+                    if Task.isCancelled { break }
+                    npno_host_note_off(h, note)
+                }
+                if notesLaunched % 40 == 0 {
+                    // Toggle sustain periodically to exercise voice release + pedal dump
+                    npno_host_sustain(h, false)
+                    try? await Task.sleep(nanoseconds: 30_000_000)
+                }
+                let elapsed = Int(Date().timeIntervalSince(start))
+                self.stressTestStatus = String(localized: "Stress test: \(elapsed)s / 60s · \(notesLaunched) notes · \(self.underrunCount) underruns", bundle: .module)
+            }
+            npno_host_sustain(h, false)
+            npno_host_panic(h)
+            let finalUnderruns = self.underrunCount
+            self.isRunningStressTest = false
+            self.stressTestStatus = String(localized: "Stress test complete: \(notesLaunched) notes, \(finalUnderruns) underruns.", bundle: .module)
         }
     }
 
@@ -2474,6 +2577,16 @@ final class PianoViewModel: ObservableObject {
     }
 
     // UI polling timer at ~60 Hz on MainActor (drains CCs and telemetry without creating Tasks per MIDI event)
+    private func showAudioRouteBanner(deviceName: String) {
+        routeBannerTask?.cancel()
+        audioRouteChangeBanner = String(localized: "Output changed to \(deviceName)", bundle: .module)
+        routeBannerTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.audioRouteChangeBanner = nil
+        }
+    }
+
     private func startTelemetryTimer() {
         telemetryTimer = Self.makeTelemetryTimer(for: self)
     }
@@ -2661,6 +2774,32 @@ final class PianoViewModel: ObservableObject {
         if midiLearnSlot != newLearnSlot { midiLearnSlot = newLearnSlot }
 
         if abs(sampleRate - tel.sampleRate) > 0.1 { sampleRate = tel.sampleRate }
+        if telemetry.clipped != tel.clipped { telemetry.clipped = tel.clipped }
+        if abs(callbackCpuPercent - Double(tel.callbackCpuPercent)) > 0.1 {
+            callbackCpuPercent = Double(tel.callbackCpuPercent)
+        }
+        let newUnderruns = Int(tel.underrunCount)
+        if underrunCount != newUnderruns { underrunCount = newUnderruns }
+        if tel.bufferSize > 0 && hostBufferSize != Int(tel.bufferSize) {
+            hostBufferSize = Int(tel.bufferSize)
+        }
+        if tel.estimatedLatencyMs > 0.01 && abs(hostEstimatedLatencyMs - Double(tel.estimatedLatencyMs)) > 0.05 {
+            hostEstimatedLatencyMs = Double(tel.estimatedLatencyMs)
+        }
+        let rawDevName = withUnsafePointer(to: &tel.activeAudioDeviceName) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
+        }
+        if !rawDevName.isEmpty && hostActiveDeviceName != rawDevName {
+            hostActiveDeviceName = rawDevName
+        }
+        if tel.audioRouteChangeSeq != lastRouteChangeSeq {
+            let hadPrevious = lastRouteChangeSeq != 0 || !hostActiveDeviceName.isEmpty
+            lastRouteChangeSeq = tel.audioRouteChangeSeq
+            if hadPrevious && !rawDevName.isEmpty {
+                refreshAudioAndMidiDevices()
+                showAudioRouteBanner(deviceName: rawDevName)
+            }
+        }
 
         let newMidiCount = Int(tel.midiSourceCount)
         if midiSourceCount != newMidiCount { midiSourceCount = newMidiCount }
@@ -3332,6 +3471,9 @@ struct ElectroPianoApp: App {
             CommandMenu(L("Debug")) {
                 Button(L("Manual CC Sender…")) {
                     viewModel.showDebugManualCCSheet = true
+                }
+                Button(viewModel.isRunningStressTest ? L("Stop Stress Test") : L("Stress Test (60s)…")) {
+                    viewModel.toggleStressTest()
                 }
             }
             #endif

@@ -513,21 +513,91 @@ struct ProKnob: View {
 struct StereoPeakMeter: View {
     let peakL: Float
     let peakR: Float
+    var clipped: Bool = false
+    var onResetClip: (() -> Void)? = nil
     var segments: Int = 12
     var barWidth: CGFloat = 64
 
+    @State private var dbL: Double = -60.0
+    @State private var dbR: Double = -60.0
+    @State private var holdDbL: Double = -60.0
+    @State private var holdDbR: Double = -60.0
+    @State private var holdUntilL: Date = .distantPast
+    @State private var holdUntilR: Date = .distantPast
+    @State private var lastUpdate: Date = Date()
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            meterRow(label: "L", level: peakL)
-            meterRow(label: "R", level: peakR)
+        HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 2) {
+                meterRow(label: "L", db: dbL, holdDb: holdDbL)
+                meterRow(label: "R", db: dbR, holdDb: holdDbR)
+            }
+            .fixedSize()
+
+            Button {
+                onResetClip?()
+            } label: {
+                Text(verbatim: "CLIP")
+                    .font(.system(size: 8, weight: .bold).monospacedDigit())
+                    .foregroundStyle(clipped ? Color.white : StudioTokens.textDisabled)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(clipped ? StudioTokens.meterRed : StudioTokens.surfaceControl)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(clipped ? L("Output clipped — click to clear") : L("Clip indicator"))
         }
-        .fixedSize()
+        .onChange(of: peakL) { _, _ in updateBallistics() }
+        .onChange(of: peakR) { _, _ in updateBallistics() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L("Stereo output meter"))
-        .accessibilityValue(String(localized: "Left \(Int((min(peakL, 1.0) * 100).rounded())) percent, Right \(Int((min(peakR, 1.0) * 100).rounded())) percent", bundle: .module))
+        .accessibilityValue(String(localized: "Left \(Int(dbL.rounded())) dB, Right \(Int(dbR.rounded())) dB", bundle: .module))
     }
 
-    private func meterRow(label: String, level: Float) -> some View {
+    private func toDb(_ linear: Float) -> Double {
+        let clamped = max(Double(linear), 1e-6)
+        return max(-60.0, min(0.0, 20.0 * log10(clamped)))
+    }
+
+    private func updateBallistics() {
+        let now = Date()
+        let dt = min(0.25, max(0.005, now.timeIntervalSince(lastUpdate)))
+        lastUpdate = now
+        let decayDb = 20.0 * dt // ~20 dB/s release
+
+        let targetL = toDb(peakL)
+        if targetL >= dbL {
+            dbL = targetL
+        } else {
+            dbL = max(-60.0, max(targetL, dbL - decayDb))
+        }
+        if targetL >= holdDbL || now >= holdUntilL {
+            holdDbL = max(targetL, holdDbL - decayDb)
+            if targetL >= holdDbL {
+                holdDbL = targetL
+                holdUntilL = now.addingTimeInterval(1.5)
+            }
+        }
+
+        let targetR = toDb(peakR)
+        if targetR >= dbR {
+            dbR = targetR
+        } else {
+            dbR = max(-60.0, max(targetR, dbR - decayDb))
+        }
+        if targetR >= holdDbR || now >= holdUntilR {
+            holdDbR = max(targetR, holdDbR - decayDb)
+            if targetR >= holdDbR {
+                holdDbR = targetR
+                holdUntilR = now.addingTimeInterval(1.5)
+            }
+        }
+    }
+
+    private func meterRow(label: String, db: Double, holdDb: Double) -> some View {
         HStack(spacing: 4) {
             Text(verbatim: label)
                 .font(.system(size: 10, weight: .semibold).monospacedDigit())
@@ -535,8 +605,11 @@ struct StereoPeakMeter: View {
                 .frame(width: 9, alignment: .leading)
 
             Canvas { context, size in
-                let clamped = CGFloat(min(max(level, 0.0), 1.0))
-                let litCount = Int((clamped * CGFloat(segments)).rounded(.up))
+                let norm = CGFloat(max(0.0, min(1.0, (db + 60.0) / 60.0)))
+                let litCount = Int((norm * CGFloat(segments)).rounded(.up))
+                let holdNorm = CGFloat(max(0.0, min(1.0, (holdDb + 60.0) / 60.0)))
+                let holdIdx = holdDb > -59.5 ? min(segments - 1, max(0, Int((holdNorm * CGFloat(segments)).rounded(.down)))) : -1
+
                 let spacing: CGFloat = 1.5
                 let totalSpacing = spacing * CGFloat(max(0, segments - 1))
                 let segW = max(2.0, (size.width - totalSpacing) / CGFloat(segments))
@@ -546,16 +619,18 @@ struct StereoPeakMeter: View {
                     let rect = CGRect(x: x, y: 0, width: segW, height: size.height)
                     let path = Path(roundedRect: rect, cornerRadius: 1.2)
 
-                    if idx < litCount {
-                        let color: Color
+                    let colorForIdx: Color = {
                         if idx >= segments - 2 {
-                            color = StudioTokens.meterRed
+                            return StudioTokens.meterRed
                         } else if idx >= segments - 4 {
-                            color = StudioTokens.meterYellow
+                            return StudioTokens.meterYellow
                         } else {
-                            color = StudioTokens.meterGreen
+                            return StudioTokens.meterGreen
                         }
-                        context.fill(path, with: .color(color))
+                    }()
+
+                    if idx < litCount || idx == holdIdx {
+                        context.fill(path, with: .color(colorForIdx))
                     } else {
                         context.fill(path, with: .color(StudioTokens.surfaceControl))
                     }

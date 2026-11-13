@@ -1055,7 +1055,7 @@ struct ContentView: View {
                         vm.masterGainDb = 0.0
                     }
 
-                ToolbarPeakMeterView(telemetry: vm.telemetry)
+                ToolbarPeakMeterView(telemetry: vm.telemetry, onResetClip: { vm.resetClipIndicator() })
             }
         }
 
@@ -3106,15 +3106,40 @@ struct ContentView: View {
                     .font(StudioTokens.fontLabel)
                     .foregroundStyle(StudioTokens.meterYellow)
                     .lineLimit(1)
+            } else if let routeMsg = vm.audioRouteChangeBanner {
+                Divider().frame(height: 14)
+                Label(routeMsg, systemImage: "speaker.wave.2.fill")
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(StudioTokens.textPrimary)
+                    .lineLimit(1)
+            } else if let stressMsg = vm.stressTestStatus {
+                Divider().frame(height: 14)
+                Label(stressMsg, systemImage: "waveform.path.ecg")
+                    .font(StudioTokens.fontLabel)
+                    .foregroundStyle(vm.isRunningStressTest ? StudioTokens.meterYellow : StudioTokens.textPrimary)
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 10)
 
-            // Sample Rate
-            Text(verbatim: String(format: "%.1f kHz", vm.sampleRate / 1000.0))
-                .font(StudioTokens.fontLabel.monospacedDigit())
-                .foregroundStyle(StudioTokens.textSecondary)
-                .help(L("Active Core Audio engine sample rate"))
+            // Audio Health Button & Popover (Sample Rate · Latency)
+            Button {
+                vm.showAudioHealthPopover.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(vm.underrunCount > 0 ? StudioTokens.meterYellow : StudioTokens.meterGreen)
+                        .frame(width: 6, height: 6)
+                    Text(verbatim: String(format: "%.0f kHz · %.1f ms", vm.sampleRate / 1000.0, vm.estimatedLatencyMs))
+                        .font(StudioTokens.fontLabel.monospacedDigit())
+                        .foregroundStyle(StudioTokens.textSecondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(L("Audio engine health and latency details"))
+            .popover(isPresented: $vm.showAudioHealthPopover, arrowEdge: .top) {
+                AudioHealthPopoverView(vm: vm)
+            }
 
             Divider().frame(height: 14)
 
@@ -3195,9 +3220,86 @@ struct ContentView: View {
 
 private struct ToolbarPeakMeterView: View {
     @ObservedObject var telemetry: AudioTelemetryModel
+    var onResetClip: () -> Void
 
     var body: some View {
-        StereoPeakMeter(peakL: telemetry.peakL, peakR: telemetry.peakR, segments: 10, barWidth: 52)
+        StereoPeakMeter(
+            peakL: telemetry.peakL,
+            peakR: telemetry.peakR,
+            clipped: telemetry.clipped,
+            onResetClip: onResetClip,
+            segments: 10,
+            barWidth: 52
+        )
+    }
+}
+
+private struct AudioHealthPopoverView: View {
+    @ObservedObject var vm: PianoViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L("Audio Engine"))
+                .font(.headline)
+                .foregroundStyle(StudioTokens.textPrimary)
+
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                GridRow {
+                    Text(L("Output Device"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: vm.activeAudioDeviceName)
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .lineLimit(1)
+                }
+                GridRow {
+                    Text(L("Sample Rate"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: String(format: "%.1f kHz", vm.sampleRate / 1000.0))
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(L("Buffer Size"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: "\(vm.hostBufferSize) samples")
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(L("Estimated Latency"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: String(format: "%.1f ms", vm.estimatedLatencyMs))
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(L("Callback CPU"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: String(format: "%.1f%%", vm.callbackCpuPercent))
+                        .foregroundStyle(vm.callbackCpuPercent > 70.0 ? StudioTokens.meterRed : StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(L("Underruns"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    HStack(spacing: 8) {
+                        Text(verbatim: "\(vm.underrunCount)")
+                            .foregroundStyle(vm.underrunCount > 0 ? StudioTokens.meterYellow : StudioTokens.textPrimary)
+                            .monospacedDigit()
+                        if vm.underrunCount > 0 {
+                            Button(L("Reset")) {
+                                vm.resetUnderrunCount()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                        }
+                    }
+                }
+            }
+            .font(StudioTokens.fontLabel)
+        }
+        .padding(14)
+        .frame(minWidth: 260)
     }
 }
 

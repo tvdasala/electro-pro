@@ -45,6 +45,11 @@ let package = Package(
                 .process("Resources")
             ]
         ),
+        .testTarget(
+            name: "ElectroPianoTests",
+            dependencies: ["NPNOBridge"],
+            path: "Tests/ElectroPianoTests"
+        ),
     ],
     cxxLanguageStandard: .cxx20
 )

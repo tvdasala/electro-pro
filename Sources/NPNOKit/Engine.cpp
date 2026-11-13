@@ -121,6 +121,9 @@ Engine::Engine() {
     modParams_[1].depth = 0.20f;
 
     audioLps_ = layerParams_;
+    audioMods_ = modParams_;
+    audioDelay_ = delayParams_;
+    audioReverb_ = reverbParams_;
     prepare(48000.0);
 }
 
@@ -130,6 +133,7 @@ void Engine::prepare(double sampleRate) {
     eqMid_.resetState();
     eqHigh_.resetState();
     lastEqSampleRate_ = 0.0;
+    masterSmoothInit_ = false;
 
     // Pré-aloca buffer de Delay para até 2.5 segundos
     const size_t maxDelaySamples = std::max<size_t>(4096, size_t(sampleRate_ * 2.5) + 16);
@@ -172,7 +176,7 @@ void Engine::setLayerInstrument(int layer, const Instrument* inst) {
         layerParams_[layer].enabled = true;
     }
     if (prev && prev != inst) {
-        pushEvent(EventType::Panic, 0, 0.0f, 0);
+        pushEvent(EventType::KillLayer, layer, 0.0f, 0);
     }
 }
 
@@ -253,10 +257,28 @@ ReverbParams Engine::reverbParams() const {
 }
 
 void Engine::updateEqCoefficientsIfNeeded() noexcept {
-    const float bassDb = std::clamp(eqBassDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
-    const float midDb = std::clamp(eqMidDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
+    const float targetBass = std::clamp(eqBassDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
+    const float targetMid = std::clamp(eqMidDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
     const float midFreq = std::clamp(eqMidFreqHz_.load(std::memory_order_relaxed), 150.0f, 8000.0f);
-    const float trebleDb = std::clamp(eqTrebleDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
+    const float targetTreble = std::clamp(eqTrebleDb_.load(std::memory_order_relaxed), -18.0f, 18.0f);
+
+    if (!masterSmoothInit_) {
+        smoothBassDb_ = targetBass;
+        smoothMidDb_ = targetMid;
+        smoothTrebleDb_ = targetTreble;
+    } else {
+        auto smoothStep = [](float& cur, float tgt) noexcept {
+            if (std::fabs(tgt - cur) < 1.0e-4f) cur = tgt;
+            else cur += 0.25f * (tgt - cur);
+        };
+        smoothStep(smoothBassDb_, targetBass);
+        smoothStep(smoothMidDb_, targetMid);
+        smoothStep(smoothTrebleDb_, targetTreble);
+    }
+
+    const float bassDb = smoothBassDb_;
+    const float midDb = smoothMidDb_;
+    const float trebleDb = smoothTrebleDb_;
 
     if (bassDb == lastBassDb_ && midDb == lastMidDb_ && midFreq == lastMidFreq_ &&
         trebleDb == lastTrebleDb_ && sampleRate_ == lastEqSampleRate_) {
@@ -380,6 +402,7 @@ void Engine::drainEvents() noexcept {
                 case EventType::Panic: panic(); break;
                 case EventType::PitchBend: pitchBend(ev.value, ev.channel); break;
                 case EventType::ControlChange: controlChange(ev.note, int(std::lround(ev.value)), ev.channel); break;
+                case EventType::KillLayer: killLayerVoices(ev.note); break;
             }
         } else {
             break;
@@ -387,14 +410,29 @@ void Engine::drainEvents() noexcept {
     }
 }
 
-const std::array<LayerParams, Engine::kNumLayers>& Engine::audioLayerParams() noexcept {
-    // Try-lock: se a UI estiver segurando o lock neste exato instante, usamos a cópia anterior.
-    // Assim a thread de áudio NUNCA fica girando esperando outra thread (evita dropouts/estalos).
+void Engine::killLayerVoices(int layer) noexcept {
+    if (layer < 0 || layer >= kNumLayers) return;
+    layerState_[layer].lastNote = -1;
+    for (auto& v : voices_) {
+        if (v.active && int(v.layer) == layer) {
+            beginKill(v, kStealFadeSec);
+        }
+    }
+}
+
+void Engine::syncAudioParamsIfUnlocked() noexcept {
     uint32_t expected = 0;
     if (paramLock_.compare_exchange_strong(expected, 1, std::memory_order_acquire)) {
         audioLps_ = layerParams_;
+        audioMods_ = modParams_;
+        audioDelay_ = delayParams_;
+        audioReverb_ = reverbParams_;
         paramLock_.store(0, std::memory_order_release);
     }
+}
+
+const std::array<LayerParams, Engine::kNumLayers>& Engine::audioLayerParams() noexcept {
+    syncAudioParamsIfUnlocked();
     return audioLps_;
 }
 
@@ -463,11 +501,7 @@ void Engine::noteOn(int triggerKey, float rawVelocity, int channel) {
     const int globalCh = globalMidiChannel_.load(std::memory_order_relaxed);
     if (channel > 0 && globalCh > 0 && channel != globalCh) return;
 
-    std::array<LayerParams, kNumLayers> lps;
-    {
-        ScopedSpinLock lock(paramLock_);
-        lps = layerParams_;
-    }
+    const auto& lps = audioLayerParams();
 
     const int globalTranspose = transpose_.load(std::memory_order_relaxed);
     const int globalCurve = velCurve_.load(std::memory_order_relaxed);
@@ -710,11 +744,7 @@ void Engine::noteOff(int triggerKey, int channel) {
 
     keyState_[triggerKey].store(0, std::memory_order_relaxed);
 
-    std::array<LayerParams, kNumLayers> lps;
-    {
-        ScopedSpinLock lock(paramLock_);
-        lps = layerParams_;
-    }
+    const auto& lps = audioLayerParams();
 
     for (auto& v : voices_) {
         if (!v.active || v.isReleaseVoice || v.killing) continue;
@@ -746,11 +776,7 @@ void Engine::sustain(bool down, int channel) {
     sustainState_.store(down, std::memory_order_relaxed);
 
     if (!down) {
-        std::array<LayerParams, kNumLayers> lps;
-        {
-            ScopedSpinLock lock(paramLock_);
-            lps = layerParams_;
-        }
+        const auto& lps = audioLayerParams();
         for (auto& v : voices_) {
             if (v.active && !v.isReleaseVoice && !v.keyHeld && v.sustained) {
                 v.sustained = false;
@@ -776,11 +802,7 @@ void Engine::controlChange(int cc, int value127, int channel) {
         sustainState_.store(value127 >= 64, std::memory_order_relaxed);
         if (sustainPedal_ && !down) {
             sustainPedal_ = false;
-            std::array<LayerParams, kNumLayers> lps;
-            {
-                ScopedSpinLock lock(paramLock_);
-                lps = layerParams_;
-            }
+            const auto& lps = audioLayerParams();
             for (auto& v : voices_) {
                 if (v.active && !v.isReleaseVoice && !v.keyHeld && v.sustained) {
                     v.sustained = false;
@@ -808,11 +830,7 @@ void Engine::controlChange(int cc, int value127, int channel) {
             }
         } else if (sostenutoPedal_ && !down) {
             sostenutoPedal_ = false;
-            std::array<LayerParams, kNumLayers> lps;
-            {
-                ScopedSpinLock lock(paramLock_);
-                lps = layerParams_;
-            }
+            const auto& lps = audioLayerParams();
             for (auto& v : voices_) {
                 if (v.active && !v.isReleaseVoice && v.sostenutoHeld) {
                     v.sostenutoHeld = false;
@@ -833,36 +851,55 @@ void Engine::controlChange(int cc, int value127, int channel) {
         expressionGain_ = std::clamp(norm, 0.0f, 1.0f);
     }
 
+    syncAudioParamsIfUnlocked();
+
     // 2. Verifica MIDI Learn ativo
     const int learnLayer = midiLearnLayer_.load(std::memory_order_relaxed);
     const int learnSlot = midiLearnSlot_.load(std::memory_order_relaxed);
     if (learnLayer >= 0 && learnLayer < kNumLayers && learnSlot >= 0 && learnSlot <= 3 && cc != 64 && cc != 120 &&
         cc != 123) {
-        ScopedSpinLock lock(paramLock_);
-        LayerParams& lp = layerParams_[learnLayer];
-        if (learnSlot == 0) lp.ccVolume = cc;
-        else if (learnSlot == 1) lp.ccFilter = cc;
-        else if (learnSlot == 2) lp.ccFxaAmount = cc;
-        else if (learnSlot == 3) lp.ccFxaRelease = cc;
+        LayerParams& alp = audioLps_[learnLayer];
+        if (learnSlot == 0) alp.ccVolume = cc;
+        else if (learnSlot == 1) alp.ccFilter = cc;
+        else if (learnSlot == 2) alp.ccFxaAmount = cc;
+        else if (learnSlot == 3) alp.ccFxaRelease = cc;
+        uint32_t expected = 0;
+        if (paramLock_.compare_exchange_strong(expected, 1, std::memory_order_acquire)) {
+            LayerParams& lp = layerParams_[learnLayer];
+            if (learnSlot == 0) lp.ccVolume = cc;
+            else if (learnSlot == 1) lp.ccFilter = cc;
+            else if (learnSlot == 2) lp.ccFxaAmount = cc;
+            else if (learnSlot == 3) lp.ccFxaRelease = cc;
+            paramLock_.store(0, std::memory_order_release);
+        }
         midiLearnLayer_.store(-1, std::memory_order_relaxed);
         midiLearnSlot_.store(-1, std::memory_order_relaxed);
     }
 
     // 3. Aplica o CC aos sliders mapeados em cada camada
     bool mappedCC7 = false;
-    {
-        ScopedSpinLock lock(paramLock_);
+    for (int layer = 0; layer < kNumLayers; ++layer) {
+        LayerParams& alp = audioLps_[layer];
+        if (channel > 0 && alp.midiChannel > 0 && alp.midiChannel != channel) continue;
+        if (alp.ccVolume == cc) {
+            alp.volume = norm * 1.25f;
+            if (cc == 7) mappedCC7 = true;
+        }
+        if (alp.ccFilter == cc) alp.filter = norm;
+        if (alp.ccFxaAmount == cc) alp.fxaAmount = norm;
+        if (alp.ccFxaRelease == cc) alp.fxaRelease = norm;
+    }
+    uint32_t expected = 0;
+    if (paramLock_.compare_exchange_strong(expected, 1, std::memory_order_acquire)) {
         for (int layer = 0; layer < kNumLayers; ++layer) {
             LayerParams& lp = layerParams_[layer];
             if (channel > 0 && lp.midiChannel > 0 && lp.midiChannel != channel) continue;
-            if (lp.ccVolume == cc) {
-                lp.volume = norm * 1.25f;
-                if (cc == 7) mappedCC7 = true;
-            }
+            if (lp.ccVolume == cc) lp.volume = norm * 1.25f;
             if (lp.ccFilter == cc) lp.filter = norm;
             if (lp.ccFxaAmount == cc) lp.fxaAmount = norm;
             if (lp.ccFxaRelease == cc) lp.fxaRelease = norm;
         }
+        paramLock_.store(0, std::memory_order_release);
     }
     if (cc == 7 && !mappedCC7) {
         channelVolumeGain_ = std::clamp(norm, 0.0f, 1.0f);
@@ -913,17 +950,21 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         insts[l] = instruments_[l].load(std::memory_order_acquire);
     }
 
-    std::array<LayerParams, kNumLayers> lps;
-    std::array<ModulatorParams, 2> mods;
-    DelayParams dly;
-    ReverbParams rev;
-    {
-        ScopedSpinLock lock(paramLock_);
-        lps = layerParams_;
-        mods = modParams_;
-        dly = delayParams_;
-        rev = reverbParams_;
-    }
+    syncAudioParamsIfUnlocked();
+    const auto& lps = audioLps_;
+    const auto& mods = audioMods_;
+    const auto& dly = audioDelay_;
+    const auto& rev = audioReverb_;
+
+    // One-pole ~10 ms smoothing coefficient per sample
+    const float smoothAlpha = float(1.0 - std::exp(-1.0 / (0.010 * std::max(8000.0, sampleRate_))));
+    auto stepSmooth = [smoothAlpha](float& s, float target) noexcept {
+        if (std::fabs(target - s) < 1.0e-6f) {
+            s = target;
+        } else {
+            s += smoothAlpha * (target - s);
+        }
+    };
 
     // Calcula pitch bend em semitons por camada + Mod 1/2 de Pitch
     float modPitchSemis = 0.0f;
@@ -1068,8 +1109,8 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         for (int l = 0; l < kNumLayers; ++l) {
             if (!lps[l].enabled || !insts[l] || lps[l].volume <= 0.0001f) continue;
             auto& st = layerState_[l];
-            const float vol = lps[l].volume * expressionGain_ * channelVolumeGain_;
-            const float alpha = layerLpAlpha[l];
+            const float targetVol = lps[l].volume * expressionGain_ * channelVolumeGain_;
+            const float targetAlpha = layerLpAlpha[l];
             const float pres = layerPresenceGain[l];
             const bool compOn = lps[l].compOn && (lps[l].compAmount > 0.01f);
             const float compAmt = lps[l].compAmount;
@@ -1080,6 +1121,11 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
             const float fxaTailDecay = float(std::exp(-1.0 / (std::max(0.08, double(lps[l].fxaRelease) * 1.8) * sampleRate_)));
 
             for (int i = 0; i < chunk; ++i) {
+                stepSmooth(st.smoothVol, targetVol);
+                stepSmooth(st.smoothLpAlpha, targetAlpha);
+                const float vol = st.smoothVol;
+                const float alpha = st.smoothLpAlpha;
+
                 float xL = layerBufL[l][i];
                 float xR = layerBufR[l][i];
 
@@ -1161,11 +1207,11 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
                            std::fabs(lastMidDb_) > 0.01f ||
                            std::fabs(lastTrebleDb_) > 0.01f);
     const bool drvOn = driveEnabled_.load(std::memory_order_relaxed);
-    const float drvAmt = driveAmount_.load(std::memory_order_relaxed);
-    const float master = masterGain_.load(std::memory_order_relaxed);
+    const float targetDrvAmt = drvOn ? driveAmount_.load(std::memory_order_relaxed) : 0.0f;
+    const float targetMaster = masterGain_.load(std::memory_order_relaxed);
     const float pan = masterPan_.load(std::memory_order_relaxed);
-    const float panGainL = std::min(1.0f, 1.0f - pan);
-    const float panGainR = std::min(1.0f, 1.0f + pan);
+    const float targetPanL = std::min(1.0f, 1.0f - pan);
+    const float targetPanR = std::min(1.0f, 1.0f + pan);
 
     // Tempo de Delay efetivo (livre ou sincronizado ao BPM)
     float effDelayMs = dly.timeMs;
@@ -1184,7 +1230,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         size_t(effDelayMs * 0.001f * float(sampleRate_)), 16,
         delayBufL_.empty() ? 16 : (delayBufL_.size() - 1));
     const float dlyFb = std::clamp(dly.feedback, 0.0f, 0.92f);
-    const float dlyMix = std::clamp(dly.amount, 0.0f, 1.0f);
+    const float targetDlyMix = dly.enabled ? std::clamp(dly.amount, 0.0f, 1.0f) : 0.0f;
 
     // Parâmetros de Reverb
     const size_t preDelaySamples = std::clamp<size_t>(
@@ -1192,10 +1238,25 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         revPreDelayBuf_.empty() ? 1 : (revPreDelayBuf_.size() - 1));
     const float revFeedback = std::clamp(0.70f + 0.26f * (0.5f * rev.size + 0.5f * rev.decay), 0.70f, 0.965f);
     const float revDamp = std::clamp(rev.damping * 0.65f, 0.05f, 0.75f);
-    const float revMix = std::clamp(rev.amount, 0.0f, 1.0f);
+    const float targetRevMix = rev.enabled ? std::clamp(rev.amount, 0.0f, 1.0f) : 0.0f;
 
     float maxL = 0.0f, maxR = 0.0f;
+    bool didClipThisBlock = false;
     for (int i = 0; i < numFrames; ++i) {
+        stepSmooth(smoothDriveAmt_, targetDrvAmt);
+        stepSmooth(smoothDelayMix_, targetDlyMix);
+        stepSmooth(smoothReverbMix_, targetRevMix);
+        stepSmooth(smoothMasterGain_, targetMaster);
+        stepSmooth(smoothPanL_, targetPanL);
+        stepSmooth(smoothPanR_, targetPanR);
+
+        const float drvAmt = smoothDriveAmt_;
+        const float dlyMix = smoothDelayMix_;
+        const float revMix = smoothReverbMix_;
+        const float master = smoothMasterGain_;
+        const float panGainL = smoothPanL_;
+        const float panGainR = smoothPanR_;
+
         float l = outL[i];
         float r = outR[i];
 
@@ -1238,7 +1299,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         }
 
         // Drive / Saturação harmônica estilo válvula/fita Nord (zero DC offset)
-        if (drvOn && drvAmt > 0.005f) {
+        if (drvAmt > 0.0005f) {
             const float driveGain = 1.0f + drvAmt * 5.0f;
             const float comp = 1.0f / (1.0f + drvAmt * 1.35f);
             auto tubeSat = [driveGain, comp](float x) noexcept -> float {
@@ -1251,7 +1312,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         }
 
         // Delay Estéreo / Ping-Pong
-        if (dly.enabled && dlyMix > 0.001f && !delayBufL_.empty()) {
+        if (dlyMix > 0.0005f && !delayBufL_.empty()) {
             const size_t bufSize = delayBufL_.size();
             const size_t readIdx = (delayWriteIdx_ + bufSize - delaySamples) % bufSize;
             const float dL = delayBufL_[readIdx];
@@ -1274,7 +1335,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         }
 
         // Reverb Estéreo Studio (Pre-Delay + 4 Combs Paralelos + 2 Allpasses em Série)
-        if (rev.enabled && revMix > 0.001f && !revPreDelayBuf_.empty()) {
+        if (revMix > 0.0005f && !revPreDelayBuf_.empty()) {
             const size_t pdSize = revPreDelayBuf_.size();
             const size_t pdRead = (revPreWriteIdx_ + pdSize - preDelaySamples) % pdSize;
             const float monoIn = (l + r) * 0.25f;
@@ -1295,36 +1356,52 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
             r = r * (1.0f - revMix * 0.30f) + wetR * revMix * 0.28f;
         }
 
-        // Master Volume + Master Pan + Limitador Brickwall Transparente + Soft-Knee Contínuo (C¹)
+        // Master Volume + Master Pan + Limitador Transparente (ceiling -0.3 dBFS = 0.96605088f, zero lookahead,
+        // 100% bit-transparente abaixo do threshold kLimThresh = 0.85f)
         l *= master * panGainL;
         r *= master * panGainR;
 
         const float stereoPeak = std::max(std::fabs(l), std::fabs(r));
-        constexpr float kLimThresh = 0.84f;
-        const float desiredGain = (stereoPeak > kLimThresh) ? (kLimThresh / stereoPeak) : 1.0f;
-        if (desiredGain < masterLimiterGain_) {
-            masterLimiterGain_ += 0.35f * (desiredGain - masterLimiterGain_);
+        static constexpr float kLimThresh = 0.85f;
+        static constexpr float kCeilingNeg03dB = 0.96605088f; // 10^(-0.3 / 20)
+        static constexpr float kHead = kCeilingNeg03dB - kLimThresh; // 0.11605088f
+        if (stereoPeak > kLimThresh) {
+            didClipThisBlock = true;
+            const float desiredGain = kLimThresh / stereoPeak;
+            if (desiredGain < masterLimiterGain_) {
+                masterLimiterGain_ += 0.35f * (desiredGain - masterLimiterGain_);
+            } else {
+                masterLimiterGain_ += 0.0005f * (1.0f - masterLimiterGain_);
+            }
+        } else if (masterLimiterGain_ < 0.999999f) {
+            masterLimiterGain_ += 0.0005f * (1.0f - masterLimiterGain_);
+            if (masterLimiterGain_ > 0.999999f) masterLimiterGain_ = 1.0f;
         } else {
-            masterLimiterGain_ += 0.0003f * (1.0f - masterLimiterGain_);
+            masterLimiterGain_ = 1.0f;
         }
-        l *= masterLimiterGain_;
-        r *= masterLimiterGain_;
 
-        auto softKnee = [](float x) noexcept -> float {
+        if (masterLimiterGain_ < 1.0f) {
+            l *= masterLimiterGain_;
+            r *= masterLimiterGain_;
+        }
+
+        auto softKneeCeiling = [](float x) noexcept -> float {
             const float ax = std::fabs(x);
-            constexpr float kKnee = 0.85f;
-            constexpr float kHead = 0.13f; // teto assintótico em 0.98 (-0.17 dBFS)
-            if (ax <= kKnee) return x;
-            const float y = kKnee + kHead * std::tanh((ax - kKnee) / kHead);
+            if (ax <= kLimThresh) return x;
+            const float y = std::min(kCeilingNeg03dB, kLimThresh + kHead * std::tanh((ax - kLimThresh) / kHead));
             return (x >= 0.0f) ? y : -y;
         };
-        l = softKnee(l);
-        r = softKnee(r);
+        l = softKneeCeiling(l);
+        r = softKneeCeiling(r);
 
         outL[i] = l;
         outR[i] = r;
         maxL = std::max(maxL, std::fabs(l));
         maxR = std::max(maxR, std::fabs(r));
+    }
+
+    if (didClipThisBlock) {
+        clipped_.store(true, std::memory_order_relaxed);
     }
 
     activeVoices_.store(activeCount, std::memory_order_relaxed);
@@ -1333,6 +1410,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
     }
     if (maxL > peakL_.load(std::memory_order_relaxed)) peakL_.store(maxL, std::memory_order_relaxed);
     if (maxR > peakR_.load(std::memory_order_relaxed)) peakR_.store(maxR, std::memory_order_relaxed);
+    renderCount_.fetch_add(1, std::memory_order_release);
 }
 
 }  // namespace npno
