@@ -58,8 +58,8 @@ func friendlyKnobName(_ key: String) -> String {
         "switch_L3": L("Layer D Switch"),
         "action_prev_prog": L("Previous Program"),
         "action_next_prog": L("Next Program"),
-        "action_transpose_down": L("Transpose −"),
-        "action_transpose_up": L("Transpose +"),
+        "action_transpose_down": L("Transpose Down"),
+        "action_transpose_up": L("Transpose Up"),
         "action_panic": L("Panic")
     ]
     if let f = fixed[key] { return f }
@@ -80,8 +80,8 @@ func friendlyKnobName(_ key: String) -> String {
             "khi": L("High Key"),
             "vlo": L("Minimum Velocity"),
             "vhi": L("Maximum Velocity"),
-            "plo": L("Pitch Bend ↓"),
-            "phi": L("Pitch Bend ↑"),
+            "plo": L("Pitch Bend Down"),
+            "phi": L("Pitch Bend Up"),
             "port": L("Portamento Time")
         ]
         let paramTitle = names[suffix] ?? suffix
@@ -890,6 +890,12 @@ struct ContentView: View {
         .sheet(isPresented: $vm.showDebugManualCCSheet) {
             debugManualCCSenderSheet
         }
+        .sheet(isPresented: $vm.showKeyboardShortcutsSheet) {
+            KeyboardShortcutsSheetView(isPresented: $vm.showKeyboardShortcutsSheet)
+        }
+        .sheet(isPresented: $vm.showAboutSheet) {
+            AboutElectroProSheetView(vm: vm, isPresented: $vm.showAboutSheet)
+        }
         .onAppear {
             DispatchQueue.main.async {
                 if let win = NSApplication.shared.windows.first(where: { $0.canBecomeMain }) {
@@ -983,7 +989,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
-                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_down", label: L("Transpose −"))
+                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_down", label: L("Transpose Down"))
                 }
                 .help(L("Decrease Transpose by 1 semitone (right-click for MIDI Learn)"))
 
@@ -1009,7 +1015,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
-                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_up", label: L("Transpose +"))
+                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_up", label: L("Transpose Up"))
                 }
                 .help(L("Increase Transpose by 1 semitone (right-click for MIDI Learn)"))
             }
@@ -2047,7 +2053,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_plo",
-                                title: L("Bend ↓"),
+                                title: L("Bend Down"),
                                 value: layerBinding(layer, { Double($0.pitchBendDown) }, { $0.pitchBendDown = Int32($1.rounded()) }),
                                 range: -24.0...0.0,
                                 defaultValue: -2.0,
@@ -2058,7 +2064,7 @@ struct ContentView: View {
 
                             ProKnob(
                                 idKey: "L\(layer)_phi",
-                                title: L("Bend ↑"),
+                                title: L("Bend Up"),
                                 value: layerBinding(layer, { Double($0.pitchBendUp) }, { $0.pitchBendUp = Int32($1.rounded()) }),
                                 range: 0.0...24.0,
                                 defaultValue: 2.0,
@@ -2138,8 +2144,8 @@ struct ContentView: View {
             ("switch_L3", L("Layer D Switch")),
             ("action_prev_prog", L("Previous Program")),
             ("action_next_prog", L("Next Program")),
-            ("action_transpose_down", L("Transpose −")),
-            ("action_transpose_up", L("Transpose +")),
+            ("action_transpose_down", L("Transpose Down")),
+            ("action_transpose_up", L("Transpose Up")),
             ("action_panic", L("Panic"))
         ]
 
@@ -3231,6 +3237,145 @@ private struct ToolbarPeakMeterView: View {
             segments: 10,
             barWidth: 52
         )
+    }
+}
+
+private struct KeyboardShortcutsSheetView: View {
+    @Binding var isPresented: Bool
+
+    private let sections: [(title: String, items: [(shortcut: String, action: String)])] = [
+        (L("Programs & File"), [
+            ("⌘1 – ⌘8", L("Recall Program 1–8")),
+            ("⌘S", L("Save Program to Active Slot")),
+            ("⌘O", L("Open Sound File…")),
+            ("⌘Z / ⇧⌘Z", L("Undo / Redo Parameter Change")),
+        ]),
+        (L("Performance & Layers"), [
+            ("Space", L("Toggle Sustain Pedal")),
+            ("Esc / ⌘.", L("MIDI & Audio Panic (All Notes Off)")),
+            ("Z / X", L("Computer Keyboard Octave Down / Up")),
+            ("A–L, W–P", L("Play Notes on Computer Keyboard")),
+            ("⌘,", L("Open Settings")),
+        ]),
+        (L("Controls & View"), [
+            ("Shift + Drag", L("Fine Parameter Adjustment on Knobs")),
+            ("Double-Click Knob", L("Reset Parameter to Default")),
+            ("Double-Click Value", L("Type Exact Numeric Value")),
+            ("Right-Click Control", L("MIDI Learn / Clear MIDI Mapping")),
+            ("Arrow Keys", L("Nudge Focused Knob Value")),
+            ("⌘+ / ⌘- / ⌘0", L("Zoom In / Out / Actual Size")),
+        ]),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(L("Keyboard Shortcuts"))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(StudioTokens.textPrimary)
+                Spacer()
+                Button(L("Done")) {
+                    isPresented = false
+                }
+                .keyboardShortcut(.cancelAction)
+            }
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(sections, id: \.title) { section in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(section.title)
+                                .font(.headline)
+                                .foregroundStyle(StudioTokens.textPrimary)
+
+                            ForEach(section.items, id: \.shortcut) { item in
+                                HStack {
+                                    Text(item.action)
+                                        .font(StudioTokens.fontLabel)
+                                        .foregroundStyle(StudioTokens.textSecondary)
+                                    Spacer()
+                                    Text(verbatim: item.shortcut)
+                                        .font(.system(size: 11, weight: .semibold).monospaced())
+                                        .foregroundStyle(StudioTokens.textPrimary)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                                .fill(StudioTokens.surfaceControl)
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .frame(width: 440, height: 420)
+    }
+}
+
+private struct AboutElectroProSheetView: View {
+    @ObservedObject var vm: PianoViewModel
+    @Binding var isPresented: Bool
+
+    private var appVersion: String {
+        let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(ver) (\(build))"
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "pianokeys.inverse")
+                .font(.system(size: 44, weight: .regular))
+                .foregroundStyle(StudioTokens.accent)
+
+            Text(verbatim: "Electro Pro")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(StudioTokens.textPrimary)
+
+            Text(String(localized: "Version \(appVersion)", bundle: .module))
+                .font(StudioTokens.fontLabel)
+                .foregroundStyle(StudioTokens.textSecondary)
+
+            Divider()
+
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                GridRow {
+                    Text(L("Audio Engine"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: "NPNOKit C++20 · 32-bit Float Stereo")
+                        .foregroundStyle(StudioTokens.textPrimary)
+                }
+                GridRow {
+                    Text(L("Sample Rate"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(verbatim: String(format: "%.1f kHz", vm.sampleRate / 1000.0))
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+                GridRow {
+                    Text(L("Polyphony Limit"))
+                        .foregroundStyle(StudioTokens.textSecondary)
+                    Text(String(localized: "\(vm.maxVoices) voices (512 max)", bundle: .module))
+                        .foregroundStyle(StudioTokens.textPrimary)
+                        .monospacedDigit()
+                }
+            }
+            .font(StudioTokens.fontLabel)
+
+            Spacer(minLength: 4)
+
+            Button(L("Close")) {
+                isPresented = false
+            }
+            .keyboardShortcut(.cancelAction)
+        }
+        .padding(24)
+        .frame(width: 360)
     }
 }
 

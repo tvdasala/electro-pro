@@ -175,6 +175,8 @@ struct ProKnob: View {
     var enabled: Bool = true
 
     @State private var dragStartValue: Double? = nil
+    @State private var showDragBubble: Bool = false
+    @State private var bubbleHideTask: Task<Void, Never>? = nil
     @State private var isEditingText: Bool = false
     @State private var textInput: String = ""
     @FocusState private var isTextFieldFocused: Bool
@@ -270,6 +272,9 @@ struct ProKnob: View {
                             .padding(-3)
                     }
                 }
+                .overlay(alignment: .top) {
+                    dragBubbleOverlay
+                }
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { gesture in
@@ -278,15 +283,31 @@ struct ProKnob: View {
                                 dragStartValue = value
                                 PianoViewModel.shared?.beginParameterInteraction()
                             }
+                            bubbleHideTask?.cancel()
+                            if !showDragBubble {
+                                withAnimation(.easeOut(duration: 0.12)) {
+                                    showDragBubble = true
+                                }
+                            }
                             let origin = dragStartValue ?? value
                             let isFine = NSEvent.modifierFlags.contains(.shift)
                             let px = travelPixels * (isFine ? 4.0 : 1.0)
-                            let deltaPx = Double(-gesture.translation.height + gesture.translation.width * 0.5)
+                            let ty = Double(gesture.translation.height)
+                            let tx = Double(gesture.translation.width)
+                            let deltaPx = -ty + tx * 0.5
                             value = clampAndSnap(origin + (deltaPx / px) * span)
                         }
                         .onEnded { _ in
                             dragStartValue = nil
                             PianoViewModel.shared?.endParameterInteraction()
+                            bubbleHideTask?.cancel()
+                            bubbleHideTask = Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 600_000_000)
+                                guard !Task.isCancelled else { return }
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    showDragBubble = false
+                                }
+                            }
                         }
                 )
                 .onTapGesture(count: 2) {
@@ -334,6 +355,27 @@ struct ProKnob: View {
             case .decrement: nudge(-1)
             @unknown default: break
             }
+        }
+    }
+
+    @ViewBuilder
+    private var dragBubbleOverlay: some View {
+        if showDragBubble {
+            let formatted = valueFormatter(value)
+            Text(verbatim: formatted)
+                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .foregroundStyle(StudioTokens.textPrimary)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(StudioTokens.surfaceControl, in: Capsule(style: .continuous))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(StudioTokens.borderHairline, lineWidth: 1)
+                )
+                .fixedSize()
+                .offset(y: -26)
+                .allowsHitTesting(false)
+                .transition(.opacity)
         }
     }
 

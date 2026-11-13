@@ -1,2936 +1,5146 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "— Edited" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "— Editado"
+  "sourceLanguage": "en",
+  "strings": {
+    "— Edited": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "— Editado"
           }
         }
       }
     },
-    "0 st" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "0 st"
+    "0 st": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "0 st"
           }
         }
       }
     },
-    "1/4" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "1/4"
+    "1/4": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "1/4"
           }
         }
       }
     },
-    "1/8" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "1/8"
+    "1/8": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "1/8"
           }
         }
       }
     },
-    "1/8 Dotted" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "1/8 Pont."
+    "1/8 Dotted": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "1/8 Pont."
           }
         }
       }
     },
-    "1/8 Triplet" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "1/8 Terc."
+    "1/8 Triplet": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "1/8 Terc."
           }
         }
       }
     },
-    "1/16" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "1/16"
+    "1/16": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "1/16"
           }
         }
       }
     },
-    "3-Band Equalizer & Drive" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Equalizador & Drive"
+    "3-Band Equalizer & Drive": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Equalizador & Drive"
           }
         }
       }
     },
-    "3-Band Equalizer" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Equalizador de 3 bandas"
+    "3-Band Equalizer": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Equalizador de 3 bandas"
           }
         }
       }
     },
-    "64 Voices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "64 vozes"
+    "64 Voices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "64 vozes"
           }
         }
       }
     },
-    "128 Voices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "128 vozes"
+    "128 Voices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "128 vozes"
           }
         }
       }
     },
-    "256 Voices (Default)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "256 vozes (Padrão)"
+    "256 Voices (Default)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "256 vozes (Padrão)"
           }
         }
       }
     },
-    "512 Voices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "512 vozes"
+    "512 Voices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "512 vozes"
           }
         }
       }
     },
-    "A4 Reference" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Referência Lá (A4)"
+    "A4 Reference": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Referência Lá (A4)"
           }
         }
       }
     },
-    "About Electro Pro" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sobre o Electro Pro"
+    "About Electro Pro": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sobre o Electro Pro"
           }
         }
       }
     },
-    "Accent Color" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cor de Acento"
+    "Accent Color": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cor de Acento"
           }
         }
       }
     },
-    "Actual Size (100%)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tamanho Real (100%)"
+    "Actual Size (100%)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tamanho Real (100%)"
           }
         }
       }
     },
-    "Algorithmic stereo reverb with room size, decay, and high-frequency damping." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverberação algorítmica com controle de sala, decaimento e absorção de agudos."
+    "Algorithmic stereo reverb with room size, decay, and high-frequency damping.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverberação algorítmica com controle de sala, decaimento e absorção de agudos."
           }
         }
       }
     },
-    "All Categories" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Todas as categorias"
+    "All Categories": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Todas as categorias"
           }
         }
       }
     },
-    "Amount" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Intensidade"
+    "Amount": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Intensidade"
           }
         }
       }
     },
-    "Analog Amber" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Âmbar Analógico"
+    "Analog Amber": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Âmbar Analógico"
           }
         }
       }
     },
-    "Appearance" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aparência"
+    "Appearance": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aparência"
           }
         }
       }
     },
-    "Articulation" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Articulação"
+    "Articulation": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Articulação"
           }
         }
       }
     },
-    "Assign CC Manually" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Atribuir CC manualmente"
+    "Assign CC Manually": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Atribuir CC manualmente"
           }
         }
       }
     },
-    "Attack" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ataque"
+    "Attack": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ataque"
           }
         }
       }
     },
-    "Audio" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Áudio"
+    "Audio": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Áudio"
           }
         }
       }
     },
-    "Audio Output (Core Audio)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Saída de Áudio (CoreAudio)"
+    "Audio Output (Core Audio)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Saída de Áudio (CoreAudio)"
           }
         }
       }
     },
-    "Auto-Pan" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Auto-Pan"
+    "Auto-Pan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Auto-Pan"
           }
         }
       }
     },
-    "Balance (Pan)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Balanço (Pan)"
+    "Balance (Pan)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Balanço (Pan)"
           }
         }
       }
     },
-    "Base Octave" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Oitava base"
+    "Base Octave": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Oitava base"
           }
         }
       }
     },
-    "Bass" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Graves"
+    "Bass": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Graves"
           }
         }
       }
     },
-    "Bend ↓" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Bend ↓"
+    "Bend ↓": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bend ↓"
           }
         }
       }
     },
-    "Bend ↑" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Bend ↑"
+    "Bend ↑": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bend ↑"
           }
         }
       }
     },
-    "Black Keys" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Notas pretas"
+    "Black Keys": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Notas pretas"
           }
         }
       }
     },
-    "BPM" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "BPM"
+    "BPM": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "BPM"
           }
         }
       }
     },
-    "Bright" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Brilhante"
+    "Bright": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Brilhante"
           }
         }
       }
     },
-    "Buffer Size" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tamanho do Buffer"
+    "Buffer Size": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tamanho do Buffer"
           }
         }
       }
     },
-    "Cancel" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cancelar"
+    "Cancel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cancelar"
           }
         }
       }
     },
-    "Cancel MIDI Learn" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cancelar MIDI Learn"
+    "Cancel MIDI Learn": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cancelar MIDI Learn"
           }
         }
       }
     },
-    "CC" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "CC"
+    "CC": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "CC"
           }
         }
       }
     },
-    "Center" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Centro"
+    "Center": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Centro"
           }
         }
       }
     },
-    "Channel" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Canal"
+    "Channel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Canal"
           }
         }
       }
     },
-    "Choose Folder…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Escolher Pasta…"
+    "Choose Folder…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Escolher Pasta…"
           }
         }
       }
     },
-    "Choose the folder that contains your Nord sound libraries (.npno, .nsmp4)." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Escolha a pasta que contém suas bibliotecas de timbres Nord (.npno, .nsmp4)."
+    "Choose the folder that contains your Nord sound libraries (.npno, .nsmp4).": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Escolha a pasta que contém suas bibliotecas de timbres Nord (.npno, .nsmp4)."
           }
         }
       }
     },
-    "Clav/Harpsi" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Clav/Harpsi"
+    "Clav/Harpsi": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clav/Harpsi"
           }
         }
       }
     },
-    "Clear" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Limpar"
+    "Clear": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limpar"
           }
         }
       }
     },
-    "Clear All" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Limpar Tudo"
+    "Clear All": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limpar Tudo"
           }
         }
       }
     },
-    "Close" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Fechar"
+    "Close": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Fechar"
           }
         }
       }
     },
-    "Compressor" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Compressor"
+    "Compressor": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Compressor"
           }
         }
       }
     },
-    "Compressor Mode" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Modo do Compressor"
+    "Compressor Mode": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Modo do Compressor"
           }
         }
       }
     },
-    "Connect a USB or DIN MIDI controller and click Rescan." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Conecte um teclado MIDI USB ou interface DIN e clique em Reescanear."
+    "Connect a USB or DIN MIDI controller and click Rescan.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Conecte um teclado MIDI USB ou interface DIN e clique em Reescanear."
           }
         }
       }
     },
-    "Copy Program To…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Copiar Programa Para…"
+    "Copy Program To…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Copiar Programa Para…"
           }
         }
       }
     },
-    "Callback CPU" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "CPU do Callback"
+    "Callback CPU": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "CPU do Callback"
           }
         }
       }
     },
-    "Damping" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Absorção"
+    "Damping": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Absorção"
           }
         }
       }
     },
-    "Data" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Dados"
+    "Data": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dados"
           }
         }
       }
     },
-    "Decay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Decaimento"
+    "Decay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Decaimento"
           }
         }
       }
     },
-    "Decrease Transpose by 1 semitone" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Diminuir transposição em 1 semitom"
+    "Decrease Transpose by 1 semitone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diminuir transposição em 1 semitom"
           }
         }
       }
     },
-    "Delay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay"
+    "Delay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay"
           }
         }
       }
     },
-    "Delay · Reverb" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay · Reverb"
+    "Delay · Reverb": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay · Reverb"
           }
         }
       }
     },
-    "Delay BPM" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay BPM"
+    "Delay BPM": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay BPM"
           }
         }
       }
     },
-    "Delay Division" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay Divisão"
+    "Delay Division": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay Divisão"
           }
         }
       }
     },
-    "Delay Feedback" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay Feedback"
+    "Delay Feedback": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay Feedback"
           }
         }
       }
     },
-    "Delay Mix" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay Mix"
+    "Delay Mix": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay Mix"
           }
         }
       }
     },
-    "Delay Time" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay Tempo"
+    "Delay Time": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay Tempo"
           }
         }
       }
     },
-    "Depth" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Profundidade"
+    "Depth": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profundidade"
           }
         }
       }
     },
-    "Destination" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Destino"
+    "Destination": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Destino"
           }
         }
       }
     },
-    "Division" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Divisão"
+    "Division": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Divisão"
           }
         }
       }
     },
-    "Drag or use arrow keys to adjust. Double-click to reset to default." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Arraste ou use as setas para ajustar. Duplo clique restaura o padrão."
+    "Drag or use arrow keys to adjust. Double-click to reset to default.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Arraste ou use as setas para ajustar. Duplo clique restaura o padrão."
           }
         }
       }
     },
-    "Drive" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Drive"
+    "Drive": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Drive"
           }
         }
       }
     },
-    "Drive Amount" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Drive Intensidade"
+    "Drive Amount": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Drive Intensidade"
           }
         }
       }
     },
-    "Dyno 1" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Dyno 1"
+    "Dyno 1": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dyno 1"
           }
         }
       }
     },
-    "Dyno 2" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Dyno 2"
+    "Dyno 2": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dyno 2"
           }
         }
       }
     },
-    "Editor Section" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Seção do Editor"
+    "Editor Section": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Seção do Editor"
           }
         }
       }
     },
-    "Electric" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Elétrico"
+    "Electric": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Elétrico"
           }
         }
       }
     },
-    "Electro Pro" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Electro Pro"
+    "Electro Pro": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Electro Pro"
           }
         }
       }
     },
-    "Enable Delay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ativar Delay"
+    "Enable Delay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ativar Delay"
           }
         }
       }
     },
-    "Enable Drive" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ativar Drive"
+    "Enable Drive": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ativar Drive"
           }
         }
       }
     },
-    "Enable Reverb" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ativar Reverb"
+    "Enable Reverb": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ativar Reverb"
           }
         }
       }
     },
-    "Enter Value…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Digitar valor…"
+    "Enter Value…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Digitar valor…"
           }
         }
       }
     },
-    "Envelope" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Envelope"
+    "Envelope": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Envelope"
           }
         }
       }
     },
-    "EQ" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ"
+    "EQ": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ"
           }
         }
       }
     },
-    "EQ · Drive · Mod" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ · Drive · Mod"
+    "EQ · Drive · Mod": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ · Drive · Mod"
           }
         }
       }
     },
-    "EQ Bass" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ Graves"
+    "EQ Bass": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ Graves"
           }
         }
       }
     },
-    "EQ Curve" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Curva do Equalizador"
+    "EQ Curve": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Curva do Equalizador"
           }
         }
       }
     },
-    "EQ Mid" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ Médios"
+    "EQ Mid": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ Médios"
           }
         }
       }
     },
-    "EQ Mid Freq" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ Freq. Médios"
+    "EQ Mid Freq": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ Freq. Médios"
           }
         }
       }
     },
-    "EQ Treble" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "EQ Agudos"
+    "EQ Treble": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "EQ Agudos"
           }
         }
       }
     },
-    "Estimated Latency" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Latência estimada"
+    "Estimated Latency": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Latência estimada"
           }
         }
       }
     },
-    "Exp" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Exp"
+    "Exp": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exp"
           }
         }
       }
     },
-    "Export Program…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Exportar Programa…"
+    "Export Program…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exportar Programa…"
           }
         }
       }
     },
-    "Failed to load .npno file" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Falha ao carregar o arquivo .npno"
+    "Failed to load .npno file": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Falha ao carregar o arquivo .npno"
           }
         }
       }
     },
-    "Fast" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Rápido"
+    "Fast": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Rápido"
           }
         }
       }
     },
-    "Favorites" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Favoritos"
+    "Favorites": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Favoritos"
           }
         }
       }
     },
-    "Feedback" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Feedback"
+    "Feedback": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Feedback"
           }
         }
       }
     },
-    "Filter" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Filtro"
+    "Filter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Filtro"
           }
         }
       }
     },
-    "Fine Tune" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Afinação Fina"
+    "Fine Tune": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Afinação Fina"
           }
         }
       }
     },
-    "Fixed Velocity" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Velocity fixa"
+    "Fixed Velocity": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Velocity fixa"
           }
         }
       }
     },
-    "Flat (0 dB)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Flat (0 dB)"
+    "Flat (0 dB)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Flat (0 dB)"
           }
         }
       }
     },
-    "Global / Omni" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Global / Omni"
+    "Global / Omni": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Global / Omni"
           }
         }
       }
     },
-    "Global" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Global"
+    "Global": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Global"
           }
         }
       }
     },
-    "Global MIDI Reception" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Recepção MIDI Global"
+    "Global MIDI Reception": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Recepção MIDI Global"
           }
         }
       }
     },
-    "Global Touch" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sensibilidade global"
+    "Global Touch": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sensibilidade global"
           }
         }
       }
     },
-    "Global Transpose in semitones (double-click for 0 st)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Transposição global em semitons (duplo clique para 0 st)"
+    "Global Transpose in semitones (double-click for 0 st)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Transposição global em semitons (duplo clique para 0 st)"
           }
         }
       }
     },
-    "Grand" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Grand"
+    "Grand": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Grand"
           }
         }
       }
     },
-    "Hard" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Forte"
+    "Hard": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Forte"
           }
         }
       }
     },
-    "Heavy" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pesada"
+    "Heavy": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pesada"
           }
         }
       }
     },
-    "Hide On-Screen Keyboard (61 Keys)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ocultar Teclado Virtual (61 Teclas)"
+    "Hide On-Screen Keyboard (61 Keys)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ocultar Teclado Virtual (61 Teclas)"
           }
         }
       }
     },
-    "High Key" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nota Final"
+    "High Key": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nota Final"
           }
         }
       }
     },
-    "High Velocity" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Velocity Máxima"
+    "High Velocity": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Velocity Máxima"
           }
         }
       }
     },
-    "Import Program…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Importar Programa…"
+    "Import Program…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Importar Programa…"
           }
         }
       }
     },
-    "Increase Transpose by 1 semitone" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aumentar transposição em 1 semitom"
+    "Increase Transpose by 1 semitone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aumentar transposição em 1 semitom"
           }
         }
       }
     },
-    "Init" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Inicial"
+    "Init": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Inicial"
           }
         }
       }
     },
-    "Interface Accent Color" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cor de acento da interface"
+    "Interface Accent Color": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cor de acento da interface"
           }
         }
       }
     },
-    "Key Range" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Faixa de notas"
+    "Key Range": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Faixa de notas"
           }
         }
       }
     },
-    "Keyboard" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Teclado"
+    "Keyboard": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Teclado"
           }
         }
       }
     },
-    "Keyboard & Touch" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Teclado & Toque"
+    "Keyboard & Touch": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Teclado & Toque"
           }
         }
       }
     },
-    "Keyboard Shortcuts" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Atalhos de Teclado"
+    "Keyboard Shortcuts": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Atalhos de Teclado"
           }
         }
       }
     },
-    "Keyboard Zone" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Zona do teclado"
+    "Keyboard Zone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Zona do teclado"
           }
         }
       }
     },
-    "Knob MIDI Mappings" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mapeamentos MIDI dos knobs"
+    "Knob MIDI Mappings": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mapeamentos MIDI dos knobs"
           }
         }
       }
     },
-    "LAYER" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "CAMADA"
+    "LAYER": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "CAMADA"
           }
         }
       }
     },
-    "Layer" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Camada"
+    "Layer": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Camada"
           }
         }
       }
     },
-    "Layer Keyboard Zone" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Zona do teclado da camada"
+    "Layer Keyboard Zone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Zona do teclado da camada"
           }
         }
       }
     },
-    "Layer MIDI Controls" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Controles MIDI da camada"
+    "Layer MIDI Controls": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Controles MIDI da camada"
           }
         }
       }
     },
-    "Layer Volume" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Volume da camada"
+    "Layer Volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Volume da camada"
           }
         }
       }
     },
-    "Learn" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Learn"
+    "Learn": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Learn"
           }
         }
       }
     },
-    "Learn MIDI CC (MIDI Learn)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aprender MIDI CC (MIDI Learn)"
+    "Learn MIDI CC (MIDI Learn)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aprender MIDI CC (MIDI Learn)"
           }
         }
       }
     },
-    "Learn…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Learn…"
+    "Learn…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Learn…"
           }
         }
       }
     },
-    "Library" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Biblioteca"
+    "Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Biblioteca"
           }
         }
       }
     },
-    "Library folder not found" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pasta da biblioteca não encontrada"
+    "Library folder not found": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pasta da biblioteca não encontrada"
           }
         }
       }
     },
-    "Light" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Leve"
+    "Light": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Leve"
           }
         }
       }
     },
-    "Linear" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Linear"
+    "Linear": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Linear"
           }
         }
       }
     },
-    "Load .npno / .nsmp4 File…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar arquivo .npno / .nsmp4…"
+    "Load .npno / .nsmp4 File…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar arquivo .npno / .nsmp4…"
           }
         }
       }
     },
-    "Load a .npno file" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregue um .npno"
+    "Load a .npno file": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregue um .npno"
           }
         }
       }
     },
-    "Load Sound in Layer A…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar Timbre na Camada A…"
+    "Load Sound in Layer A…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar Timbre na Camada A…"
           }
         }
       }
     },
-    "Load Sound in Layer B…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar Timbre na Camada B…"
+    "Load Sound in Layer B…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar Timbre na Camada B…"
           }
         }
       }
     },
-    "Load Sound in Layer C…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar Timbre na Camada C…"
+    "Load Sound in Layer C…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar Timbre na Camada C…"
           }
         }
       }
     },
-    "Load Sound in Layer D…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar Timbre na Camada D…"
+    "Load Sound in Layer D…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar Timbre na Camada D…"
           }
         }
       }
     },
-    "Load Sound…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Carregar timbre…"
+    "Load Sound…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Carregar timbre…"
           }
         }
       }
     },
-    "Locate…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Localizar…"
+    "Locate…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Localizar…"
           }
         }
       }
     },
-    "Log" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Log"
+    "Log": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Log"
           }
         }
       }
     },
-    "Low Key" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nota Inicial"
+    "Low Key": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nota Inicial"
           }
         }
       }
     },
-    "Low Velocity" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Velocity Mínima"
+    "Low Velocity": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Velocity Mínima"
           }
         }
       }
     },
-    "LP Cutoff" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Filtro passa-baixas"
+    "LP Cutoff": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Filtro passa-baixas"
           }
         }
       }
     },
-    "Mac Keyboard (QWERTY)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Teclado do Mac (QWERTY)"
+    "Mac Keyboard (QWERTY)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Teclado do Mac (QWERTY)"
           }
         }
       }
     },
-    "Mac Keyboard Playing" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tocar com o Teclado do Mac"
+    "Mac Keyboard Playing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tocar com o Teclado do Mac"
           }
         }
       }
     },
-    "MASTER" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "MASTER"
+    "MASTER": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MASTER"
           }
         }
       }
     },
-    "Master" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Master"
+    "Master": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Master"
           }
         }
       }
     },
-    "Master Pan" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pan Master"
+    "Master Pan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pan Master"
           }
         }
       }
     },
-    "Master Volume" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Volume Master"
+    "Master Volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Volume Master"
           }
         }
       }
     },
-    "Max Polyphony" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Polifonia máxima"
+    "Max Polyphony": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Polifonia máxima"
           }
         }
       }
     },
-    "Mid" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Médio"
+    "Mid": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Médio"
           }
         }
       }
     },
-    "Mid Freq" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Freq. médios"
+    "Mid Freq": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Freq. médios"
           }
         }
       }
     },
-    "MIDI" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "MIDI"
+    "MIDI": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MIDI"
           }
         }
       }
     },
-    "MIDI CC" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "MIDI CC"
+    "MIDI CC": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MIDI CC"
           }
         }
       }
     },
-    "MIDI Channel" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Canal MIDI"
+    "MIDI Channel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Canal MIDI"
           }
         }
       }
     },
-    "MIDI Controllers" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Controladores MIDI"
+    "MIDI Controllers": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Controladores MIDI"
           }
         }
       }
     },
-    "MIDI Monitor" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Monitor MIDI"
+    "MIDI Monitor": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Monitor MIDI"
           }
         }
       }
     },
-    "Mix" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mix"
+    "Mix": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mix"
           }
         }
       }
     },
-    "Mod" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod"
+    "Mod": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod"
           }
         }
       }
     },
-    "Mod 1" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 1"
+    "Mod 1": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 1"
           }
         }
       }
     },
-    "Mod 1 Depth" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 1 Profundidade"
+    "Mod 1 Depth": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 1 Profundidade"
           }
         }
       }
     },
-    "Mod 1 Rate" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 1 Velocidade"
+    "Mod 1 Rate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 1 Velocidade"
           }
         }
       }
     },
-    "Mod 2" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 2"
+    "Mod 2": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 2"
           }
         }
       }
     },
-    "Mod 2 Depth" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 2 Profundidade"
+    "Mod 2 Depth": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 2 Profundidade"
           }
         }
       }
     },
-    "Mod 2 Rate" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mod 2 Velocidade"
+    "Mod 2 Rate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod 2 Velocidade"
           }
         }
       }
     },
-    "Mono Legato" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Legato mono"
+    "Mono Legato": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Legato mono"
           }
         }
       }
     },
-    "Neutral Gray" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cinza Neutro"
+    "Neutral Gray": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cinza Neutro"
           }
         }
       }
     },
-    "Next Sound in Folder" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Próximo timbre na pasta"
+    "Next Sound in Folder": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Próximo timbre na pasta"
           }
         }
       }
     },
-    "No knobs mapped" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nenhum knob mapeado"
+    "No knobs mapped": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nenhum knob mapeado"
           }
         }
       }
     },
-    "No MIDI CC assigned" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sem MIDI CC atribuído"
+    "No MIDI CC assigned": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sem MIDI CC atribuído"
           }
         }
       }
     },
-    "No MIDI controller detected" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nenhum controlador conectado"
+    "No MIDI controller detected": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nenhum controlador conectado"
           }
         }
       }
     },
-    "No MIDI controller detected. Play with your Mac keyboard or the on-screen keyboard." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nenhum controlador MIDI detectado. Toque com o teclado do Mac ou com o teclado virtual."
+    "No MIDI controller detected. Play with your Mac keyboard or the on-screen keyboard.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nenhum controlador MIDI detectado. Toque com o teclado do Mac ou com o teclado virtual."
           }
         }
       }
     },
-    "No Sound" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nenhum timbre"
+    "No Sound": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nenhum timbre"
           }
         }
       }
     },
-    "Nord Red (Default)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Vermelho Nord (Padrão)"
+    "Nord Red (Default)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vermelho Nord (Padrão)"
           }
         }
       }
     },
-    "Normal" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Normal"
+    "Normal": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Normal"
           }
         }
       }
     },
-    "Octave" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Oitava"
+    "Octave": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Oitava"
           }
         }
       }
     },
-    "Octave − / + & Velocity − / +" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Oitava − / + e Velocity − / +"
+    "Octave − / + & Velocity − / +": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Oitava − / + e Velocity − / +"
           }
         }
       }
     },
-    "Off" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Desligado"
+    "Off": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Desligado"
           }
         }
       }
     },
-    "Omni (All Channels 1–16)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Omni (Todos os canais 1–16)"
+    "Omni (All Channels 1–16)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Omni (Todos os canais 1–16)"
           }
         }
       }
     },
-    "Open Audio MIDI Setup…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Abrir Configuração Áudio e MIDI…"
+    "Open Audio MIDI Setup…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Abrir Configuração Áudio e MIDI…"
           }
         }
       }
     },
-    "Open Audio, MIDI, Keyboard, Library, and Appearance Settings (⌘,)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Abrir Configurações de Áudio, MIDI, Aparência e Teclado (⌘,)"
+    "Open Audio, MIDI, Keyboard, Library, and Appearance Settings (⌘,)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Abrir Configurações de Áudio, MIDI, Aparência e Teclado (⌘,)"
           }
         }
       }
     },
-    "Output Device" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Dispositivo de saída"
+    "Output Device": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dispositivo de saída"
           }
         }
       }
     },
-    "Panic" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Panic"
+    "Panic": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Panic"
           }
         }
       }
     },
-    "Panic — Silence All Voices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Panic — Silenciar Todas as Vozes"
+    "Panic — Silence All Voices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Panic — Silenciar Todas as Vozes"
           }
         }
       }
     },
-    "Parameter" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Parâmetro"
+    "Parameter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Parâmetro"
           }
         }
       }
     },
-    "Pause" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pausar"
+    "Pause": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pausar"
           }
         }
       }
     },
-    "Pitch Bend ↓" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pitch Bend ↓"
+    "Pitch Bend ↓": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pitch Bend ↓"
           }
         }
       }
     },
-    "Pitch Bend ↑" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pitch Bend ↑"
+    "Pitch Bend ↑": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pitch Bend ↑"
           }
         }
       }
     },
-    "Play Demo" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tocar Demonstração Musical (Demo)"
+    "Play Demo": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tocar Demonstração Musical (Demo)"
           }
         }
       }
     },
-    "Playing Shortcuts" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Atalhos Rápidos de Execução"
+    "Playing Shortcuts": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Atalhos Rápidos de Execução"
           }
         }
       }
     },
-    "Portamento" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Portamento"
+    "Portamento": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Portamento"
           }
         }
       }
     },
-    "Portamento Time" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tempo de Portamento"
+    "Portamento Time": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tempo de Portamento"
           }
         }
       }
     },
-    "Pre-Delay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pré-Delay"
+    "Pre-Delay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pré-Delay"
           }
         }
       }
     },
-    "Previous Sound in Folder" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Timbre anterior na pasta"
+    "Previous Sound in Folder": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Timbre anterior na pasta"
           }
         }
       }
     },
-    "Program" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Programa"
+    "Program": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Programa"
           }
         }
       }
     },
-    "Program Name" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Nome do programa"
+    "Program Name": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nome do programa"
           }
         }
       }
     },
-    "Purge" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Purge"
+    "Purge": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Purge"
           }
         }
       }
     },
-    "Purge on Demand" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Purge sob Demanda"
+    "Purge on Demand": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Purge sob Demanda"
           }
         }
       }
     },
-    "Purge Unused Samples from RAM" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Liberar Samples Não Usados da RAM (Purge)"
+    "Purge Unused Samples from RAM": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Liberar Samples Não Usados da RAM (Purge)"
           }
         }
       }
     },
-    "Quick Control Guide: Drag = Adjust • Shift = Fine • Double-Click = Default/Type • Right-Click = MIDI Learn" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Guia Rápido de Controles: Arraste = Ajustar • Shift = Fino • Duplo Clique = Padrão/Digitar • Botão Direito = MIDI Learn"
+    "Quick Control Guide: Drag = Adjust • Shift = Fine • Double-Click = Default/Type • Right-Click = MIDI Learn": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Guia Rápido de Controles: Arraste = Ajustar • Shift = Fino • Duplo Clique = Padrão/Digitar • Botão Direito = MIDI Learn"
           }
         }
       }
     },
-    "Rate" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Velocidade"
+    "Rate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Velocidade"
           }
         }
       }
     },
-    "Receive Channel" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Canal MIDI principal"
+    "Receive Channel": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Canal MIDI principal"
           }
         }
       }
     },
-    "Recent" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Recentes"
+    "Recent": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Recentes"
           }
         }
       }
     },
-    "Refresh Devices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Atualizar dispositivos"
+    "Refresh Devices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Atualizar dispositivos"
           }
         }
       }
     },
-    "Release" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Soltura"
+    "Release": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Soltura"
           }
         }
       }
     },
-    "Release Noise" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ruído de soltura"
+    "Release Noise": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ruído de soltura"
           }
         }
       }
     },
-    "Release Tail" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Cauda"
+    "Release Tail": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cauda"
           }
         }
       }
     },
-    "Reload" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Recarregar"
+    "Reload": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Recarregar"
           }
         }
       }
     },
-    "Reload Purged Samples" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Recarregar Samples Purgados"
+    "Reload Purged Samples": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Recarregar Samples Purgados"
           }
         }
       }
     },
-    "Remove" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Remover"
+    "Remove": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Remover"
           }
         }
       }
     },
-    "Remove MIDI Mapping" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Remover mapeamento MIDI"
+    "Remove MIDI Mapping": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Remover mapeamento MIDI"
           }
         }
       }
     },
-    "Rename Program…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Renomear programa…"
+    "Rename Program…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Renomear programa…"
           }
         }
       }
     },
-    "Rescan" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reescanear"
+    "Rescan": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reescanear"
           }
         }
       }
     },
-    "Reset Default Value" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Restaurar valor padrão"
+    "Reset Default Value": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Restaurar valor padrão"
           }
         }
       }
     },
-    "Reset Defaults" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Restaurar Padrão"
+    "Reset Defaults": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Restaurar Padrão"
           }
         }
       }
     },
-    "Reset Equalizer (Flat 0 dB)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Restaurar Equalizador (Flat 0 dB)"
+    "Reset Equalizer (Flat 0 dB)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Restaurar Equalizador (Flat 0 dB)"
           }
         }
       }
     },
-    "Reset Zone" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Restaurar Zona"
+    "Reset Zone": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Restaurar Zona"
           }
         }
       }
     },
-    "Respond to Program Change" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Responder a Program Change"
+    "Respond to Program Change": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Responder a Program Change"
           }
         }
       }
     },
-    "Response Mode" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Modo de resposta"
+    "Response Mode": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Modo de resposta"
           }
         }
       }
     },
-    "Resume" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Retomar"
+    "Resume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Retomar"
           }
         }
       }
     },
-    "Reverb" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb"
+    "Reverb": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb"
           }
         }
       }
     },
-    "Reverb Damping" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Absorção"
+    "Reverb Damping": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Absorção"
           }
         }
       }
     },
-    "Reverb Decay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Decaimento"
+    "Reverb Decay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Decaimento"
           }
         }
       }
     },
-    "Reverb Mix" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Mix"
+    "Reverb Mix": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Mix"
           }
         }
       }
     },
-    "Reverb Pre-Delay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Pré-Delay"
+    "Reverb Pre-Delay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Pré-Delay"
           }
         }
       }
     },
-    "Reverb Size" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Tamanho"
+    "Reverb Size": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Tamanho"
           }
         }
       }
     },
-    "Revert to Saved" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverter para o Salvo"
+    "Revert to Saved": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverter para o Salvo"
           }
         }
       }
     },
-    "Right-click any knob and choose \"Learn MIDI CC\", then move a physical control on your MIDI keyboard." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Clique com o botão direito em qualquer knob e escolha \"Aprender MIDI CC\", depois mova um controle físico no seu teclado MIDI."
+    "Right-click any knob and choose \"Learn MIDI CC\", then move a physical control on your MIDI keyboard.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clique com o botão direito em qualquer knob e escolha \"Aprender MIDI CC\", depois mova um controle físico no seu teclado MIDI."
           }
         }
       }
     },
-    "Sample Rate" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Taxa de amostragem ativa"
+    "Sample Rate": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Taxa de amostragem ativa"
           }
         }
       }
     },
-    "Save" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Salvar"
+    "Save": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salvar"
           }
         }
       }
     },
-    "Saved" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Salvo"
+    "Saved": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salvo"
           }
         }
       }
     },
-    "Saw" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Serra"
+    "Saw": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Serra"
           }
         }
       }
     },
-    "Scope" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Escopo"
+    "Scope": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Escopo"
           }
         }
       }
     },
-    "Search sounds…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Buscar timbres…"
+    "Search sounds…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Buscar timbres…"
           }
         }
       }
     },
-    "Select Program (1 to 8)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Selecionar Programa de Memória (1 a 8)"
+    "Select Program (1 to 8)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Selecionar Programa de Memória (1 a 8)"
           }
         }
       }
     },
-    "Settings" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Configurações"
+    "Settings": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Configurações"
           }
         }
       }
     },
-    "Show in Finder" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mostrar no Finder"
+    "Show in Finder": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mostrar no Finder"
           }
         }
       }
     },
-    "Show On-Screen Keyboard (61 Keys)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Mostrar Teclado Virtual (61 Teclas)"
+    "Show On-Screen Keyboard (61 Keys)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mostrar Teclado Virtual (61 Teclas)"
           }
         }
       }
     },
-    "Show On-Screen Keyboard in Window (⌘K)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Exibir teclado virtual de 61 teclas na janela (⌘K)"
+    "Show On-Screen Keyboard in Window (⌘K)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Exibir teclado virtual de 61 teclas na janela (⌘K)"
           }
         }
       }
     },
-    "Silence all active voices immediately (⌘.)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Silenciar imediatamente todas as vozes ativas (⌘.)"
+    "Silence all active voices immediately (⌘.)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Silenciar imediatamente todas as vozes ativas (⌘.)"
           }
         }
       }
     },
-    "Sine" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Seno"
+    "Sine": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Seno"
           }
         }
       }
     },
-    "Size" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tamanho"
+    "Size": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tamanho"
           }
         }
       }
     },
-    "Skip for Now" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pular por Agora"
+    "Skip for Now": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pular por Agora"
           }
         }
       }
     },
-    "Soft" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Suave"
+    "Soft": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Suave"
           }
         }
       }
     },
-    "Sound" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Timbre"
+    "Sound": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Timbre"
           }
         }
       }
     },
-    "Sound Library" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Biblioteca de Timbres"
+    "Sound Library": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Biblioteca de Timbres"
           }
         }
       }
     },
-    "Spacebar" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Barra de Espaço"
+    "Spacebar": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Barra de Espaço"
           }
         }
       }
     },
-    "Square" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Quadrada"
+    "Square": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Quadrada"
           }
         }
       }
     },
-    "Start Playing" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Começar a Tocar"
+    "Start Playing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Começar a Tocar"
           }
         }
       }
     },
-    "Stereo Delay" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Delay Estéreo"
+    "Stereo Delay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Delay Estéreo"
           }
         }
       }
     },
-    "Stereo Output Meter" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Medidor de saída estéreo"
+    "Stereo Output Meter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Medidor de saída estéreo"
           }
         }
       }
     },
-    "Stereo Ping-Pong" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ping-Pong estéreo"
+    "Stereo Ping-Pong": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ping-Pong estéreo"
           }
         }
       }
     },
-    "Stereo Reverb" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Reverb Estéreo"
+    "Stereo Reverb": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reverb Estéreo"
           }
         }
       }
     },
-    "Stop Demo" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Parar Demonstração Musical"
+    "Stop Demo": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Parar Demonstração Musical"
           }
         }
       }
     },
-    "Stress Test" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Teste de Estresse"
+    "Stress Test": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Teste de Estresse"
           }
         }
       }
     },
-    "String Resonance" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ambiência"
+    "String Resonance": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ambiência"
           }
         }
       }
     },
-    "Studio Blue" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Azul Estúdio"
+    "Studio Blue": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Azul Estúdio"
           }
         }
       }
     },
-    "Sustain" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sustain"
+    "Sustain": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sustain"
           }
         }
       }
     },
-    "Sustain Pedal" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Pedal Sustain"
+    "Sustain Pedal": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pedal Sustain"
           }
         }
       }
     },
-    "Sympathetic String Resonance" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ressonância"
+    "Sympathetic String Resonance": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Ressonância"
           }
         }
       }
     },
-    "Sync to BPM" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sincronizar ao BPM"
+    "Sync to BPM": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sincronizar ao BPM"
           }
         }
       }
     },
-    "Synth/Sample" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Synth/Sample"
+    "Synth/Sample": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Synth/Sample"
           }
         }
       }
     },
-    "System Default" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Padrão do Sistema"
+    "System Default": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Padrão do Sistema"
           }
         }
       }
     },
-    "Tap Tempo" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tap Tempo"
+    "Tap Tempo": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tap Tempo"
           }
         }
       }
     },
-    "The accent color highlights only knob value arcs, the selected layer, and meter peaks." : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "A cor de acento destaca exclusivamente o arco de valor dos knobs, a camada selecionada e o pico do medidor."
+    "The accent color highlights only knob value arcs, the selected layer, and meter peaks.": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "A cor de acento destaca exclusivamente o arco de valor dos knobs, a camada selecionada e o pico do medidor."
           }
         }
       }
     },
-    "This Program" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Este Programa"
+    "This Program": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Este Programa"
           }
         }
       }
     },
-    "Time" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tempo"
+    "Time": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tempo"
           }
         }
       }
     },
-    "Tonal Character" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Caráter tonal"
+    "Tonal Character": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Caráter tonal"
           }
         }
       }
     },
-    "Tone & Filter" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Perfil & Filtro"
+    "Tone & Filter": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Perfil & Filtro"
           }
         }
       }
     },
-    "Touch" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Sensibilidade"
+    "Touch": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sensibilidade"
           }
         }
       }
     },
-    "Treble" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Agudos"
+    "Treble": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Agudos"
           }
         }
       }
     },
-    "Tremolo" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tremolo"
+    "Tremolo": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tremolo"
           }
         }
       }
     },
-    "Triangle" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Triângulo"
+    "Triangle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Triângulo"
           }
         }
       }
     },
-    "Tuning" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Afinação"
+    "Tuning": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Afinação"
           }
         }
       }
     },
-    "Tuning & Master" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Afinação & Master"
+    "Tuning & Master": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Afinação & Master"
           }
         }
       }
     },
-    "Tuning (A4 Reference, Fine Tune, and Master Balance)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Afinação (Referência A4, Afinação Fina e Balanço Master)"
+    "Tuning (A4 Reference, Fine Tune, and Master Balance)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Afinação (Referência A4, Afinação Fina e Balanço Master)"
           }
         }
       }
     },
-    "Type" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tipo"
+    "Type": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tipo"
           }
         }
       }
     },
-    "Underruns" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Underruns"
+    "Underruns": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Underruns"
           }
         }
       }
     },
-    "Upright" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Vertical"
+    "Upright": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vertical"
           }
         }
       }
     },
-    "Use Original Envelope" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Usar envelope original da amostra"
+    "Use Original Envelope": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Usar envelope original da amostra"
           }
         }
       }
     },
-    "Velocity" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Velocidade das notas"
+    "Velocity": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Velocidade das notas"
           }
         }
       }
     },
-    "Velocity Curve" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Curva de velocidade"
+    "Velocity Curve": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Curva de velocidade"
           }
         }
       }
     },
-    "Velocity Range" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Dinâmica"
+    "Velocity Range": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dinâmica"
           }
         }
       }
     },
-    "Vibrato" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Vibrato"
+    "Vibrato": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vibrato"
           }
         }
       }
     },
-    "Voices" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Vozes"
+    "Voices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Vozes"
           }
         }
       }
     },
-    "Volume" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Volume"
+    "Volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Volume"
           }
         }
       }
     },
-    "Wah (Filter)" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Wah (Filtro)"
+    "Wah (Filter)": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Wah (Filtro)"
           }
         }
       }
     },
-    "Waiting…" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aguardando…"
+    "Waiting…": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aguardando…"
           }
         }
       }
     },
-    "Wave" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Onda"
+    "Wave": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Onda"
           }
         }
       }
     },
-    "Welcome to Electro Pro" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Bem-vindo ao Electro Pro"
+    "Welcome to Electro Pro": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bem-vindo ao Electro Pro"
           }
         }
       }
     },
-    "White Keys" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Notas brancas"
+    "White Keys": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Notas brancas"
           }
         }
       }
     },
-    "Zoom In" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aumentar Zoom"
+    "Zoom In": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Aumentar Zoom"
           }
         }
       }
     },
-    "Zoom Out" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Diminuir Zoom"
+    "Zoom Out": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Diminuir Zoom"
+          }
+        }
+      }
+    },
+    "Active polyphonic voices / click to change polyphony limit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active polyphonic voices / click to change polyphony limit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Active polyphonic voices / click to change polyphony limit"
+          }
+        }
+      }
+    },
+    "Add to Favorites": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Favorites"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Add to Favorites"
+          }
+        }
+      }
+    },
+    "All": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "Allow the sustain pedal to hold notes on this layer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow the sustain pedal to hold notes on this layer"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Allow the sustain pedal to hold notes on this layer"
+          }
+        }
+      }
+    },
+    "Audio Engine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio Engine"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Audio Engine"
+          }
+        }
+      }
+    },
+    "Audio engine health and latency details": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio engine health and latency details"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Audio engine health and latency details"
+          }
+        }
+      }
+    },
+    "Bend Down": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bend Down"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bend Down"
+          }
+        }
+      }
+    },
+    "Bend Up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bend Up"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Bend Up"
+          }
+        }
+      }
+    },
+    "Built-in Output": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built-in Output"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Built-in Output"
+          }
+        }
+      }
+    },
+    "CC Number": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CC Number"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "CC Number"
+          }
+        }
+      }
+    },
+    "CC Value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CC Value"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "CC Value"
+          }
+        }
+      }
+    },
+    "Channel Volume": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel Volume"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Volume"
+          }
+        }
+      }
+    },
+    "Click to reset zoom to 100% (⌘0)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to reset zoom to 100% (⌘0)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Click to reset zoom to 100% (⌘0)"
+          }
+        }
+      }
+    },
+    "Clip indicator": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clip indicator"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clip indicator"
+          }
+        }
+      }
+    },
+    "Computer Keyboard Octave Down / Up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Computer Keyboard Octave Down / Up"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Computer Keyboard Octave Down / Up"
+          }
+        }
+      }
+    },
+    "Control Change": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control Change"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Control Change"
+          }
+        }
+      }
+    },
+    "Controls & View": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controls & View"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Controls & View"
+          }
+        }
+      }
+    },
+    "Could not import .epprog file. The file may be corrupted or incompatible.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not import .epprog file. The file may be corrupted or incompatible."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Could not import .epprog file. The file may be corrupted or incompatible."
+          }
+        }
+      }
+    },
+    "Cutoff": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cutoff"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Cutoff"
+          }
+        }
+      }
+    },
+    "Debug": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debug"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Debug"
+          }
+        }
+      }
+    },
+    "Decrease Transpose by 1 semitone (right-click for MIDI Learn)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decrease Transpose by 1 semitone (right-click for MIDI Learn)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Decrease Transpose by 1 semitone (right-click for MIDI Learn)"
+          }
+        }
+      }
+    },
+    "Default Bundle / Application Support": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default Bundle / Application Support"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Default Bundle / Application Support"
+          }
+        }
+      }
+    },
+    "Direct Layer Engine CCs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct Layer Engine CCs"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Direct Layer Engine CCs"
+          }
+        }
+      }
+    },
+    "Dismiss": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dismiss"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Dismiss"
+          }
+        }
+      }
+    },
+    "Done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "Download official .npno or .nsmp4 sound banks from the Nord Piano & Sample Library and choose their folder.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download official .npno or .nsmp4 sound banks from the Nord Piano & Sample Library and choose their folder."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Download official .npno or .nsmp4 sound banks from the Nord Piano & Sample Library and choose their folder."
+          }
+        }
+      }
+    },
+    "Drag and drop your Nord sound library folder here, or click Choose Folder…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag and drop your Nord sound library folder here, or click Choose Folder…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Drag and drop your Nord sound library folder here, or click Choose Folder…"
+          }
+        }
+      }
+    },
+    "Drag to adjust, hold Shift for fine control, double-click knob to reset, double-click value to type, right-click for MIDI Learn.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to adjust, hold Shift for fine control, double-click knob to reset, double-click value to type, right-click for MIDI Learn."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Drag to adjust, hold Shift for fine control, double-click knob to reset, double-click value to type, right-click for MIDI Learn."
+          }
+        }
+      }
+    },
+    "Enable Mac Keyboard Input": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Mac Keyboard Input"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Mac Keyboard Input"
+          }
+        }
+      }
+    },
+    "Equalizer response curve": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Equalizer response curve"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Equalizer response curve"
+          }
+        }
+      }
+    },
+    "Expression": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expression"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Expression"
+          }
+        }
+      }
+    },
+    "Fine Parameter Adjustment on Knobs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fine Parameter Adjustment on Knobs"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Fine Parameter Adjustment on Knobs"
+          }
+        }
+      }
+    },
+    "Global MIDI Receive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global MIDI Receive"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Global MIDI Receive"
+          }
+        }
+      }
+    },
+    "Immediately silence all active voices (⌘., right-click for MIDI Learn)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immediately silence all active voices (⌘., right-click for MIDI Learn)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Immediately silence all active voices (⌘., right-click for MIDI Learn)"
+          }
+        }
+      }
+    },
+    "Increase Transpose by 1 semitone (right-click for MIDI Learn)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Increase Transpose by 1 semitone (right-click for MIDI Learn)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Increase Transpose by 1 semitone (right-click for MIDI Learn)"
+          }
+        }
+      }
+    },
+    "Keyboard Shortcuts…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard Shortcuts…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Keyboard Shortcuts…"
+          }
+        }
+      }
+    },
+    "LP/HP Cutoff": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LP/HP Cutoff"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "LP/HP Cutoff"
+          }
+        }
+      }
+    },
+    "Layer A Switch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer A Switch"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer A Switch"
+          }
+        }
+      }
+    },
+    "Layer B Switch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer B Switch"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer B Switch"
+          }
+        }
+      }
+    },
+    "Layer C Switch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer C Switch"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer C Switch"
+          }
+        }
+      }
+    },
+    "Layer D Switch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer D Switch"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer D Switch"
+          }
+        }
+      }
+    },
+    "Layer keyboard zone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer keyboard zone"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer keyboard zone"
+          }
+        }
+      }
+    },
+    "Layer octave shift (-3 to +3)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layer octave shift (-3 to +3)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Layer octave shift (-3 to +3)"
+          }
+        }
+      }
+    },
+    "Learn Control…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learn Control…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Learn Control…"
+          }
+        }
+      }
+    },
+    "Library Folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Library Folder"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Library Folder"
+          }
+        }
+      }
+    },
+    "Load Sound into Layer A…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Sound into Layer A…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load Sound into Layer A…"
+          }
+        }
+      }
+    },
+    "Load Sound into Layer B…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Sound into Layer B…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load Sound into Layer B…"
+          }
+        }
+      }
+    },
+    "Load Sound into Layer C…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Sound into Layer C…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load Sound into Layer C…"
+          }
+        }
+      }
+    },
+    "Load Sound into Layer D…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Sound into Layer D…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load Sound into Layer D…"
+          }
+        }
+      }
+    },
+    "Load Sound into Selected Layer…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Sound into Selected Layer…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load Sound into Selected Layer…"
+          }
+        }
+      }
+    },
+    "Load a .npno or .nsmp4 file": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load a .npno or .nsmp4 file"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Load a .npno or .nsmp4 file"
+          }
+        }
+      }
+    },
+    "MIDI & Audio Panic (All Notes Off)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI & Audio Panic (All Notes Off)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MIDI & Audio Panic (All Notes Off)"
+          }
+        }
+      }
+    },
+    "MIDI Learn / Clear MIDI Mapping": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI Learn / Clear MIDI Mapping"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MIDI Learn / Clear MIDI Mapping"
+          }
+        }
+      }
+    },
+    "MIDI Mappings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MIDI Mappings"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "MIDI Mappings"
+          }
+        }
+      }
+    },
+    "Manual CC Sender…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual CC Sender…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Manual CC Sender…"
+          }
+        }
+      }
+    },
+    "Manual MIDI CC Sender (Debug)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual MIDI CC Sender (Debug)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Manual MIDI CC Sender (Debug)"
+          }
+        }
+      }
+    },
+    "Maximum Polyphony": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum Polyphony"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Maximum Polyphony"
+          }
+        }
+      }
+    },
+    "Maximum Velocity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum Velocity"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Maximum Velocity"
+          }
+        }
+      }
+    },
+    "Minimum Velocity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimum Velocity"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Minimum Velocity"
+          }
+        }
+      }
+    },
+    "Mod Wheel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mod Wheel"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Mod Wheel"
+          }
+        }
+      }
+    },
+    "Neutral Silver": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neutral Silver"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Neutral Silver"
+          }
+        }
+      }
+    },
+    "Next Program": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Program"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Next Program"
+          }
+        }
+      }
+    },
+    "Next sound in folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next sound in folder"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Next sound in folder"
+          }
+        }
+      }
+    },
+    "No MIDI controller connected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No MIDI controller connected"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No MIDI controller connected"
+          }
+        }
+      }
+    },
+    "No MIDI controller connected — you can play with the Mac keyboard or on-screen keys": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No MIDI controller connected — you can play with the Mac keyboard or on-screen keys"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No MIDI controller connected — you can play with the Mac keyboard or on-screen keys"
+          }
+        }
+      }
+    },
+    "No MIDI mappings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No MIDI mappings"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No MIDI mappings"
+          }
+        }
+      }
+    },
+    "No Nord sound libraries found in the selected folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Nord sound libraries found in the selected folder"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No Nord sound libraries found in the selected folder"
+          }
+        }
+      }
+    },
+    "No matching sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching sounds"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No matching sounds"
+          }
+        }
+      }
+    },
+    "No sounds in library": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sounds in library"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "No sounds in library"
+          }
+        }
+      }
+    },
+    "Note Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note Off"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Note Off"
+          }
+        }
+      }
+    },
+    "Note On": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note On"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Note On"
+          }
+        }
+      }
+    },
+    "Note Range": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note Range"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Note Range"
+          }
+        }
+      }
+    },
+    "Nudge Focused Knob Value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nudge Focused Knob Value"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Nudge Focused Knob Value"
+          }
+        }
+      }
+    },
+    "Omni": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Omni"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Omni"
+          }
+        }
+      }
+    },
+    "On": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "On"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Open Settings"
+          }
+        }
+      }
+    },
+    "Open Sound File…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Sound File…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Open Sound File…"
+          }
+        }
+      }
+    },
+    "Output clipped — click to clear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Output clipped — click to clear"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Output clipped — click to clear"
+          }
+        }
+      }
+    },
+    "Pan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pan"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pan"
+          }
+        }
+      }
+    },
+    "Panic — All Notes Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panic — All Notes Off"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Panic — All Notes Off"
+          }
+        }
+      }
+    },
+    "Performance & Layers": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance & Layers"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Performance & Layers"
+          }
+        }
+      }
+    },
+    "Pitch Bend": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pitch Bend"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pitch Bend"
+          }
+        }
+      }
+    },
+    "Pitch Bend Down": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pitch Bend Down"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pitch Bend Down"
+          }
+        }
+      }
+    },
+    "Pitch Bend Up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pitch Bend Up"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pitch Bend Up"
+          }
+        }
+      }
+    },
+    "Play Notes on Computer Keyboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play Notes on Computer Keyboard"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Play Notes on Computer Keyboard"
+          }
+        }
+      }
+    },
+    "Play a MIDI controller or sustain/expression pedal to view incoming messages in real time.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play a MIDI controller or sustain/expression pedal to view incoming messages in real time."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Play a MIDI controller or sustain/expression pedal to view incoming messages in real time."
+          }
+        }
+      }
+    },
+    "Polyphony Limit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polyphony Limit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Polyphony Limit"
+          }
+        }
+      }
+    },
+    "Previous Program": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous Program"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Previous Program"
+          }
+        }
+      }
+    },
+    "Previous sound in folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous sound in folder"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Previous sound in folder"
+          }
+        }
+      }
+    },
+    "Program Change": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Program Change"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Program Change"
+          }
+        }
+      }
+    },
+    "Programs & File": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programs & File"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Programs & File"
+          }
+        }
+      }
+    },
+    "Purge unused samples from RAM (⇧⌘P)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purge unused samples from RAM (⇧⌘P)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Purge unused samples from RAM (⇧⌘P)"
+          }
+        }
+      }
+    },
+    "Quick Playing Shortcuts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick Playing Shortcuts"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Quick Playing Shortcuts"
+          }
+        }
+      }
+    },
+    "Recall Program 1–8": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recall Program 1–8"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Recall Program 1–8"
+          }
+        }
+      }
+    },
+    "Redo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Redo"
+          }
+        }
+      }
+    },
+    "Reload purged samples into RAM": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload purged samples into RAM"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reload purged samples into RAM"
+          }
+        }
+      }
+    },
+    "Remove from Favorites": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Favorites"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Remove from Favorites"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reset"
+          }
+        }
+      }
+    },
+    "Reset Parameter to Default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Parameter to Default"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reset Parameter to Default"
+          }
+        }
+      }
+    },
+    "Reset to Default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset to Default"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Reset to Default"
+          }
+        }
+      }
+    },
+    "Resonance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resonance"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Resonance"
+          }
+        }
+      }
+    },
+    "Right-click any knob, Layer A–D switch, Program selector, Transpose button, or Panic button and choose \"Learn MIDI CC\".": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-click any knob, Layer A–D switch, Program selector, Transpose button, or Panic button and choose \"Learn MIDI CC\"."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Right-click any knob, Layer A–D switch, Program selector, Transpose button, or Panic button and choose \"Learn MIDI CC\"."
+          }
+        }
+      }
+    },
+    "Running 60s stress test…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running 60s stress test…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Running 60s stress test…"
+          }
+        }
+      }
+    },
+    "Save Program to Active Slot": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Program to Active Slot"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Save Program to Active Slot"
+          }
+        }
+      }
+    },
+    "Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."
+          }
+        }
+      }
+    },
+    "Send Now": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send Now"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Send Now"
+          }
+        }
+      }
+    },
+    "Show 61-Key On-Screen Keyboard (⌘K)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show 61-Key On-Screen Keyboard (⌘K)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Show 61-Key On-Screen Keyboard (⌘K)"
+          }
+        }
+      }
+    },
+    "Show Welcome Setup Screen…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Welcome Setup Screen…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Show Welcome Setup Screen…"
+          }
+        }
+      }
+    },
+    "Show or hide 61-key on-screen keyboard (⌘K)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or hide 61-key on-screen keyboard (⌘K)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Show or hide 61-key on-screen keyboard (⌘K)"
+          }
+        }
+      }
+    },
+    "Soft / Una Corda": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soft / Una Corda"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Soft / Una Corda"
+          }
+        }
+      }
+    },
+    "Sostenuto Pedal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sostenuto Pedal"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sostenuto Pedal"
+          }
+        }
+      }
+    },
+    "Sounds Found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sounds Found"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sounds Found"
+          }
+        }
+      }
+    },
+    "Stereo output meter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stereo output meter"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stereo output meter"
+          }
+        }
+      }
+    },
+    "Stop Stress Test": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Stress Test"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop Stress Test"
+          }
+        }
+      }
+    },
+    "Stress Test (60s)…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stress Test (60s)…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stress Test (60s)…"
+          }
+        }
+      }
+    },
+    "Stress test cancelled.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stress test cancelled."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stress test cancelled."
+          }
+        }
+      }
+    },
+    "Sustain pedal state (Spacebar to hold)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sustain pedal state (Spacebar to hold)"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sustain pedal state (Spacebar to hold)"
+          }
+        }
+      }
+    },
+    "Sympathetic resonance of undamped upper strings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sympathetic resonance of undamped upper strings"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Sympathetic resonance of undamped upper strings"
+          }
+        }
+      }
+    },
+    "The accent color highlights only knob value arcs, the selected layer, and the meter peak.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The accent color highlights only knob value arcs, the selected layer, and the meter peak."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The accent color highlights only knob value arcs, the selected layer, and the meter peak."
+          }
+        }
+      }
+    },
+    "Toggle Sustain Pedal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toggle Sustain Pedal"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Toggle Sustain Pedal"
+          }
+        }
+      }
+    },
+    "Tone Character": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tone Character"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Tone Character"
+          }
+        }
+      }
+    },
+    "Transpose Down": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transpose Down"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Transpose Down"
+          }
+        }
+      }
+    },
+    "Transpose Up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transpose Up"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Transpose Up"
+          }
+        }
+      }
+    },
+    "Type Exact Numeric Value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type Exact Numeric Value"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Type Exact Numeric Value"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Undo"
+          }
+        }
+      }
+    },
+    "Undo / Redo Parameter Change": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo / Redo Parameter Change"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Undo / Redo Parameter Change"
+          }
+        }
+      }
+    },
+    "Unsupported file format. Electro Pro supports .npno and .nsmp4 files.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported file format. Electro Pro supports .npno and .nsmp4 files."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Unsupported file format. Electro Pro supports .npno and .nsmp4 files."
+          }
+        }
+      }
+    },
+    "Value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value"
+          }
+        }
+      }
+    },
+    "Waveform": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waveform"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Waveform"
+          }
+        }
+      }
+    },
+    "Zoom In / Out / Actual Size": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom In / Out / Actual Size"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Zoom In / Out / Actual Size"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

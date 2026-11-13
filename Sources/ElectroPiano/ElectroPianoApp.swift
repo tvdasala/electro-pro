@@ -776,6 +776,8 @@ final class PianoViewModel: ObservableObject {
     private var midiMonitorNextID: Int = 1
     private var telemetryTickCounter: Int = 0
     @Published var showDebugManualCCSheet: Bool = false
+    @Published var showKeyboardShortcutsSheet: Bool = false
+    @Published var showAboutSheet: Bool = false
     @Published var debugManualCCNumber: Int = 1
     @Published var debugManualCCValue: Double = 64.0
 
@@ -3465,6 +3467,19 @@ struct ElectroPianoApp: App {
                     viewModel.zoomToFitScreen()
                 }
                 .keyboardShortcut("0", modifiers: [.command])
+            }
+
+            CommandGroup(replacing: .appInfo) {
+                Button(L("About Electro Pro")) {
+                    viewModel.showAboutSheet = true
+                }
+            }
+
+            CommandGroup(replacing: .help) {
+                Button(L("Keyboard Shortcuts…")) {
+                    viewModel.showKeyboardShortcutsSheet = true
+                }
+                .keyboardShortcut("/", modifiers: [.command])
             }
 
             #if DEBUG
