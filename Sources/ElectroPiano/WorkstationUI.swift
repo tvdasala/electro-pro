@@ -934,151 +934,30 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var workstationToolbar: some ToolbarContent {
-        // Group 1: Programs 1–8 (Segmented Picker, .fixedSize()) + Save (.glass, neutral)
+        // Group 1: Programs 1–8 + Save
         ToolbarItemGroup(placement: .automatic) {
-            Picker(L("Program"), selection: Binding(
-                get: { vm.selectedMemorySlot },
-                set: { slot in vm.recallMemory(slot: slot) }
-            )) {
-                ForEach(1...8, id: \.self) { slot in
-                    if vm.isProgramEdited && slot == vm.selectedMemorySlot {
-                        Text(verbatim: "\(slot) •").tag(slot)
-                    } else {
-                        Text(verbatim: "\(slot)").tag(slot)
-                    }
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .contextMenu {
-                nonKnobMidiLearnContextMenu(idKey: "action_prev_prog", label: L("Previous Program"))
-                nonKnobMidiLearnContextMenu(idKey: "action_next_prog", label: L("Next Program"))
-            }
-            .help(L("Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."))
-
-            Button {
-                vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
-            } label: {
-                Label(
-                    vm.storeConfirmationActive ? L("Saved") : L("Save"),
-                    systemImage: vm.storeConfirmationActive ? "checkmark" : "square.and.arrow.down"
-                )
-                .labelStyle(.titleAndIcon)
-            }
-            .buttonStyle(.glass)
-            .popover(isPresented: $vm.showRenameProgramPopover, arrowEdge: .bottom) {
-                renameProgramPopover
-            }
-            .help(String(localized: "Save current state to Program \(vm.selectedMemorySlot) (⌘S). To rename: File > Rename Program… (⇧⌘R)", bundle: .module))
+            ToolbarProgramGroup(vm: vm, renamePopover: { AnyView(renameProgramPopover) })
         }
 
         ToolbarSpacer(.fixed)
 
-        // Group 2: Transpose [−] value [+] with sign (e.g. +2 st) + Tuning button (A4/Fine popover)
+        // Group 2: Transpose + Tuning
         ToolbarItemGroup(placement: .automatic) {
-            HStack(spacing: 4) {
-                Button {
-                    let cur = Int(vm.transposeSemitones.rounded())
-                    vm.transposeSemitones = Double(max(-12, cur - 1))
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_down", label: L("Transpose Down"))
-                }
-                .help(L("Decrease Transpose by 1 semitone (right-click for MIDI Learn)"))
-
-                let st = Int(vm.transposeSemitones.rounded())
-                Text(verbatim: st == 0 ? "0 st" : String(format: "%+d st", st))
-                    .font(StudioTokens.fontValue)
-                    .foregroundStyle(StudioTokens.textPrimary)
-                    .fixedSize()
-                    .frame(minWidth: 40, alignment: .center)
-                    .onTapGesture(count: 2) {
-                        vm.transposeSemitones = 0.0
-                    }
-                    .help(L("Global Transpose in semitones (double-click for 0 st)"))
-
-                Button {
-                    let cur = Int(vm.transposeSemitones.rounded())
-                    vm.transposeSemitones = Double(min(12, cur + 1))
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    nonKnobMidiLearnContextMenu(idKey: "action_transpose_up", label: L("Transpose Up"))
-                }
-                .help(L("Increase Transpose by 1 semitone (right-click for MIDI Learn)"))
-            }
-
-            Button {
-                vm.showTuningPopover.toggle()
-            } label: {
-                Image(systemName: "tuningfork")
-            }
-            .buttonStyle(.glass)
-            .popover(isPresented: $vm.showTuningPopover, arrowEdge: .bottom) {
-                masterTuningPopover
-            }
-            .help(L("Tuning (A4 Reference, Fine Tune, and Master Balance)"))
+            ToolbarTransposeGroup(vm: vm, tuningPopover: { AnyView(masterTuningPopover) })
         }
 
         ToolbarSpacer(.fixed)
 
-        // Group 3: Master Volume: slider ~140pt + dB readout + unclipped L/R meter
+        // Group 3: Master Volume + Peak Meter
         ToolbarItemGroup(placement: .automatic) {
-            HStack(spacing: 8) {
-                Image(systemName: "speaker.wave.2.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(StudioTokens.textSecondary)
-
-                Slider(
-                    value: $vm.masterGainDb,
-                    in: -36.0...12.0,
-                    neutralValue: 0.0
-                ) {
-                    Text(L("Master Volume"))
-                }
-                .labelsHidden()
-                .frame(width: 136)
-                .help(String(localized: "Master Volume: \(String(format: "%+.1f dB", vm.masterGainDb)) (double-click value for 0 dB)", bundle: .module))
-
-                Text(verbatim: String(format: "%+.1f dB", vm.masterGainDb))
-                    .font(StudioTokens.fontValue)
-                    .foregroundStyle(StudioTokens.textPrimary)
-                    .fixedSize()
-                    .frame(width: 54, alignment: .trailing)
-                    .onTapGesture(count: 2) {
-                        vm.masterGainDb = 0.0
-                    }
-
-                ToolbarPeakMeterView(telemetry: vm.telemetry, onResetClip: { vm.resetClipIndicator() })
-            }
+            ToolbarMasterGroup(vm: vm)
         }
 
         ToolbarSpacer(.flexible)
 
         // Group 4 (separated): Panic
         ToolbarItem(placement: .automatic) {
-            Button(role: .destructive) {
-                vm.panic()
-            } label: {
-                Label(L("Panic"), systemImage: "xmark.octagon")
-            }
-            .buttonStyle(.glass)
-            .contextMenu {
-                nonKnobMidiLearnContextMenu(idKey: "action_panic", label: L("Panic"))
-            }
-            .help(L("Immediately silence all active voices (⌘., right-click for MIDI Learn)"))
+            ToolbarPanicButton(vm: vm)
         }
 
         ToolbarSpacer(.fixed)
@@ -3219,6 +3098,199 @@ struct ContentView: View {
                 .fill(StudioTokens.borderHairline)
                 .frame(height: 1)
         }
+    }
+}
+
+// MARK: - Isolated Toolbar Group Subviews (Prevents NSToolbar Capsule Jumping)
+
+private struct ToolbarMidiLearnMenu: View {
+    @ObservedObject var vm: PianoViewModel
+    let idKey: String
+    let label: String
+
+    var body: some View {
+        let isLearning = (vm.activeMidiLearnKey == idKey)
+        let mappedCC = vm.knobMidiMappings[idKey]
+
+        Button {
+            vm.startKnobMidiLearn(idKey: idKey)
+        } label: {
+            Label(
+                isLearning
+                    ? String(localized: "Cancel MIDI Learn (\(label))", bundle: .module)
+                    : String(localized: "Learn MIDI CC for \(label)", bundle: .module),
+                systemImage: isLearning ? "xmark.circle" : "antenna.radiowaves.left.and.right"
+            )
+        }
+
+        if let cc = mappedCC {
+            Button(role: .destructive) {
+                vm.unassignKnobCC(idKey: idKey)
+            } label: {
+                Label(String(localized: "Remove MIDI CC \(cc)", bundle: .module), systemImage: "trash")
+            }
+        }
+    }
+}
+
+private struct ToolbarProgramGroup: View {
+    @ObservedObject var vm: PianoViewModel
+    let renamePopover: () -> AnyView
+
+    var body: some View {
+        Picker(L("Program"), selection: Binding(
+            get: { vm.selectedMemorySlot },
+            set: { slot in vm.recallMemory(slot: slot) }
+        )) {
+            ForEach(1...8, id: \.self) { slot in
+                Text(verbatim: "\(slot)").tag(slot)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 224)
+        .overlay(alignment: .topTrailing) {
+            if vm.isProgramEdited {
+                Circle()
+                    .fill(StudioTokens.accent)
+                    .frame(width: 5, height: 5)
+                    .offset(x: -2, y: 2)
+                    .allowsHitTesting(false)
+            }
+        }
+        .contextMenu {
+            ToolbarMidiLearnMenu(vm: vm, idKey: "action_prev_prog", label: L("Previous Program"))
+            ToolbarMidiLearnMenu(vm: vm, idKey: "action_next_prog", label: L("Next Program"))
+        }
+        .help(L("Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."))
+
+        Button {
+            vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
+        } label: {
+            Label(
+                vm.storeConfirmationActive ? L("Saved") : L("Save"),
+                systemImage: vm.storeConfirmationActive ? "checkmark" : "square.and.arrow.down"
+            )
+            .labelStyle(.titleAndIcon)
+            .frame(minWidth: 56)
+        }
+        .buttonStyle(.glass)
+        .popover(isPresented: $vm.showRenameProgramPopover, arrowEdge: .bottom) {
+            renamePopover()
+        }
+        .help(L("Save current state to active Program (⌘S). Rename via File > Rename Program… (⇧⌘R)"))
+    }
+}
+
+private struct ToolbarTransposeGroup: View {
+    @ObservedObject var vm: PianoViewModel
+    let tuningPopover: () -> AnyView
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button {
+                let cur = Int(vm.transposeSemitones.rounded())
+                vm.transposeSemitones = Double(max(-12, cur - 1))
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                ToolbarMidiLearnMenu(vm: vm, idKey: "action_transpose_down", label: L("Transpose Down"))
+            }
+            .help(L("Decrease Transpose by 1 semitone (right-click for MIDI Learn)"))
+
+            let st = Int(vm.transposeSemitones.rounded())
+            Text(verbatim: st == 0 ? "0 st" : String(format: "%+d st", st))
+                .font(StudioTokens.fontValue)
+                .foregroundStyle(StudioTokens.textPrimary)
+                .frame(width: 42, alignment: .center)
+                .onTapGesture(count: 2) {
+                    vm.transposeSemitones = 0.0
+                }
+                .help(L("Global Transpose in semitones (double-click for 0 st)"))
+
+            Button {
+                let cur = Int(vm.transposeSemitones.rounded())
+                vm.transposeSemitones = Double(min(12, cur + 1))
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                ToolbarMidiLearnMenu(vm: vm, idKey: "action_transpose_up", label: L("Transpose Up"))
+            }
+            .help(L("Increase Transpose by 1 semitone (right-click for MIDI Learn)"))
+        }
+        .fixedSize()
+
+        Button {
+            vm.showTuningPopover.toggle()
+        } label: {
+            Image(systemName: "tuningfork")
+        }
+        .buttonStyle(.glass)
+        .popover(isPresented: $vm.showTuningPopover, arrowEdge: .bottom) {
+            tuningPopover()
+        }
+        .help(L("Tuning (A4 Reference, Fine Tune, and Master Balance)"))
+    }
+}
+
+private struct ToolbarMasterGroup: View {
+    @ObservedObject var vm: PianoViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "speaker.wave.2.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(StudioTokens.textSecondary)
+
+            Slider(
+                value: $vm.masterGainDb,
+                in: -36.0...12.0,
+                neutralValue: 0.0
+            ) {
+                Text(L("Master Volume"))
+            }
+            .labelsHidden()
+            .frame(width: 136)
+            .help(L("Master Volume (double-click dB readout for 0 dB)"))
+
+            Text(verbatim: String(format: "%+.1f dB", vm.masterGainDb))
+                .font(StudioTokens.fontValue)
+                .foregroundStyle(StudioTokens.textPrimary)
+                .frame(width: 58, alignment: .trailing)
+                .onTapGesture(count: 2) {
+                    vm.masterGainDb = 0.0
+                }
+
+            ToolbarPeakMeterView(telemetry: vm.telemetry, onResetClip: { vm.resetClipIndicator() })
+        }
+        .fixedSize()
+    }
+}
+
+private struct ToolbarPanicButton: View {
+    @ObservedObject var vm: PianoViewModel
+
+    var body: some View {
+        Button(role: .destructive) {
+            vm.panic()
+        } label: {
+            Label(L("Panic"), systemImage: "xmark.octagon")
+        }
+        .buttonStyle(.glass)
+        .contextMenu {
+            ToolbarMidiLearnMenu(vm: vm, idKey: "action_panic", label: L("Panic"))
+        }
+        .help(L("Immediately silence all active voices (⌘., right-click for MIDI Learn)"))
     }
 }
 
