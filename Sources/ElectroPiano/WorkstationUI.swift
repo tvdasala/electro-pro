@@ -934,7 +934,7 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var workstationToolbar: some ToolbarContent {
-        // Group 1: Programs 1–8 + Save
+        // Group 1: Programs 1–4 + Save
         ToolbarItemGroup(placement: .automatic) {
             ToolbarProgramGroup(vm: vm, renamePopover: { AnyView(renameProgramPopover) })
         }
@@ -3139,16 +3139,16 @@ private struct ToolbarProgramGroup: View {
 
     var body: some View {
         Picker(L("Program"), selection: Binding(
-            get: { vm.selectedMemorySlot },
+            get: { min(max(vm.selectedMemorySlot, 1), 4) },
             set: { slot in vm.recallMemory(slot: slot) }
         )) {
-            ForEach(1...8, id: \.self) { slot in
+            ForEach(1...4, id: \.self) { slot in
                 Text(verbatim: "\(slot)").tag(slot)
             }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .frame(width: 224)
+        .fixedSize()
         .overlay(alignment: .topTrailing) {
             if vm.isProgramEdited {
                 Circle()
@@ -3162,7 +3162,7 @@ private struct ToolbarProgramGroup: View {
             ToolbarMidiLearnMenu(vm: vm, idKey: "action_prev_prog", label: L("Previous Program"))
             ToolbarMidiLearnMenu(vm: vm, idKey: "action_next_prog", label: L("Next Program"))
         }
-        .help(L("Select Program (1 to 8). Right-click for Previous/Next Program MIDI Learn."))
+        .help(L("Select Program (1 to 4). Right-click for Previous/Next Program MIDI Learn."))
 
         Button {
             vm.storeCurrentToMemory(slot: vm.selectedMemorySlot)
@@ -3317,7 +3317,7 @@ private struct KeyboardShortcutsSheetView: View {
 
     private let sections: [(title: String, items: [(shortcut: String, action: String)])] = [
         (L("Programs & File"), [
-            ("⌘1 – ⌘8", L("Recall Program 1–8")),
+            ("⌘1 – ⌘4", L("Recall Program 1–4")),
             ("⌘S", L("Save Program to Active Slot")),
             ("⌘O", L("Open Sound File…")),
             ("⌘Z / ⇧⌘Z", L("Undo / Redo Parameter Change")),

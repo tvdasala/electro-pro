@@ -905,7 +905,7 @@ final class PianoViewModel: ObservableObject {
         if midiChannel > 0 && channel > 0 && channel != midiChannel {
             return
         }
-        if (0...7).contains(program) {
+        if (0...3).contains(program) {
             let targetSlot = program + 1
             if selectedMemorySlot != targetSlot {
                 recallMemory(slot: targetSlot)
@@ -947,14 +947,14 @@ final class PianoViewModel: ObservableObject {
             }
             if idKey == "action_prev_prog" {
                 if risingEdge {
-                    let prevSlot = ((selectedMemorySlot - 2 + 8) % 8) + 1
+                    let prevSlot = ((selectedMemorySlot - 2 + 4) % 4) + 1
                     recallMemory(slot: prevSlot)
                 }
                 continue
             }
             if idKey == "action_next_prog" {
                 if risingEdge {
-                    let nextSlot = (selectedMemorySlot % 8) + 1
+                    let nextSlot = (selectedMemorySlot % 4) + 1
                     recallMemory(slot: nextSlot)
                 }
                 continue
@@ -3357,7 +3357,7 @@ struct ElectroPianoApp: App {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 
                 Menu(L("Copy Program To…")) {
-                    ForEach(1...8, id: \.self) { slot in
+                    ForEach(1...4, id: \.self) { slot in
                         let slotName = viewModel.memorySlots[slot - 1].name
                         Button(String(localized: "Program \(slot) — \(slotName)", bundle: .module)) {
                             viewModel.copyCurrentProgram(toSlot: slot)
