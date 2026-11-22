@@ -188,4 +188,223 @@ struct ElectroPianoTests {
         npno_host_get_telemetry(host, &tel)
         #expect(tel.clipped == false)
     }
+
+    @Test("CC64 full sustain (64 and 127) holds voices without premature damping")
+    func cc64FullSustainHoldsSteady() {
+        let host = npno_host_create()!
+        defer { npno_host_destroy(host) }
+        #expect(npno_host_load_test_tone(host, 0, 0.5))
+
+        var rev = NPNOReverbParams()
+        npno_host_get_reverb_params(host, &rev)
+        rev.enabled = false
+        npno_host_set_reverb_params(host, &rev)
+
+        var lp = NPNOLayerParams()
+        npno_host_get_layer_params(host, 0, &lp)
+        lp.fxaAmount = 0.0
+        npno_host_set_layer_params(host, 0, &lp)
+
+        var L = [Float](repeating: 0, count: 48000)
+        var R = [Float](repeating: 0, count: 48000)
+        var tel = NPNOTelemetry()
+
+        // Settle initial parameter smoothers before measuring steady-state sustain amplitude
+        npno_host_render_offline(host, &L, &R, 4096)
+
+        for ccVal in [64, 127] as [Int32] {
+            npno_host_panic(host)
+            npno_host_render_offline(host, &L, &R, 512)
+
+            npno_host_send_midi_cc(host, 64, ccVal, 1)
+            npno_host_note_on(host, 60, 0.85)
+            npno_host_render_offline(host, &L, &R, 1024)
+            let initialPeak = L[512..<1024].map { abs($0) }.max() ?? 0
+            #expect(initialPeak > 0.05)
+
+            npno_host_note_off(host, 60)
+
+            // Render 2 seconds (96000 frames @ 48 kHz) while CC64 is held
+            npno_host_render_offline(host, &L, &R, 48000)
+            npno_host_render_offline(host, &L, &R, 48000)
+            let heldPeak = L[47000..<48000].map { abs($0) }.max() ?? 0
+            npno_host_get_telemetry(host, &tel)
+
+            #expect(tel.sustainDown == true)
+            #expect(tel.activeVoices == 1)
+            #expect(heldPeak > initialPeak * 0.95)
+
+            // Releasing sustain pedal decays and finishes the voice cleanly
+            npno_host_send_midi_cc(host, 64, 0, 1)
+            npno_host_render_offline(host, &L, &R, 48000)
+            npno_host_get_telemetry(host, &tel)
+            let tailPeak = L[47000..<48000].map { abs($0) }.max() ?? 0
+            #expect(tel.sustainDown == false)
+            #expect(tel.activeVoices == 0)
+            #expect(tailPeak < 1.0e-4)
+        }
+    }
+
+    @Test("CC123 All Notes Off respects CC64 sustain; CC120 All Sound Off silences")
+    func cc123RespectsSustainAndCC120Silences() {
+        let host = npno_host_create()!
+        defer { npno_host_destroy(host) }
+        #expect(npno_host_load_test_tone(host, 0, 0.5))
+
+        var rev = NPNOReverbParams()
+        npno_host_get_reverb_params(host, &rev)
+        rev.enabled = false
+        npno_host_set_reverb_params(host, &rev)
+
+        var lp = NPNOLayerParams()
+        npno_host_get_layer_params(host, 0, &lp)
+        lp.fxaAmount = 0.0
+        npno_host_set_layer_params(host, 0, &lp)
+
+        var L = [Float](repeating: 0, count: 48000)
+        var R = [Float](repeating: 0, count: 48000)
+        var tel = NPNOTelemetry()
+
+        npno_host_send_midi_cc(host, 64, 127, 1)
+        npno_host_note_on(host, 60, 0.8)
+        npno_host_render_offline(host, &L, &R, 1024)
+
+        // CC123 releases held keys into sustain without killing sustained voices
+        npno_host_send_midi_cc(host, 123, 0, 1)
+        npno_host_render_offline(host, &L, &R, 24000)
+        npno_host_get_telemetry(host, &tel)
+        let peakAfterCC123 = L[23000..<24000].map { abs($0) }.max() ?? 0
+        #expect(tel.sustainDown == true)
+        #expect(tel.activeVoices == 1)
+        #expect(peakAfterCC123 > 0.05)
+
+        // Releasing CC64 now lets the voice decay to silence
+        npno_host_send_midi_cc(host, 64, 0, 1)
+        npno_host_render_offline(host, &L, &R, 48000)
+        npno_host_get_telemetry(host, &tel)
+        #expect(tel.activeVoices == 0)
+
+        // CC120 All Sound Off silences even with sustain held
+        npno_host_send_midi_cc(host, 64, 127, 1)
+        npno_host_note_on(host, 60, 0.8)
+        npno_host_render_offline(host, &L, &R, 1024)
+        npno_host_send_midi_cc(host, 120, 0, 1)
+        npno_host_render_offline(host, &L, &R, 2048)
+        npno_host_get_telemetry(host, &tel)
+        let peakAfterCC120 = L[1500..<2048].map { abs($0) }.max() ?? 0
+        #expect(tel.activeVoices == 0)
+        #expect(peakAfterCC120 < 1.0e-4)
+    }
+
+    @Test("Syncopated re-pedaling catches releasing voices")
+    func syncopatedRepedalCatchesReleasingVoice() {
+        let host = npno_host_create()!
+        defer { npno_host_destroy(host) }
+        #expect(npno_host_load_test_tone(host, 0, 0.5))
+
+        var rev = NPNOReverbParams()
+        npno_host_get_reverb_params(host, &rev)
+        rev.enabled = false
+        npno_host_set_reverb_params(host, &rev)
+
+        var L = [Float](repeating: 0, count: 48000)
+        var R = [Float](repeating: 0, count: 48000)
+        var tel = NPNOTelemetry()
+
+        npno_host_note_on(host, 60, 0.85)
+        npno_host_render_offline(host, &L, &R, 512)
+        npno_host_note_off(host, 60)
+        // Render 30 ms (~1440 frames) so voice is actively releasing
+        npno_host_render_offline(host, &L, &R, 1440)
+
+        // Depress sustain pedal to catch the releasing voice
+        npno_host_send_midi_cc(host, 64, 127, 1)
+        npno_host_render_offline(host, &L, &R, 48000)
+        npno_host_render_offline(host, &L, &R, 48000)
+        npno_host_get_telemetry(host, &tel)
+
+        let heldPeak = L[47000..<48000].map { abs($0) }.max() ?? 0
+        #expect(tel.activeVoices == 1)
+        #expect(heldPeak > 0.01)
+    }
+
+    @Test("Cross-channel CC64 isolation preserves Layer A sustain")
+    func crossChannelCC64Isolation() {
+        let host = npno_host_create()!
+        defer { npno_host_destroy(host) }
+        #expect(npno_host_load_test_tone(host, 0, 0.5))
+
+        var lp = NPNOLayerParams()
+        npno_host_get_layer_params(host, 0, &lp)
+        lp.midiChannel = 1
+        npno_host_set_layer_params(host, 0, &lp)
+
+        var L = [Float](repeating: 0, count: 48000)
+        var R = [Float](repeating: 0, count: 48000)
+        var tel = NPNOTelemetry()
+
+        npno_host_send_midi_cc(host, 64, 127, 1)
+        npno_host_note_on(host, 60, 0.8)
+        npno_host_render_offline(host, &L, &R, 512)
+        npno_host_note_off(host, 60)
+
+        // Releasing CC64 on channel 2 must not drop Layer A (channel 1) sustain
+        npno_host_send_midi_cc(host, 64, 0, 2)
+        npno_host_render_offline(host, &L, &R, 48000)
+        npno_host_get_telemetry(host, &tel)
+        let ch1Peak = L[47000..<48000].map { abs($0) }.max() ?? 0
+        #expect(tel.activeVoices == 1)
+        #expect(ch1Peak > 0.05)
+
+        // Releasing CC64 on channel 1 releases Layer A
+        npno_host_send_midi_cc(host, 64, 0, 1)
+        npno_host_render_offline(host, &L, &R, 48000)
+        npno_host_get_telemetry(host, &tel)
+        #expect(tel.activeVoices == 0)
+    }
+
+    @Test("Voice stealing preserves held keys under sustain pressure")
+    func voiceStealingPreservesHeldKeys() {
+        let host = npno_host_create()!
+        defer { npno_host_destroy(host) }
+        #expect(npno_host_load_test_tone(host, 0, 0.4))
+
+        var rev = NPNOReverbParams()
+        npno_host_get_reverb_params(host, &rev)
+        rev.enabled = false
+        npno_host_set_reverb_params(host, &rev)
+
+        npno_host_set_max_voices(host, 16)
+        var L = [Float](repeating: 0, count: 2048)
+        var R = [Float](repeating: 0, count: 2048)
+        var tel = NPNOTelemetry()
+
+        // Hold key 60 physically while pressing & releasing 24 other notes under sustain
+        npno_host_send_midi_cc(host, 64, 127, 1)
+        npno_host_note_on(host, 60, 0.8)
+        npno_host_render_offline(host, &L, &R, 512)
+        #expect(L[0..<512].allSatisfy { $0.isFinite })
+
+        for n in 40...64 where n != 60 {
+            npno_host_note_on(host, Int32(n), 0.7)
+            npno_host_render_offline(host, &L, &R, 256)
+            #expect(L[0..<256].allSatisfy { $0.isFinite })
+            #expect(R[0..<256].allSatisfy { $0.isFinite })
+            npno_host_note_off(host, Int32(n))
+        }
+
+        npno_host_get_telemetry(host, &tel)
+        #expect(tel.activeVoices == 16)
+
+        // Release sustain pedal and wait for sustained notes to finish; held key 60 must survive!
+        npno_host_send_midi_cc(host, 64, 0, 1)
+        var longL = [Float](repeating: 0, count: 48000)
+        var longR = [Float](repeating: 0, count: 48000)
+        npno_host_render_offline(host, &longL, &longR, 48000)
+        npno_host_get_telemetry(host, &tel)
+        let heldPeak = longL[47000..<48000].map { abs($0) }.max() ?? 0
+        #expect(longL.allSatisfy { $0.isFinite } && longR.allSatisfy { $0.isFinite })
+        #expect(tel.activeVoices == 1)
+        #expect(heldPeak > 0.03)
+    }
 }

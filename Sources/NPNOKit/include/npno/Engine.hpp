@@ -265,6 +265,7 @@ private:
         float baseGain = 0.0f;
         float velNorm = 1.0f;           // velocidade efetiva (0..1) com que a tecla foi tocada
         double loopEnv = 1.0;
+        double envDecayMul = 1.0;
         double loopDecayMul = 1.0;
         double relEnv = 1.0;
         double relDecayMul = 0.999;
@@ -282,6 +283,7 @@ private:
         float fadeOutL = 0.0f;
         float fadeOutR = 0.0f;
         int fadeOutRemaining = 0;
+        uint8_t fadeOutLayer = 0;
         float lastL = 0.0f;
         float lastR = 0.0f;
     };
@@ -315,12 +317,17 @@ private:
     const std::array<LayerParams, kNumLayers>& audioLayerParams() noexcept;
     void startReleaseOnVoice(Voice& v, const Instrument* inst, const LayerParams& lp, bool triggerRelSample) noexcept;
     void spawnReleaseVoice(int layer, int note, float envLevel, const Instrument* inst, const LayerParams& lp) noexcept;
+    float effectiveSustainLevel(const LayerParams& lp) const noexcept;
+    void applySustainLevelChange(int channel, float newLevel) noexcept;
+    void handleAllNotesOff(int channel) noexcept;
+    void handleAllSoundOff(int channel) noexcept;
     void drainEvents() noexcept;
 
     double sampleRate_ = 48000.0;
     uint64_t voiceCounter_ = 0;
     bool sustainPedal_ = false;
     float sustainPedalLevel_ = 0.0f; // 0.0 .. 1.0 (continuous half-pedaling on CC64)
+    std::array<float, 17> sustainLevelByCh_{}; // 0 = global/UI, 1..16 = MIDI channels 1..16
     bool sostenutoPedal_ = false;    // CC66
     bool softPedal_ = false;         // CC67 (una corda)
     float expressionGain_ = 1.0f;    // CC11 (0.0 .. 1.0)

@@ -885,9 +885,10 @@ public:
                     } else if (ev.type == Event::kNoteOffEvent) {
                         core_.noteOff(ev.noteOff.pitch);
                     } else if (ev.type == Event::kLegacyMIDICCOutEvent) {
-                        if (ev.midiCCOut.controlNumber == 64) {
-                            core_.setSustain(ev.midiCCOut.value >= 64);
-                        }
+                        core_.handleMidiEvent(
+                            static_cast<uint8_t>(0xB0 | (ev.midiCCOut.channel & 0x0F)),
+                            static_cast<uint8_t>(ev.midiCCOut.controlNumber & 0x7F),
+                            static_cast<uint8_t>(ev.midiCCOut.value & 0x7F));
                     }
                 }
             }

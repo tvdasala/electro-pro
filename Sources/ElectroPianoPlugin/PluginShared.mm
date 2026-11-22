@@ -830,12 +830,12 @@ void ElectroPianoCore::handleMidiEvent(uint8_t status, uint8_t data1, uint8_t da
             const uint8_t cc = data1 & 0x7F;
             const uint8_t val = data2 & 0x7F;
             if (cc == 64) {
-                setSustain(val >= 64);
+                params_[kParamSustainPedal].store(val >= 64 ? 1.0f : 0.0f, std::memory_order_relaxed);
             } else if (cc == 120 || cc == 123) {
-                panic();
-            } else {
-                engine_.pushEvent(npno::Engine::EventType::ControlChange, cc, float(val), chan);
+                activeNotesLo_.store(0, std::memory_order_relaxed);
+                activeNotesHi_.store(0, std::memory_order_relaxed);
             }
+            engine_.pushEvent(npno::Engine::EventType::ControlChange, cc, float(val), chan);
             break;
         }
         case 0xE0: {

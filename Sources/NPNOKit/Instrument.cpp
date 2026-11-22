@@ -330,9 +330,9 @@ std::unique_ptr<Instrument> Instrument::load(const std::string& path, const Prog
 
                 // Decaimento (measureLoopDecay + applyEnvelopeMetadata).
                 if (r.isNsmp4) {
-                    s.loopDecayDb = (s.loopLength > 0) ? 2.2 : 0.8;
+                    s.loopDecayDb = 0.0;
                     s.decayRealtime = true;
-                    s.envDecayDb = s.loopDecayDb;
+                    s.envDecayDb = 0.0;
                     if (r.releaseParam != 0)
                         s.releaseMs = float(std::clamp(12.0 * std::exp2(double(r.releaseParam) / 3.2), 45.0, 2200.0));
                     else

@@ -5,6 +5,7 @@ build_win/
 *.zip
 *.pkg
 Electro Piano.app/
+Mac/
 Mac (ARM)/
 Mac (Intel)/
 Windows/

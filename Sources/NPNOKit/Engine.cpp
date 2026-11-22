@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 namespace npno {
 
@@ -11,6 +12,8 @@ namespace {
 constexpr double kLn10Over20 = 0.11512925464970229;     // ln(10) / 20
 constexpr double kReleaseTargetLn = 6.907755278982137;  // -60 dB = ln(1000)
 constexpr double kTwoPi = 6.28318530717958647692;
+constexpr float kHalfPedalOnThreshold = 20.0f / 127.0f;  // below this = dampers fully down
+constexpr float kFullSustainThreshold = 64.0f / 127.0f;  // >= 64 = full sustain (zero extra damping)
 
 // Spinlock ultraleve para leitura/escrita de structs de configuração
 struct ScopedSpinLock {
@@ -452,13 +455,31 @@ void Engine::beginKill(Voice& v, float seconds) noexcept {
 }
 
 void Engine::hardStealVoice(Voice& v) noexcept {
+    const float remF = (v.fadeOutRemaining > 0) ? (float(v.fadeOutRemaining) / float(kAntiClickSamples)) : 0.0f;
+    const float prevL = v.lastL + v.fadeOutL * remF;
+    const float prevR = v.lastR + v.fadeOutR * remF;
+    const uint8_t prevLayer = v.layer;
+
     v.active = false;
     v.killing = false;
-    v.fadeOutRemaining = 0;
-    v.fadeOutL = 0.0f;
-    v.fadeOutR = 0.0f;
+    v.keyHeld = false;
+    v.sustained = false;
+    v.sostenutoHeld = false;
+    v.releasing = false;
     v.lastL = 0.0f;
     v.lastR = 0.0f;
+
+    if (std::fabs(prevL) > 1.0e-6f || std::fabs(prevR) > 1.0e-6f) {
+        v.fadeOutL = prevL;
+        v.fadeOutR = prevR;
+        v.fadeOutLayer = prevLayer;
+        v.fadeOutRemaining = kAntiClickSamples;
+    } else {
+        v.fadeOutRemaining = 0;
+        v.fadeOutL = 0.0f;
+        v.fadeOutR = 0.0f;
+        v.fadeOutLayer = 0;
+    }
 }
 
 Engine::Voice& Engine::allocateVoice(int /*layer*/, int /*note*/, bool /*isReleaseVoice*/, bool /*legatoMono*/) noexcept {
@@ -474,15 +495,28 @@ Engine::Voice& Engine::allocateVoice(int /*layer*/, int /*note*/, bool /*isRelea
         auto& v = voices_[i];
         if (!v.active) return v;
     }
-    // 3. Rouba a voz MAIS SILENCIOSA (priorizando vozes que já estão morrendo em killing ou release)
+    // 3. Rouba por prioridade estrita: killing < releaseVoice < releasing < sustained < held/sostenuto
+    //    Dentro da mesma faixa, rouba a voz de menor nível audível e mais antiga.
     Voice* candidate = nullptr;
+    int candidateTier = 99;
     float candidateLevel = 1.0e30f;
+    uint64_t candidateAge = std::numeric_limits<uint64_t>::max();
     for (int i = 0; i < maxV; ++i) {
         auto& v = voices_[i];
-        float level = float(v.loopEnv * v.relEnv) * v.baseGain * (v.killing ? v.killGain : 1.0f);
-        if (!(v.killing || v.releasing || v.isReleaseVoice)) level += 10.0f;
-        if (level < candidateLevel) {
-            candidateLevel = level;
+        int tier = 4;
+        if (v.killing) tier = 0;
+        else if (v.isReleaseVoice) tier = 1;
+        else if (v.releasing) tier = 2;
+        else if (v.sustained && !v.keyHeld && !v.sostenutoHeld) tier = 3;
+
+        const float peak = float(std::max(1, v.sample ? v.sample->peak : 1));
+        const float audible = float(v.loopEnv * v.relEnv) * v.baseGain * peak * (v.killing ? v.killGain : 1.0f);
+        if (tier < candidateTier ||
+            (tier == candidateTier && (audible < candidateLevel ||
+                                       (audible == candidateLevel && v.age < candidateAge)))) {
+            candidateTier = tier;
+            candidateLevel = audible;
+            candidateAge = v.age;
             candidate = &v;
         }
     }
@@ -571,7 +605,8 @@ void Engine::noteOn(int triggerKey, float rawVelocity, int channel) {
         for (auto& oldV : voices_) {
             if (oldV.active && oldV.layer == layer) {
                 if (lp.legatoMono || oldV.triggerKey == triggerKey) {
-                    beginKill(oldV, lp.legatoMono ? 0.015f : 0.025f);
+                    const float fadeSec = lp.legatoMono ? 0.015f : (oldV.sustained ? 0.045f : kRetriggerFadeSec);
+                    beginKill(oldV, fadeSec);
                 }
             }
         }
@@ -598,13 +633,11 @@ void Engine::noteOn(int triggerKey, float rawVelocity, int channel) {
         v.isReleaseVoice = false;
         v.keyHeld = true;
         v.sustained = false;
+        v.sostenutoHeld = false;
         v.releasing = false;
         v.killing = false;
         v.killGain = 1.0f;
         v.killStep = 0.0f;
-        v.fadeOutRemaining = 0;
-        v.fadeOutL = 0.0f;
-        v.fadeOutR = 0.0f;
         v.lastL = 0.0f;
         v.lastR = 0.0f;
         v.undamped = lp.undampedOn && (note >= inst->damperBoundary);
@@ -626,7 +659,8 @@ void Engine::noteOn(int triggerKey, float rawVelocity, int channel) {
         v.loopEnv = 1.0;
 
         const double dt = s->decayRealtime ? (1.0 / sampleRate_) : (baseStep / s->rate);
-        v.loopDecayMul = std::exp(-s->loopDecayDb * kLn10Over20 * dt);
+        v.envDecayMul = (s->envDecayDb > 0.0) ? std::exp(-s->envDecayDb * kLn10Over20 * dt) : 1.0;
+        v.loopDecayMul = (s->loopDecayDb > 0.0) ? std::exp(-s->loopDecayDb * kLn10Over20 * dt) : 1.0;
 
         v.relEnv = 1.0;
         const double baseRelMs = lp.originalEnvelope ? double(s->releaseMs) : double(lp.releaseMs);
@@ -682,13 +716,11 @@ void Engine::spawnReleaseVoice(int layer, int note, float envLevel, const Instru
     rv.isReleaseVoice = true;
     rv.keyHeld = false;
     rv.sustained = false;
+    rv.sostenutoHeld = false;
     rv.releasing = false;
     rv.killing = false;
     rv.killGain = 1.0f;
     rv.killStep = 0.0f;
-    rv.fadeOutRemaining = 0;
-    rv.fadeOutL = 0.0f;
-    rv.fadeOutR = 0.0f;
     rv.lastL = 0.0f;
     rv.lastR = 0.0f;
     rv.undamped = true;
@@ -703,6 +735,7 @@ void Engine::spawnReleaseVoice(int layer, int note, float envLevel, const Instru
     rv.baseGain = (envLevel / relPeak) * relGain;
     rv.velNorm = 1.0f;
     rv.loopEnv = 1.0;
+    rv.envDecayMul = 1.0;
     rv.loopDecayMul = 1.0;
     rv.relEnv = 1.0;
     rv.relDecayMul = std::exp(-kReleaseTargetLn / (0.25 * sampleRate_));
@@ -737,6 +770,94 @@ void Engine::startReleaseOnVoice(Voice& v, const Instrument* inst, const LayerPa
     }
 }
 
+float Engine::effectiveSustainLevel(const LayerParams& lp) const noexcept {
+    if (lp.midiChannel > 0 && lp.midiChannel <= 16) {
+        return std::max(sustainLevelByCh_[0], sustainLevelByCh_[size_t(lp.midiChannel)]);
+    }
+    return sustainPedalLevel_;
+}
+
+void Engine::applySustainLevelChange(int channel, float newLevel) noexcept {
+    newLevel = std::clamp(newLevel, 0.0f, 1.0f);
+    if (channel <= 0 || channel > 16) {
+        if (newLevel < kHalfPedalOnThreshold) {
+            sustainLevelByCh_.fill(0.0f);
+        }
+        sustainLevelByCh_[0] = newLevel;
+    } else {
+        sustainLevelByCh_[size_t(channel)] = newLevel;
+    }
+
+    float maxLevel = 0.0f;
+    for (float lvl : sustainLevelByCh_) {
+        maxLevel = std::max(maxLevel, lvl);
+    }
+    sustainPedalLevel_ = maxLevel;
+    sustainPedal_ = (maxLevel >= kHalfPedalOnThreshold);
+    sustainState_.store(maxLevel >= kFullSustainThreshold, std::memory_order_relaxed);
+
+    const auto& lps = audioLayerParams();
+    for (auto& v : voices_) {
+        if (!v.active || v.isReleaseVoice || v.killing) continue;
+        const int layer = v.layer;
+        const LayerParams& lp = lps[layer];
+        const float layerLevel = effectiveSustainLevel(lp);
+        if (layerLevel < kHalfPedalOnThreshold) {
+            if (!v.keyHeld && v.sustained) {
+                v.sustained = false;
+                if (!v.sostenutoHeld) {
+                    const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
+                    startReleaseOnVoice(v, inst, lp, false);
+                }
+            }
+        } else if (lp.sustainPedalOn && !v.undamped) {
+            // Re-pedalamento sincopado (damper catch): captura vozes em release antes do abafamento completo.
+            if (!v.keyHeld && v.releasing) {
+                v.releasing = false;
+                v.sustained = true;
+            }
+        }
+    }
+}
+
+void Engine::handleAllNotesOff(int channel) noexcept {
+    const auto& lps = audioLayerParams();
+    for (auto& v : voices_) {
+        if (!v.active || v.isReleaseVoice || v.killing) continue;
+        const int layer = v.layer;
+        const LayerParams& lp = lps[layer];
+        if (channel > 0 && lp.midiChannel > 0 && lp.midiChannel != channel) continue;
+        if (v.keyHeld) {
+            v.keyHeld = false;
+            if (v.triggerKey >= 0 && v.triggerKey <= 127) {
+                keyState_[v.triggerKey].store(0, std::memory_order_relaxed);
+            }
+            if (effectiveSustainLevel(lp) >= kHalfPedalOnThreshold && lp.sustainPedalOn && !v.undamped) {
+                v.sustained = true;
+            } else if (v.sostenutoHeld) {
+                // Held by sostenuto pedal (CC66)
+            } else {
+                const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
+                startReleaseOnVoice(v, inst, lp, false);
+            }
+        }
+    }
+}
+
+void Engine::handleAllSoundOff(int channel) noexcept {
+    const auto& lps = audioLayerParams();
+    for (auto& v : voices_) {
+        if (!v.active) continue;
+        const int layer = v.layer;
+        const LayerParams& lp = lps[layer];
+        if (channel > 0 && lp.midiChannel > 0 && lp.midiChannel != channel) continue;
+        if (v.triggerKey >= 0 && v.triggerKey <= 127) {
+            keyState_[v.triggerKey].store(0, std::memory_order_relaxed);
+        }
+        beginKill(v, kStealFadeSec);
+    }
+}
+
 void Engine::noteOff(int triggerKey, int channel) {
     if (triggerKey < 0 || triggerKey > 127) return;
     const int globalCh = globalMidiChannel_.load(std::memory_order_relaxed);
@@ -754,7 +875,7 @@ void Engine::noteOff(int triggerKey, int channel) {
 
         if (v.triggerKey == triggerKey && v.keyHeld) {
             v.keyHeld = false;
-            if (sustainPedal_ && lp.sustainPedalOn && !v.undamped) {
+            if (effectiveSustainLevel(lp) >= kHalfPedalOnThreshold && lp.sustainPedalOn && !v.undamped) {
                 v.sustained = true;
             } else if (v.sostenutoHeld) {
                 // Held by sostenuto pedal (CC66)
@@ -769,76 +890,56 @@ void Engine::noteOff(int triggerKey, int channel) {
 void Engine::sustain(bool down, int channel) {
     const int globalCh = globalMidiChannel_.load(std::memory_order_relaxed);
     if (channel > 0 && globalCh > 0 && channel != globalCh) return;
-
-    sustainPedalLevel_ = down ? 1.0f : 0.0f;
-    if (sustainPedal_ == down) return;
-    sustainPedal_ = down;
-    sustainState_.store(down, std::memory_order_relaxed);
-
-    if (!down) {
-        const auto& lps = audioLayerParams();
-        for (auto& v : voices_) {
-            if (v.active && !v.isReleaseVoice && !v.keyHeld && v.sustained) {
-                v.sustained = false;
-                if (!v.sostenutoHeld) {
-                    const int layer = v.layer;
-                    const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
-                    startReleaseOnVoice(v, inst, lps[layer], false);
-                }
-            }
-        }
-    }
+    applySustainLevelChange(channel, down ? 1.0f : 0.0f);
 }
 
 void Engine::controlChange(int cc, int value127, int channel) {
+    const int globalCh = globalMidiChannel_.load(std::memory_order_relaxed);
+    if (channel > 0 && globalCh > 0 && channel != globalCh) return;
+
     cc = std::clamp(cc, 0, 127);
     value127 = std::clamp(value127, 0, 127);
     const float norm = float(value127) / 127.0f;
 
-    // 1. Pedals & standard performance CCs: CC64 (continuous half-pedaling), CC66 (sostenuto), CC67 (una corda), CC11 (expression), CC7 (volume)
+    // 1. Pedals & channel-mode CCs: CC64 (continuous half-pedaling), CC66 (sostenuto), CC67 (una corda),
+    //    CC11 (expression), CC7 (volume), CC120 (All Sound Off), CC123 (All Notes Off)
     if (cc == 64) {
-        sustainPedalLevel_ = norm;
-        const bool down = (value127 >= 20);
-        sustainState_.store(value127 >= 64, std::memory_order_relaxed);
-        if (sustainPedal_ && !down) {
-            sustainPedal_ = false;
-            const auto& lps = audioLayerParams();
-            for (auto& v : voices_) {
-                if (v.active && !v.isReleaseVoice && !v.keyHeld && v.sustained) {
-                    v.sustained = false;
-                    if (!v.sostenutoHeld) {
-                        const int layer = v.layer;
-                        const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
-                        startReleaseOnVoice(v, inst, lps[layer], false);
-                    }
-                }
-            }
-        } else {
-            sustainPedal_ = down;
-        }
+        applySustainLevelChange(channel, norm);
+        return;
+    }
+
+    if (cc == 120) {
+        handleAllSoundOff(channel);
+        return;
+    }
+
+    if (cc == 123) {
+        handleAllNotesOff(channel);
         return;
     }
 
     if (cc == 66) {
         const bool down = (value127 >= 64);
+        const auto& lps = audioLayerParams();
         if (!sostenutoPedal_ && down) {
             sostenutoPedal_ = true;
             for (auto& v : voices_) {
-                if (v.active && !v.isReleaseVoice && !v.killing && v.keyHeld) {
-                    v.sostenutoHeld = true;
-                }
+                if (!v.active || v.isReleaseVoice || v.killing || !v.keyHeld) continue;
+                const LayerParams& lp = lps[v.layer];
+                if (channel > 0 && lp.midiChannel > 0 && lp.midiChannel != channel) continue;
+                v.sostenutoHeld = true;
             }
         } else if (sostenutoPedal_ && !down) {
             sostenutoPedal_ = false;
-            const auto& lps = audioLayerParams();
             for (auto& v : voices_) {
-                if (v.active && !v.isReleaseVoice && v.sostenutoHeld) {
-                    v.sostenutoHeld = false;
-                    if (!v.keyHeld && !v.sustained) {
-                        const int layer = v.layer;
-                        const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
-                        startReleaseOnVoice(v, inst, lps[layer], false);
-                    }
+                if (!v.active || v.isReleaseVoice || !v.sostenutoHeld) continue;
+                const int layer = v.layer;
+                const LayerParams& lp = lps[layer];
+                if (channel > 0 && lp.midiChannel > 0 && lp.midiChannel != channel) continue;
+                v.sostenutoHeld = false;
+                if (!v.keyHeld && !v.sustained) {
+                    const Instrument* inst = instruments_[layer].load(std::memory_order_acquire);
+                    startReleaseOnVoice(v, inst, lp, false);
                 }
             }
         }
@@ -918,6 +1019,7 @@ void Engine::pitchBend(float normalizedOrSemis, int /*channel*/) {
 void Engine::panic() {
     sustainPedal_ = false;
     sustainPedalLevel_ = 0.0f;
+    sustainLevelByCh_.fill(0.0f);
     sostenutoPedal_ = false;
     softPedal_ = false;
     sustainState_.store(false, std::memory_order_relaxed);
@@ -931,6 +1033,7 @@ void Engine::panic() {
         v.sostenutoHeld = false;
         v.releasing = false;
         v.fadeOutRemaining = 0;
+        v.fadeOutLayer = 0;
         v.fadeOutL = 0.0f;
         v.fadeOutR = 0.0f;
         v.lastL = 0.0f;
@@ -1006,6 +1109,19 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
         else layerPresenceGain[l] = 0.0f;
     }
 
+    // Pré-calcula fator de half-pedaling por camada uma vez por bloco (zero std::exp no loop de amostra)
+    std::array<double, kNumLayers> layerHalfPedalMul{};
+    for (int l = 0; l < kNumLayers; ++l) {
+        const float sustLvl = effectiveSustainLevel(lps[l]);
+        if (sustLvl >= kHalfPedalOnThreshold && sustLvl < kFullSustainThreshold) {
+            const double span = double(kFullSustainThreshold - kHalfPedalOnThreshold);
+            const double dampFactor = std::clamp(double(kFullSustainThreshold - sustLvl) / span, 0.0, 1.0);
+            layerHalfPedalMul[l] = std::exp(-(dampFactor * 10.0) * kLn10Over20 / sampleRate_);
+        } else {
+            layerHalfPedalMul[l] = 1.0;
+        }
+    }
+
     // Renderização das vozes por camada (em blocos pequenos de 64 amostras para manter L1 cache sem alocar)
     constexpr int kChunk = 64;
     int offset = 0;
@@ -1016,6 +1132,16 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
 
         for (int vi = 0; vi < maxV; ++vi) {
             auto& v = voices_[vi];
+            if (v.fadeOutRemaining > 0) {
+                const int fl = std::min<int>(v.fadeOutLayer, kNumLayers - 1);
+                const int nFade = std::min(chunk, v.fadeOutRemaining);
+                for (int i = 0; i < nFade; ++i) {
+                    const float f = float(v.fadeOutRemaining) / float(kAntiClickSamples);
+                    layerBufL[fl][i] += v.fadeOutL * f;
+                    layerBufR[fl][i] += v.fadeOutR * f;
+                    --v.fadeOutRemaining;
+                }
+            }
             if (!v.active || !v.sample) continue;
             const int l = v.layer;
             if (!insts[l] || !lps[l].enabled || lps[l].volume <= 0.0001f) {
@@ -1030,6 +1156,7 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
             const double loopLenD = double(s.loopLength);
             const double framesD = double(s.frames);
             const double pbFactor = layerPitchFactor[l];
+            const double halfPedalMul = layerHalfPedalMul[l];
 
             for (int i = 0; i < chunk; ++i) {
                 if (s.loopLength > 0) {
@@ -1048,13 +1175,15 @@ void Engine::render(float* outL, float* outR, int numFrames) noexcept {
                 float rawL = 0.0f, rawR = 0.0f;
                 sampleHermiteStereo(s, idx, frac, rawL, rawR);
 
-                if (s.loopLength > 0 && v.pos >= double(s.loopStart) * 0.25) {
-                    v.loopEnv *= v.loopDecayMul;
+                if (s.loopLength > 0) {
+                    if (v.pos >= double(s.loopStart)) {
+                        v.loopEnv *= v.loopDecayMul;
+                    } else if (v.pos >= double(s.loopStart) * 0.25) {
+                        v.loopEnv *= v.envDecayMul;
+                    }
                 }
-                if (v.sustained && !v.keyHeld && !v.sostenutoHeld && sustainPedalLevel_ < 0.85f) {
-                    const double dampFactor = std::clamp(1.0 - double(sustainPedalLevel_) / 0.85, 0.0, 1.0);
-                    const double halfPedalDecayMul = std::exp(-(dampFactor * 18.0) * kLn10Over20 / sampleRate_);
-                    v.loopEnv *= halfPedalDecayMul;
+                if (v.sustained && !v.keyHeld && !v.sostenutoHeld && halfPedalMul < 1.0) {
+                    v.loopEnv *= halfPedalMul;
                 }
                 if (v.releasing) {
                     v.relEnv *= v.relDecayMul;

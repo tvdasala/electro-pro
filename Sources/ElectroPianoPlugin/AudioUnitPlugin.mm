@@ -405,7 +405,7 @@ static OSStatus AU_GetProperty(void* inStorage,
             return noErr;
 
         case kAudioUnitProperty_TailTime:
-            *reinterpret_cast<Float64*>(outData) = 2.0;
+            *reinterpret_cast<Float64*>(outData) = 10.0;
             *ioDataSize = sizeof(Float64);
             return noErr;
 

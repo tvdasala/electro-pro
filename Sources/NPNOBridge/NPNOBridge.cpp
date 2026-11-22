@@ -571,11 +571,7 @@ struct NPNOHost {
                         if (self->midiCcCallback) {
                             self->midiCcCallback(d1, d2, msgChan, self->midiCcContext);
                         }
-                        if (d1 == 120 || d1 == 123) {
-                            self->eng().pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, msgChan);
-                        } else {
-                            self->eng().pushEvent(npno::Engine::EventType::ControlChange, d1, float(d2), msgChan);
-                        }
+                        self->eng().pushEvent(npno::Engine::EventType::ControlChange, d1, float(d2), msgChan);
                     } else if (type == 0xE0) {
                         const int bend = (int(d2) << 7) | int(d1);
                         const float norm = float(bend - 8192) / 8192.0f;
@@ -1543,11 +1539,7 @@ void npno_host_send_midi_cc(NPNOHost* host, int32_t cc, int32_t value, int32_t c
     if (host->midiCcCallback) {
         host->midiCcCallback(clampedCC, clampedVal, clampedCh > 0 ? clampedCh : 1, host->midiCcContext);
     }
-    if (clampedCC == 120 || clampedCC == 123) {
-        host->eng().pushEvent(npno::Engine::EventType::Panic, 0, 0.0f, clampedCh);
-    } else {
-        host->eng().pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
-    }
+    host->eng().pushEvent(npno::Engine::EventType::ControlChange, clampedCC, float(clampedVal), clampedCh);
 }
 
 void npno_host_render_offline(NPNOHost* host, float* out_l, float* out_r, int32_t num_frames) {
