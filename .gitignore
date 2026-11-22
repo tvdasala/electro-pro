@@ -1,4 +1,7 @@
 .DS_Store
+.agents/
+DESIGN_BRIEF.md
+POLISH_BRIEF.md
 .build/
 .swiftpm/
 build_win/
